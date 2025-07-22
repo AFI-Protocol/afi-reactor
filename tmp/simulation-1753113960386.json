@@ -1,0 +1,22 @@
+{
+  "signalId": "mock-signal-1753113960240",
+  "score": 0.5165600836578308,
+  "confidence": 0.95,
+  "timestamp": "2025-07-21T16:06:00.240Z",
+  "meta": {
+    "source": "simulator",
+    "strategy": "backtest"
+  },
+  "sma": 0.671,
+  "patternMatch": false,
+  "patternType": null,
+  "patternConfidence": 0,
+  "sentimentScore": 0.567,
+  "sentimentLabel": "bullish",
+  "newsImpactScore": 0.344,
+  "headlineSummary": "Ethereum devs confirm major upgrade timeline",
+  "newsSentiment": "positive",
+  "prediction": 0.629,
+  "confidenceLevel": 0.795,
+  "modelUsed": "NeuralNet (v2.3)"
+}

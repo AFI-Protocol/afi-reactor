@@ -1,0 +1,18 @@
+[
+  {
+    "signalId": "mock-signal-001",
+    "result": {
+      "signalId": "mock-signal-001",
+      "score": 0.19924961275905306,
+      "confidence": 0.9293620164210955,
+      "timestamp": "2025-07-21T01:20:30.516Z",
+      "meta": {
+        "source": "mock-source",
+        "strategy": "backtest"
+      },
+      "approvalStatus": "approved",
+      "_id": "687d95dee96d9645900d7513",
+      "vaultStatus": "stored"
+    }
+  }
+]

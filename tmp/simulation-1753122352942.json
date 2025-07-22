@@ -1,0 +1,30 @@
+{
+  "signalId": "mock-signal-1753122352790",
+  "score": 0.17768807514725848,
+  "confidence": 0.95,
+  "timestamp": "2025-07-21T18:25:52.790Z",
+  "meta": {
+    "source": "simulator",
+    "strategy": "backtest"
+  },
+  "ensembleScore": 0.433,
+  "checkpointVerified": true,
+  "persisted": true,
+  "cognitionMetrics": [
+    "linked-insight-001",
+    "pattern-context: wedge",
+    "sentiment-trail: rising"
+  ],
+  "sma": 0.671,
+  "patternMatch": true,
+  "patternType": "double bottom",
+  "patternConfidence": 0.67,
+  "sentimentScore": 0.65,
+  "sentimentLabel": "bullish",
+  "newsImpactScore": 0.809,
+  "headlineSummary": "Market cautious amid geopolitical tensions",
+  "newsSentiment": "positive",
+  "prediction": 0.371,
+  "confidenceLevel": 0.621,
+  "modelUsed": "LightGBM"
+}

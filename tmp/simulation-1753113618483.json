@@ -1,0 +1,22 @@
+{
+  "signalId": "mock-signal-1753113618337",
+  "score": 0.035201775832841564,
+  "confidence": 0.95,
+  "timestamp": "2025-07-21T16:00:18.337Z",
+  "meta": {
+    "source": "simulator",
+    "strategy": "backtest"
+  },
+  "sma": 0.671,
+  "patternMatch": true,
+  "patternType": "bearish wedge",
+  "patternConfidence": 0.77,
+  "sentimentScore": 0.267,
+  "sentimentLabel": "neutral",
+  "newsImpactScore": 0.073,
+  "headlineSummary": "Market cautious amid geopolitical tensions",
+  "newsSentiment": "neutral",
+  "prediction": 0.66,
+  "confidenceLevel": 0.88,
+  "modelUsed": "XGBoost"
+}

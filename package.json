@@ -1,0 +1,29 @@
+{
+  "name": "elizaos",
+  "version": "1.0.0",
+  "description": "Agentic Operating System for AFI Protocol",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "codex:replay": "ts-node ops/codexReplay.ts",
+    "simulate": "tsx ops/cli/afi-cli.ts simulate",
+    "replay": "tsx ops/cli/afi-cli.ts replay",
+    "execute": "tsx cli/afi/commands/afi-execute-command.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "afi-ensemble-scorer": "./plugins/afi-ensemble-scorer",
+    "mongodb": "^6.17.0",
+    "zod": "^4.0.5"
+  },
+  "devDependencies": {
+    "@types/mongodb": "^4.0.6",
+    "@types/node": "^24.0.15",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}

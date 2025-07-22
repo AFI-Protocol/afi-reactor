@@ -1,0 +1,16 @@
+{
+  "name": "afi-ensemble-scorer",
+  "version": "0.1.0",
+  "main": "index.js",
+  "type": "module",
+  "description": "Combines PoI and Insight scores into a weighted ensemble for AFI signal evaluation.",
+  "author": "AFI Protocol",
+  "private": true,
+  "scripts": {
+    "build": "bun build index.ts --outdir=."
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  }
+}

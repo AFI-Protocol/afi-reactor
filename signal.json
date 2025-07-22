@@ -1,0 +1,10 @@
+{
+  "signalId": "exec-test-1",
+  "score": 0.82,
+  "confidence": 0.94,
+  "timestamp": "2025-07-22T00:00:00Z",
+  "meta": {
+    "strategy": "breakout-hunter",
+    "asset": "BTCUSDT"
+  }
+}

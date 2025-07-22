@@ -1,0 +1,38 @@
+{
+  "pipelines": [
+    {
+      "name": "signal-to-vault",
+      "entry": "afi-ensemble-score",
+      "flow": ["dao-mint-checkpoint", "afi-sma-tool", "tssd-vault-persist"],
+      "exit": "tssd-vault-persist",
+      "dagRef": "dag.codex.json",
+      "status": "active"
+    },
+    {
+      "name": "signal-to-vault-cognition",
+      "entry": "afi-ensemble-score",
+      "flow": ["dao-mint-checkpoint", "afi-sma-tool", "tssd-vault-persist", "full-cognition-loop"],
+      "exit": "full-cognition-loop",
+      "dagRef": "dag.codex.json",
+      "status": "active"
+    }
+  ],
+  "tools": [
+    {
+      "toolId": "codex-replay",
+      "description": "Validates DAG, agent, schema, and pipeline links for Codex integrity.",
+      "entryPoint": "ops/codexReplay.ts",
+      "output": "codex/codex.replay.log.json",
+      "agentReady": true,
+      "trackedBy": ["Scarlet", "augmentcode"],
+      "status": "active"
+    }
+  ],
+  "relayHooks": {
+    "enabled": true,
+    "traceTo": "AOS",
+    "logbook": "signalRelay.debug.log"
+  },
+  "replayCapable": true,
+  "agentOpsEnabled": true
+}

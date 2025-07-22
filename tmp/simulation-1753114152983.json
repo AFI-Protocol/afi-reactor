@@ -1,0 +1,30 @@
+{
+  "signalId": "mock-signal-1753114152781",
+  "score": 0.7905801161558967,
+  "confidence": 0.95,
+  "timestamp": "2025-07-21T16:09:12.781Z",
+  "meta": {
+    "source": "simulator",
+    "strategy": "backtest"
+  },
+  "ensembleScore": 0.344,
+  "checkpointVerified": true,
+  "persisted": true,
+  "cognitionMetrics": [
+    "linked-insight-001",
+    "pattern-context: wedge",
+    "sentiment-trail: rising"
+  ],
+  "sma": 0.671,
+  "patternMatch": false,
+  "patternType": null,
+  "patternConfidence": 0,
+  "sentimentScore": 0.341,
+  "sentimentLabel": "bullish",
+  "newsImpactScore": 0.495,
+  "headlineSummary": "Bitcoin ETFs reach record weekly inflows",
+  "newsSentiment": "positive",
+  "prediction": 0.399,
+  "confidenceLevel": 0.651,
+  "modelUsed": "EnsembleStackerXL"
+}

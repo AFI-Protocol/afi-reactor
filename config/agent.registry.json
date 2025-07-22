@@ -1,0 +1,15 @@
+[
+  {
+    "agentName": "signal-agent",
+    "entry": "tools/agents/signal-agent.ts",
+    "strategy": "mean-reversion",
+    "version": "0.1.0",
+    "description": "A stub strategy simulating mean-reversion behavior.",
+    "enabled": true,
+    "tags": [
+      "stub",
+      "strategy",
+      "demo"
+    ]
+  }
+]

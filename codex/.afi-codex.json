@@ -1,0 +1,18 @@
+{
+  "codexVersion": "1.0.0",
+  "description": "AFI Protocol unified Codex for AOS integration and modular agent ops.",
+  "lastUpdated": "2025-07-19T00:00:00Z",
+  "manifest": {
+    "dag": "./dag.codex.json",
+    "schemas": "./schema.codex.json",
+    "agents": "./agents.codex.json",
+    "ops": "./ops.codex.json"
+  },
+  "trackedBy": [
+    "Scarlet",
+    "augmentcode",
+    "factory.droid"
+  ],
+  "agentReady": true,
+  "aosHook": true
+}

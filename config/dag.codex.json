@@ -1,0 +1,116 @@
+[
+  {
+    "id": "afi-ensemble-score",
+    "type": "scorer",
+    "plugin": "afi-ensemble-scorer",
+    "input": ["analyzed-signal"],
+    "output": "scored-signal",
+    "description": "Performs signal scoring using AFI's custom ensemble method, balancing PoI and PoInsight.",
+    "tags": ["ensemble", "validator", "afi"],
+    "config": {
+      "poiWeight": 0.6,
+      "insightWeight": 0.4
+    },
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["augmentcode", "factory.droid"],
+    "schemaRef": "scored-signal.schema.json"
+  },
+  {
+    "id": "dao-mint-checkpoint",
+    "type": "governance",
+    "plugin": "dao-checkpoint-verifier",
+    "input": ["scored-signal"],
+    "output": "approved-signal",
+    "description": "Verifies scored signal through AFI DAO consensus.",
+    "config": {
+      "quorum": "simple-majority"
+    },
+    "schemaRef": "approved-signal.schema.json"
+  },
+  {
+    "id": "tssd-vault-persist",
+    "type": "persistence",
+    "plugin": "tssd-vault-service",
+    "input": ["approved-signal"],
+    "output": "vaulted-signal",
+    "description": "Stores approved signals in the MongoDB T.S.S.D. Vault.",
+    "schemaRef": "vaulted-signal.schema.json"
+  },
+  {
+    "id": "full-cognition-loop",
+    "type": "cognition",
+    "plugin": "full-cognition-loop",
+    "input": ["vaulted-signal"],
+    "output": "cognition-metrics",
+    "description": "Performs cognitive analysis on vaulted signal and updates internal cognition maps.",
+    "config": {
+      "lineageDepth": 3,
+      "minRelatedScore": 0.7
+    },
+    "schemaRef": "cognition-metrics.schema.json",
+    "maintainedBy": ["Scarlet"],
+    "codexVersion": "1.0.0",
+    "agentReady": true
+  },
+  {
+    "id": "afi-technical-indicators",
+    "type": "analyzer",
+    "plugin": "afi-technical-indicators",
+    "input": ["approved-signal"],
+    "output": "technical-analysis",
+    "description": "Runs MCP-enabled technical indicator calculations such as SMA, EMA, RSI, etc.",
+    "schemaRef": "technical-analysis.schema.json",
+    "codexVersion": "1.0.0",
+    "maintainedBy": ["Scarlet"],
+    "agentReady": true
+  },
+  {
+    "id": "afi-pattern-detector",
+    "type": "analyzer",
+    "plugin": "afi-pattern-detector",
+    "input": ["technical-analysis"],
+    "output": "pattern-analysis",
+    "description": "Detects price action or candlestick patterns in signals.",
+    "schemaRef": "pattern-analysis.schema.json",
+    "codexVersion": "1.0.0",
+    "maintainedBy": ["Scarlet"],
+    "agentReady": true
+  },
+  {
+    "id": "afi-twitter-sentiment",
+    "type": "sentiment",
+    "plugin": "afi-twitter-sentiment",
+    "input": ["pattern-analysis"],
+    "output": "twitter-sentiment",
+    "description": "Analyzes Twitter sentiment for the asset related to the signal.",
+    "schemaRef": "twitter-sentiment.schema.json",
+    "codexVersion": "1.0.0",
+    "maintainedBy": ["Scarlet"],
+    "agentReady": false
+  },
+  {
+    "id": "afi-news-reactor",
+    "type": "news",
+    "plugin": "afi-news-reactor",
+    "input": ["twitter-sentiment"],
+    "output": "news-analysis",
+    "description": "Evaluates the signal in light of recent news trends, headlines, and media impact.",
+    "schemaRef": "news-analysis.schema.json",
+    "codexVersion": "1.0.0",
+    "maintainedBy": ["Scarlet"],
+    "agentReady": false
+  },
+  {
+    "id": "afi-ml-ensemble",
+    "type": "analysis",
+    "plugin": "afi-ml-ensemble",
+    "input": ["news-analysis"],
+    "output": "ml-analyzed-signal",
+    "description": "Uses machine learning ensembles to generate predictive analytics from the fully enriched signal.",
+    "schemaRef": "ml-analyzed-signal.schema.json",
+    "codexVersion": "1.0.0",
+    "maintainedBy": ["Scarlet"],
+    "agentReady": false
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "binance-local": {
+    "type": "local",
+    "auth": "env",
+    "entry": "tools/execution/binance-local.ts",
+    "description": "Direct Binance API execution using local environment variables."
+  },
+  "coinbase-remote": {
+    "type": "remote",
+    "auth": "injected",
+    "entry": "tools/execution/coinbase-remote.ts",
+    "description": "Remote execution via secure agent, credentials injected at runtime."
+  },
+  "paper-sim": {
+    "type": "simulated",
+    "auth": "none",
+    "entry": "tools/execution/paper-sim.ts",
+    "description": "Simulation agent for testing execution logic without real orders."
+  }
+}

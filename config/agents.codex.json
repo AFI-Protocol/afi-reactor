@@ -1,0 +1,74 @@
+[
+  {
+    "agentId": "augmentcode",
+    "linkedNodes": ["afi-ensemble-score"],
+    "description": "AugmentCode handles ensemble-based signal scoring using PoI and PoInsight balancing.",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active"
+  },
+  {
+    "agentId": "factory.droid",
+    "linkedNodes": ["dao-mint-checkpoint"],
+    "description": "Factory Droids handle DAO quorum verification and checkpoint validation.",
+    "maintainer": "factory.droid",
+    "agentReady": true,
+    "status": "active"
+  },
+  {
+    "agentId": "scarlet",
+    "linkedNodes": ["tssd-vault-persist"],
+    "description": "Scarlet manages MongoDB T.S.S.D. Vault persistence of approved signals.",
+    "maintainer": "Scarlet",
+    "agentReady": true,
+    "status": "active"
+  },
+  {
+    "agentId": "scarlet.cognition",
+    "linkedNodes": ["full-cognition-loop"],
+    "description": "Scarlet’s cognition-classifier agent for signal lineage and insight mapping.",
+    "maintainer": "Scarlet",
+    "agentReady": true,
+    "status": "active"
+  },
+  {
+    "agentId": "afi.technical",
+    "linkedModules": ["afi-technical-indicators"],
+    "description": "MCP-compatible agent specializing in technical indicator computation, including SMA, EMA, RSI, and more.",
+    "maintainer": "Scarlet",
+    "agentReady": true,
+    "status": "active"
+  },
+  {
+    "agentId": "afi.pattern",
+    "linkedModules": ["afi-pattern-detector"],
+    "description": "MCP agent that detects known chart patterns such as flags, wedges, and breakouts from signal history.",
+    "maintainer": "Scarlet",
+    "agentReady": false,
+    "status": "prototype"
+  },
+  {
+    "agentId": "afi.sentiment",
+    "linkedModules": ["afi-twitter-sentiment"],
+    "description": "MCP agent analyzing Twitter content for sentiment indicators relating to the target asset.",
+    "maintainer": "Scarlet",
+    "agentReady": false,
+    "status": "prototype"
+  },
+  {
+    "agentId": "afi.news",
+    "linkedModules": ["afi-news-reactor"],
+    "description": "MCP agent that parses financial news articles to identify reactions or correlations affecting market signals.",
+    "maintainer": "Scarlet",
+    "agentReady": false,
+    "status": "prototype"
+  },
+  {
+    "agentId": "afi.ml",
+    "linkedModules": ["afi-ml-ensemble"],
+    "description": "MCP agent simulating ensemble-based ML forecasting for enriched financial signals.",
+    "maintainer": "Scarlet",
+    "agentReady": false,
+    "status": "prototype"
+  }
+]

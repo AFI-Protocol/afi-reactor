@@ -1,0 +1,104 @@
+[
+  {
+    "schemaRef": "scored-signal.schema.json",
+    "linkedDAGNode": "afi-ensemble-score",
+    "description": "Schema for ensemble-scored signals.",
+    "zodSource": "../schemas/scoredSignalSchema.ts",
+    "version": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["augmentcode"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "score", "confidence"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "score": { "type": "number" },
+        "confidence": { "type": "number" }
+      }
+    }
+  },
+  {
+    "schemaRef": "approved-signal.schema.json",
+    "linkedDAGNode": "dao-mint-checkpoint",
+    "description": "Schema for DAO-approved signals.",
+    "version": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["factory.droid"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "approvalStatus"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "approvalStatus": { "type": "string", "enum": ["approved"] }
+      }
+    }
+  },
+  {
+    "schemaRef": "vaulted-signal.schema.json",
+    "linkedDAGNode": "tssd-vault-persist",
+    "description": "Schema for MongoDB T.S.S.D. Vaulted signal entries.",
+    "version": "2.0.0",
+    "agentReady": true,
+    "maintainedBy": ["Scarlet"],
+    "status": "active",
+    "meta": {
+      "bsonType": "object",
+      "required": ["signalId", "timestamp", "score"],
+      "properties": {
+        "signalId": { "bsonType": "string" },
+        "timestamp": { "bsonType": "date" },
+        "score": { "bsonType": "double" },
+        "meta": { "bsonType": "object" },
+        "relatedSignals": {
+          "bsonType": "array",
+          "items": { "bsonType": "string" },
+          "description": "Optional references to other related signalIds."
+        },
+        "lineage": {
+          "bsonType": "object",
+          "properties": {
+            "parentId": { "bsonType": "string" },
+            "derivedFrom": { "bsonType": "string" },
+            "ancestorChain": {
+              "bsonType": "array",
+              "items": { "bsonType": "string" }
+            }
+          }
+        },
+        "cognitiveTags": {
+          "bsonType": "array",
+          "items": { "bsonType": "string" },
+          "description": "Tags representing abstract cognitive patterns or domains."
+        }
+      }
+    }
+  },
+  {
+    "schemaRef": "cognition-metrics.schema.json",
+    "linkedDAGNode": "full-cognition-loop",
+    "description": "Schema for cognition metrics derived from vaulted signal.",
+    "version": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["Scarlet", "augmentcode"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "lineage", "cognitiveTags", "score"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "lineage": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "cognitiveTags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "score": { "type": "number" },
+        "meta": { "type": "object" }
+      }
+    }
+  }
+]
