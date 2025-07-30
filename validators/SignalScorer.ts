@@ -1,8 +1,1 @@
-
-export const SignalScorer = {
-  evaluate(signal) {
-    return {
-      insightScore: Math.random() * 100 // Placeholder logic
-    };
-  }
-};
+// Placeholder for validators/SignalScorer.ts

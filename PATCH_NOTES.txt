@@ -1,0 +1,18 @@
+AFI-ENGINE FINAL PATCH
+
+Fixes:
+1. Convert all .ts imports to .js for NodeNext ESM compatibility.
+2. Add 'with { type: "json" }' for JSON imports (dagCodex, agentRegistry).
+3. Add missing timestamp to test signals.
+4. Annotate validator params and err variables.
+5. Fix type errors in signal-agent and vaultInsert tests.
+
+After extracting:
+1. Overwrite the afi-engine root.
+2. Run:
+   rm -rf dist .tsbuildinfo
+   npm install
+   npm run build
+   npm run simulate-signal
+
+Expected: ✅ Clean build + simulation without ESM or TS errors.

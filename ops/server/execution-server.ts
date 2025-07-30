@@ -1,5 +1,5 @@
 import http from "http";
-import { executeSignal } from "../../tools/agents/execution-agent.js"; // removed `.ts`
+import { executeSignal } from "../../tools/agents/execution-agent.js"; // no .ts
 
 const port = 8081;
 
@@ -7,7 +7,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && req.url === "/api/execute") {
     let body = "";
 
-    req.on("data", chunk => (body += chunk));
+    req.on("data", (chunk) => (body += chunk));
 
     req.on("end", async () => {
       try {
@@ -52,3 +52,5 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, () => {
   console.log(`🚦 Execution server running at http://localhost:${port}/api/execute`);
 });
+
+export {}; // Keep this to satisfy TypeScript module requirement

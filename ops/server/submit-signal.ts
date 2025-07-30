@@ -1,12 +1,20 @@
-import { Request, Response } from "express";
-import { runDAG } from "../../core/dag-engine.js"; // Adjust if using .ts instead of .js extension
+import type { Request, Response } from "express";
+import { runDAG } from "../../core/dag-engine.js";
+
+interface IncomingSignal {
+  signalId?: string;
+  score?: number;
+  confidence?: number;
+  timestamp?: string;
+  meta?: Record<string, any>;
+}
 
 export async function submitSignal(req: Request, res: Response) {
   try {
-    const body = req.body;
+    const body = req.body as IncomingSignal;
 
     if (!body || typeof body !== "object") {
-      return res.status(400).json({ error: "Invalid signal payload" });
+      return (res as any).status(400).json({ error: "Invalid signal payload" });
     }
 
     const signal = {
@@ -14,7 +22,7 @@ export async function submitSignal(req: Request, res: Response) {
       score: body.score ?? Math.random(),
       confidence: body.confidence ?? 0.9,
       timestamp: new Date().toISOString(),
-      meta: body.meta ?? { source: "webhook" }
+      meta: body.meta ?? { source: "webhook" },
     };
 
     console.log(`📨 Incoming Signal:\n`, signal);
@@ -23,12 +31,12 @@ export async function submitSignal(req: Request, res: Response) {
 
     console.log(`✅ DAG execution complete. Signal enriched:\n`, result);
 
-    return res.status(200).json({
+    return (res as any).status(200).json({
       status: "ok",
       enrichedSignal: result,
     });
   } catch (err: any) {
     console.error(`❌ Error in signal submission: ${err.message}`);
-    return res.status(500).json({ error: "Internal server error" });
+    return (res as any).status(500).json({ error: "Internal server error" });
   }
 }

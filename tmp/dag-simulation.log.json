@@ -1,0 +1,41 @@
+{
+  "simulation": {
+    "type": "simulation",
+    "startTime": "2025-07-30T22:04:53.433Z",
+    "endTime": "2025-07-30T22:04:53.635Z",
+    "duration": 0.202,
+    "status": "success"
+  },
+  "signal": {
+    "input": {
+      "signalId": "mock-signal-afi-0001",
+      "score": 0.8674171997056215,
+      "confidence": 0.95,
+      "timestamp": "2025-07-30T22:04:53.435Z",
+      "meta": {
+        "source": "simulator",
+        "strategy": "backtest"
+      }
+    },
+    "output": {
+      "signalId": "mock-signal-afi-0001",
+      "score": 0.8674171997056215,
+      "confidence": 0.95,
+      "timestamp": "2025-07-30T22:04:53.435Z",
+      "meta": {
+        "source": "simulator",
+        "strategy": "backtest"
+      },
+      "processed": true,
+      "dagType": "signal-to-vault",
+      "processedAt": "2025-07-30T22:04:53.635Z"
+    },
+    "processed": true
+  },
+  "metrics": {
+    "signalId": "mock-signal-afi-0001",
+    "dagType": "signal-to-vault",
+    "confidence": 0.95,
+    "score": 0.8674171997056215
+  }
+}

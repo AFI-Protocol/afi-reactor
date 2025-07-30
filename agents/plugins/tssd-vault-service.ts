@@ -1,18 +1,6 @@
-import { insertVaultedSignal } from '../persistence/vaultInsert';
-import type { VaultedSignal } from '../types/VaultedSignal';
+import { insertVaultedSignal } from '../persistence/VaultedSignalStore.js';
+import type { VaultedSignal } from '../../types/VaultedSignal.js';
 
-export async function run(input: VaultedSignal) {
-  try {
-    const result = await insertVaultedSignal(input);
-    return {
-      status: 'success',
-      insertedId: result.insertedId,
-    };
-  } catch (err) {
-    console.error('❌ Vault plugin failed:', err);
-    return {
-      status: 'error',
-      message: err instanceof Error ? err.message : 'Unknown error',
-    };
-  }
+export async function storeSignal(signal: VaultedSignal) {
+  await insertVaultedSignal(signal);
 }
