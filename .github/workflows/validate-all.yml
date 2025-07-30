@@ -21,30 +21,90 @@ jobs:
           node-version: '22.x'
           cache: 'npm'
           
+      - name: Create required directories
+        run: |
+          mkdir -p tmp
+          mkdir -p codex
+          
       - name: Install dependencies
         run: npm ci
         
-      - name: Ensure tmp directory exists
-        run: mkdir -p tmp
-        
       - name: Run AFI-Engine validation pipeline
+        id: validation
+        continue-on-error: true
         run: |
           echo "🚀 Starting AFI-Engine validation pipeline..."
           npm run validate-all
           echo "✅ Validation pipeline completed successfully!"
           
+      - name: Ensure all log files exist
+        if: always()
+        run: |
+          echo "📝 Ensuring all required log files exist..."
+          
+          # Create dummy Codex replay log if missing
+          if [ ! -f "codex/codex.replay.log.json" ]; then
+            echo "⚠️  Creating dummy Codex replay log (validation failed before execution)"
+            cat > codex/codex.replay.log.json << EOF
+{
+  "status": "failed",
+  "healthyNodes": 0,
+  "totalNodes": 0,
+  "issues": 1,
+  "results": [],
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "error": "Validation pipeline failed before Codex replay could execute",
+  "isDummyLog": true
+}
+EOF
+          fi
+          
+          # Create dummy DAG simulation log if missing
+          if [ ! -f "tmp/dag-simulation.log.json" ]; then
+            echo "⚠️  Creating dummy DAG simulation log (validation failed before execution)"
+            cat > tmp/dag-simulation.log.json << EOF
+{
+  "status": "failed",
+  "nodesProcessed": 0,
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "error": "Validation pipeline failed before DAG simulation could execute",
+  "isDummyLog": true
+}
+EOF
+          fi
+          
+          # Create dummy mentor evaluation if missing
+          if [ ! -f "tmp/mentor-evaluation.json" ]; then
+            echo "⚠️  Creating dummy mentor evaluation log (validation failed before execution)"
+            cat > tmp/mentor-evaluation.json << EOF
+{
+  "status": "failed",
+  "agentReadinessScore": 0,
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "error": "Validation pipeline failed before mentor evaluation could execute",
+  "isDummyLog": true
+}
+EOF
+          fi
+          
+          echo "✅ All log files are now present"
+          
       - name: Display validation summary
         if: always()
         run: |
+          echo ""
           echo "📊 AFI-Engine Validation Summary"
           echo "=================================="
           
-          if [ -f "codex/codex.replay.log.json" ]; then
-            echo "🔍 Codex Replay Results:"
-            node -e "
-              const fs = require('fs');
-              try {
-                const log = JSON.parse(fs.readFileSync('codex/codex.replay.log.json', 'utf8'));
+          echo "🔍 Codex Replay Results:"
+          node -e "
+            const fs = require('fs');
+            try {
+              const log = JSON.parse(fs.readFileSync('codex/codex.replay.log.json', 'utf8'));
+              if (log.isDummyLog) {
+                console.log('   ⚠️  DUMMY LOG: Validation failed before Codex replay');
+                console.log(\`   Error: \${log.error}\`);
+              } else {
                 console.log(\`   Healthy Nodes: \${log.healthyNodes}/\${log.totalNodes}\`);
                 console.log(\`   Issues Found: \${log.issues}\`);
                 if (log.issues > 0) {
@@ -53,47 +113,51 @@ jobs:
                     console.log(\`      - \${r.nodeId}: [\${r.status}] \${r.messages.join(' | ')}\`);
                   });
                 }
-              } catch (e) {
-                console.log('   ❌ Failed to parse Codex replay log');
               }
-            "
-          else
-            echo "   ❌ Codex replay log not found"
-          fi
+            } catch (e) {
+              console.log('   ❌ Failed to parse Codex replay log');
+            }
+          "
           
-          if [ -f "tmp/dag-simulation.log.json" ]; then
-            echo "🎯 DAG Simulation Results:"
-            node -e "
-              const fs = require('fs');
-              try {
-                const log = JSON.parse(fs.readFileSync('tmp/dag-simulation.log.json', 'utf8'));
+          echo ""
+          echo "🎯 DAG Simulation Results:"
+          node -e "
+            const fs = require('fs');
+            try {
+              const log = JSON.parse(fs.readFileSync('tmp/dag-simulation.log.json', 'utf8'));
+              if (log.isDummyLog) {
+                console.log('   ⚠️  DUMMY LOG: Validation failed before DAG simulation');
+                console.log(\`   Error: \${log.error}\`);
+              } else {
                 console.log(\`   Simulation Status: \${log.status || 'unknown'}\`);
                 console.log(\`   Nodes Processed: \${log.nodesProcessed || 'N/A'}\`);
-              } catch (e) {
-                console.log('   ❌ Failed to parse DAG simulation log');
               }
-            "
-          else
-            echo "   ❌ DAG simulation log not found"
-          fi
+            } catch (e) {
+              console.log('   ❌ Failed to parse DAG simulation log');
+            }
+          "
           
-          if [ -f "tmp/mentor-evaluation.json" ]; then
-            echo "🧠 MentorChain Evaluation:"
-            node -e "
-              const fs = require('fs');
-              try {
-                const log = JSON.parse(fs.readFileSync('tmp/mentor-evaluation.json', 'utf8'));
+          echo ""
+          echo "🧠 MentorChain Evaluation:"
+          node -e "
+            const fs = require('fs');
+            try {
+              const log = JSON.parse(fs.readFileSync('tmp/mentor-evaluation.json', 'utf8'));
+              if (log.isDummyLog) {
+                console.log('   ⚠️  DUMMY LOG: Validation failed before mentor evaluation');
+                console.log(\`   Error: \${log.error}\`);
+              } else {
                 console.log(\`   Agent Readiness: \${log.agentReadinessScore || 'N/A'}%\`);
                 console.log(\`   Evaluation Status: \${log.status || 'unknown'}\`);
-              } catch (e) {
-                console.log('   ❌ Failed to parse mentor evaluation log');
               }
-            "
-          else
-            echo "   ❌ Mentor evaluation log not found"
-          fi
+            } catch (e) {
+              console.log('   ❌ Failed to parse mentor evaluation log');
+            }
+          "
           
+          echo ""
           echo "=================================="
+          echo ""
           
       - name: Upload Codex replay log
         if: always()
@@ -101,7 +165,6 @@ jobs:
         with:
           name: codex-replay-log
           path: codex/codex.replay.log.json
-          if-no-files-found: warn
           retention-days: 30
           
       - name: Upload DAG simulation log
@@ -110,7 +173,6 @@ jobs:
         with:
           name: dag-simulation-log
           path: tmp/dag-simulation.log.json
-          if-no-files-found: warn
           retention-days: 30
           
       - name: Upload mentor evaluation
@@ -119,7 +181,6 @@ jobs:
         with:
           name: mentor-evaluation
           path: tmp/mentor-evaluation.json
-          if-no-files-found: warn
           retention-days: 30
           
       - name: Upload all validation artifacts
@@ -132,5 +193,25 @@ jobs:
             tmp/dag-simulation.log.json
             tmp/mentor-evaluation.json
             tmp/*.log
-          if-no-files-found: warn
           retention-days: 30
+          
+      - name: Final validation status check
+        if: always()
+        run: |
+          echo ""
+          if [ "${{ steps.validation.outcome }}" != "success" ]; then
+            echo "❌ AFI-Engine validation pipeline FAILED"
+            echo "📋 Check the uploaded artifacts for detailed error information:"
+            echo "   • codex-replay-log"
+            echo "   • dag-simulation-log" 
+            echo "   • mentor-evaluation"
+            echo "   • afi-engine-validation-artifacts (combined)"
+            echo ""
+            echo "🔍 Artifacts are available for download from the GitHub Actions summary page."
+            exit 1
+          else
+            echo "✅ AFI-Engine validation pipeline PASSED successfully"
+            echo "🎯 All validation steps completed without errors"
+            echo "📊 Check artifacts for detailed telemetry and metrics"
+            echo ""
+          fi
