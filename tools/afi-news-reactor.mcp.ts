@@ -1,4 +1,4 @@
-import { Signal } from "../types/Signal";
+import { Signal } from "../types/Signal.js";
 
 const sampleHeadlines = [
   "Fed signals potential rate hike next quarter",

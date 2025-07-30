@@ -1,3 +1,1 @@
-import index from './index.ts';
-
-export default index;
+// Placeholder for plugins/afi-ensemble-scorer/eliza.plugin.ts

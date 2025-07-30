@@ -1,0 +1,52 @@
+[
+  {
+    "id": "afi-ensemble-score",
+    "type": "scorer",
+    "plugin": "afi-ensemble-scorer",
+    "input": ["analyzed-signal"],
+    "output": "scored-signal",
+    "description": "Performs signal scoring using AFI's custom ensemble method, balancing PoI and PoInsight.",
+    "tags": ["ensemble", "validator", "afi"],
+    "config": {
+      "poiWeight": 0.6,
+      "insightWeight": 0.4
+    },
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["augmentcode", "factory.droid"],
+    "schemaRef": "scored-signal.schema.json"
+  },
+  {
+    "id": "dao-mint-checkpoint",
+    "type": "validator",
+    "plugin": "dao-checkpoint-validator",
+    "input": ["scored-signal"],
+    "output": "validated-signal",
+    "description": "Factory Droids handle DAO quorum verification and checkpoint validation.",
+    "tags": ["dao", "checkpoint", "validation"],
+    "config": {
+      "quorumThreshold": 0.67
+    },
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["factory.droid"],
+    "schemaRef": "validated-signal.schema.json"
+  },
+  {
+    "id": "tssd-vault-persist",
+    "type": "persister",
+    "plugin": "tssd-vault-writer",
+    "input": ["validated-signal"],
+    "output": "persisted-signal",
+    "description": "Scarlet manages MongoDB T.S.S.D. Vault persistence of approved signals.",
+    "tags": ["tssd", "vault", "persistence"],
+    "config": {
+      "collection": "signals",
+      "retention": "30d"
+    },
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["scarlet"],
+    "schemaRef": "persisted-signal.schema.json"
+  }
+]

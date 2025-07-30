@@ -1,4 +1,4 @@
-import { Signal } from "../types/Signal";
+import { Signal } from "../types/Signal.js";
 
 export async function analyze(signal: Signal): Promise<Signal & { ensembleScore: number }> {
   const ensembleScore = parseFloat((Math.random()).toFixed(3));

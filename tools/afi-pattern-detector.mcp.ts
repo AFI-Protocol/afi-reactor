@@ -1,4 +1,4 @@
-import { Signal } from "../types/Signal";
+import { Signal } from "../types/Signal.js";
 
 const mockPatterns = [
   "bullish flag",

@@ -1,7 +1,14 @@
-import { runDAG } from "../../core/dag-engine"; // Or whatever your DAG engine is
+import { runDAG, DAGSignal } from "../../core/dag-engine.js";
 import { writeFileSync } from "fs";
+import path from "path";
+import process from "process";
 
-const mockSignal = {
+const isReplay = process.argv.includes("--replay");
+const startTime = new Date();
+
+console.log(`🚀 DAG ${isReplay ? "Replay" : "Simulation"} started at ${startTime.toISOString()}`);
+
+const mockSignal: DAGSignal = {
   signalId: "mock-signal-afi-0001",
   score: Math.random(),
   confidence: 0.95,
@@ -10,8 +17,44 @@ const mockSignal = {
 };
 
 (async () => {
-  console.log("🚀 Simulating full AFI signal pipeline...");
-  const result = await runDAG("signal-to-vault", mockSignal);
-  writeFileSync("tmp/simulation-result.json", JSON.stringify(result, null, 2));
-  console.log("✅ Final signal result stored in tmp/simulation-result.json");
+  try {
+    const results = await runDAG("signal-to-vault", mockSignal);
+    const endTime = new Date();
+    const duration = (endTime.getTime() - startTime.getTime()) / 1000;
+
+    // Agent-friendly telemetry log
+    const telemetryLog = {
+      simulation: {
+        type: isReplay ? "replay" : "simulation",
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        duration,
+        status: "success"
+      },
+      signal: {
+        input: mockSignal,
+        output: results,
+        processed: results.processed
+      },
+      metrics: {
+        signalId: results.signalId,
+        dagType: results.dagType,
+        confidence: results.confidence,
+        score: results.score
+      }
+    };
+
+    // Write telemetry for agents
+    const logPath = path.resolve("tmp", "dag-simulation.log.json");
+    writeFileSync(logPath, JSON.stringify(telemetryLog, null, 2));
+
+    console.log(`✅ DAG ${isReplay ? "Replay" : "Simulation"} complete`);
+    console.log(`📊 Signal processed: ${results.signalId}`);
+    console.log(`⏱️ Duration: ${duration}s`);
+    console.log(`📝 Telemetry logged: ${logPath}`);
+    console.log(`🏁 Finished at ${endTime.toISOString()}`);
+  } catch (err) {
+    console.error("💥 DAG execution failed:", err);
+    process.exit(1);
+  }
 })();

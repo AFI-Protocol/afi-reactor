@@ -1,4 +1,4 @@
-import { Signal } from "../types/Signal";
+import { Signal } from "../types/Signal.js";
 
 export async function analyze(signal: Signal): Promise<Signal & { sentimentScore: number; sentimentLabel: string }> {
   const sentimentScore = parseFloat((Math.random() * 2 - 1).toFixed(3)); // Range: -1 (bearish) to 1 (bullish)

@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'url';
 import path from 'path';
-import { DAGNode } from '../../types/codex';
+import { DAGNode } from '../../types/codex.js';
 import { loadCodexFile } from '../utils/loadCodex.js';
 import { getSignal } from '../utils/signalInput.js';
 

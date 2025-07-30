@@ -1,18 +1,23 @@
-[
-  {
-    "signalId": "mock-signal-001",
-    "result": {
-      "signalId": "mock-signal-001",
-      "score": 0.19924961275905306,
-      "confidence": 0.9293620164210955,
-      "timestamp": "2025-07-21T01:20:30.516Z",
-      "meta": {
-        "source": "mock-source",
-        "strategy": "backtest"
-      },
-      "approvalStatus": "approved",
-      "_id": "687d95dee96d9645900d7513",
-      "vaultStatus": "stored"
+{
+  "timestamp": "2025-07-30T19:24:53.660Z",
+  "totalNodes": 3,
+  "healthyNodes": 3,
+  "issues": 0,
+  "results": [
+    {
+      "nodeId": "afi-ensemble-score",
+      "status": "ok",
+      "messages": []
+    },
+    {
+      "nodeId": "dao-mint-checkpoint",
+      "status": "ok",
+      "messages": []
+    },
+    {
+      "nodeId": "tssd-vault-persist",
+      "status": "ok",
+      "messages": []
     }
-  }
-]
+  ]
+}

@@ -1,5 +1,5 @@
 import http from "http";
-import { executeSignal } from "../../tools/agents/execution-agent"; // removed `.ts`
+import { executeSignal } from "../../tools/agents/execution-agent.js"; // removed `.ts`
 
 const port = 8081;
 

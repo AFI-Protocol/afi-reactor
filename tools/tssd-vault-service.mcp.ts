@@ -1,4 +1,4 @@
-import { Signal } from "../types/Signal";
+import { Signal } from "../types/Signal.js";
 
 export async function analyze(signal: Signal): Promise<Signal & { persisted: boolean }> {
   const persisted = true;

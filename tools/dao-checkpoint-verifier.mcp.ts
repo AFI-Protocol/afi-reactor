@@ -1,4 +1,4 @@
-import { Signal } from "../types/Signal";
+import { Signal } from "../types/Signal.js";
 
 export async function analyze(signal: Signal): Promise<Signal & { checkpointVerified: boolean }> {
   const checkpointVerified = true;

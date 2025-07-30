@@ -1,5 +1,5 @@
 import { MongoClient } from "mongodb";
-import { Signal } from "../types/Signal"; // Ensure this path reflects your actual structure
+import { Signal } from "../types/Signal.js"; // Ensure this path reflects your actual structure
 
 export async function analyze(signal: Signal): Promise<Signal & { sma: number }> {
   const SMA_PERIOD = 5;

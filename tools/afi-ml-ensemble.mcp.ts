@@ -1,4 +1,4 @@
-import { Signal } from "../types/Signal";
+import { Signal } from "../types/Signal.js";
 
 const modelPool = ["XGBoost", "LightGBM", "RandomForest", "NeuralNet (v2.3)", "EnsembleStackerXL"];
 

@@ -1,0 +1,133 @@
+name: AFI-Engine Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate AFI-Engine
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run AFI-Engine validation pipeline
+        run: |
+          echo "🚀 Starting AFI-Engine validation pipeline..."
+          npm run validate-all
+          echo "✅ Validation pipeline completed successfully!"
+          
+      - name: Display validation summary
+        if: always()
+        run: |
+          echo "📊 AFI-Engine Validation Summary"
+          echo "=================================="
+          
+          if [ -f "codex/codex.replay.log.json" ]; then
+            echo "🔍 Codex Replay Results:"
+            node -e "
+              const fs = require('fs');
+              try {
+                const log = JSON.parse(fs.readFileSync('codex/codex.replay.log.json', 'utf8'));
+                console.log(\`   Healthy Nodes: \${log.healthyNodes}/\${log.totalNodes}\`);
+                console.log(\`   Issues Found: \${log.issues}\`);
+                if (log.issues > 0) {
+                  console.log('   ⚠️  Issues:');
+                  log.results.filter(r => r.status !== 'ok').forEach(r => {
+                    console.log(\`      - \${r.nodeId}: [\${r.status}] \${r.messages.join(' | ')}\`);
+                  });
+                }
+              } catch (e) {
+                console.log('   ❌ Failed to parse Codex replay log');
+              }
+            "
+          else
+            echo "   ❌ Codex replay log not found"
+          fi
+          
+          if [ -f "tmp/dag-simulation.log.json" ]; then
+            echo "🎯 DAG Simulation Results:"
+            node -e "
+              const fs = require('fs');
+              try {
+                const log = JSON.parse(fs.readFileSync('tmp/dag-simulation.log.json', 'utf8'));
+                console.log(\`   Simulation Status: \${log.status || 'unknown'}\`);
+                console.log(\`   Nodes Processed: \${log.nodesProcessed || 'N/A'}\`);
+              } catch (e) {
+                console.log('   ❌ Failed to parse DAG simulation log');
+              }
+            "
+          else
+            echo "   ❌ DAG simulation log not found"
+          fi
+          
+          if [ -f "tmp/mentor-evaluation.json" ]; then
+            echo "🧠 MentorChain Evaluation:"
+            node -e "
+              const fs = require('fs');
+              try {
+                const log = JSON.parse(fs.readFileSync('tmp/mentor-evaluation.json', 'utf8'));
+                console.log(\`   Agent Readiness: \${log.agentReadinessScore || 'N/A'}%\`);
+                console.log(\`   Evaluation Status: \${log.status || 'unknown'}\`);
+              } catch (e) {
+                console.log('   ❌ Failed to parse mentor evaluation log');
+              }
+            "
+          else
+            echo "   ❌ Mentor evaluation log not found"
+          fi
+          
+          echo "=================================="
+          
+      - name: Upload Codex replay log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-replay-log
+          path: codex/codex.replay.log.json
+          if-no-files-found: warn
+          retention-days: 30
+          
+      - name: Upload DAG simulation log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dag-simulation-log
+          path: tmp/dag-simulation.log.json
+          if-no-files-found: warn
+          retention-days: 30
+          
+      - name: Upload mentor evaluation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mentor-evaluation
+          path: tmp/mentor-evaluation.json
+          if-no-files-found: warn
+          retention-days: 30
+          
+      - name: Upload all validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: afi-engine-validation-artifacts
+          path: |
+            codex/codex.replay.log.json
+            tmp/dag-simulation.log.json
+            tmp/mentor-evaluation.json
+            tmp/*.log
+          if-no-files-found: warn
+          retention-days: 30

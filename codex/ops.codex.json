@@ -1,0 +1,35 @@
+{
+  "pipelines": [
+    {
+      "name": "signal-to-vault",
+      "entry": "afi-ensemble-score",
+      "flow": ["dao-mint-checkpoint", "tssd-vault-persist"],
+      "exit": "tssd-vault-persist",
+      "dagRef": "dag.codex.json",
+      "status": "active",
+      "description": "Core signal processing pipeline from scoring to vault persistence"
+    },
+    {
+      "name": "signal-to-vault-cognition",
+      "entry": "afi-ensemble-score",
+      "flow": ["dao-mint-checkpoint", "tssd-vault-persist", "full-cognition-loop"],
+      "exit": "full-cognition-loop",
+      "dagRef": "dag.codex.json",
+      "status": "active",
+      "description": "Extended pipeline with cognition loop for advanced processing"
+    }
+  ],
+  "tools": [
+    {
+      "toolId": "codex-replay",
+      "description": "Validates DAG, agent, schema, and pipeline links for Codex integrity.",
+      "entryPoint": "ops/codexLint.ts",
+      "output": "codex/codex.replay.log.json",
+      "agentReady": true,
+      "trackedBy": ["Scarlet", "augmentcode"],
+      "status": "active"
+    }
+  ],
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-27T00:00:00Z"
+}

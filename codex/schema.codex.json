@@ -1,0 +1,50 @@
+[
+  {
+    "schemaId": "scored-signal.schema.json",
+    "linkedDAGNode": "afi-ensemble-score",
+    "version": "1.0.0",
+    "description": "Schema for ensemble-scored financial signals",
+    "fields": {
+      "signalId": "string",
+      "score": "number",
+      "confidence": "number",
+      "poiScore": "number",
+      "insightScore": "number",
+      "timestamp": "string"
+    },
+    "required": ["signalId", "score", "confidence", "timestamp"],
+    "agentReady": true
+  },
+  {
+    "schemaId": "validated-signal.schema.json",
+    "linkedDAGNode": "dao-mint-checkpoint",
+    "version": "1.0.0",
+    "description": "Schema for DAO-validated signals",
+    "fields": {
+      "signalId": "string",
+      "score": "number",
+      "confidence": "number",
+      "validated": "boolean",
+      "quorumReached": "boolean",
+      "timestamp": "string"
+    },
+    "required": ["signalId", "validated", "quorumReached", "timestamp"],
+    "agentReady": true
+  },
+  {
+    "schemaId": "persisted-signal.schema.json",
+    "linkedDAGNode": "tssd-vault-persist",
+    "version": "1.0.0",
+    "description": "Schema for T.S.S.D. Vault persisted signals",
+    "fields": {
+      "signalId": "string",
+      "score": "number",
+      "confidence": "number",
+      "persistedAt": "string",
+      "vaultId": "string",
+      "timestamp": "string"
+    },
+    "required": ["signalId", "persistedAt", "vaultId", "timestamp"],
+    "agentReady": true
+  }
+]
