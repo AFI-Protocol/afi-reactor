@@ -1,5 +1,5 @@
 {
-  "name": "afi-engine",
+  "name": "afi-reactor",
   "version": "1.0.0",
   "type": "module",
   "exports": {
@@ -7,14 +7,16 @@
     "./*": "./src/*"
   },
   "alias": {
-    "afi-engine": "./src",
+    "afi-reactor": "./src",
     "elizaos": "./src"
   },
   "scripts": {
     "build": "tsc",
-    "simulate-signal": "node --loader ts-node/esm ops/runner/simulate-full-pipeline.ts",
-    "codex-lint": "node --loader ts-node/esm ops/codexLint.ts",
-    "mentor-eval": "node --loader ts-node/esm ops/mentorChain.ts",
+    "simulate-signal": "node dist/ops/runner/simulate-full-pipeline.js",
+    "simulate-from-vault": "node dist/ops/runner/simulate-full-pipeline.js --from-vault",
+    "replay-vault": "node dist/ops/runner/replay-vault-signals.js",
+    "codex-lint": "node dist/ops/codexLint.js",
+    "mentor-eval": "node dist/ops/mentorChain.js",
     "test": "jest",
     "validate-all": "npm run build && npm run codex-lint && npm run simulate-signal && npm run mentor-eval"
   },

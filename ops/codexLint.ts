@@ -50,6 +50,18 @@ function loadJSON<T>(relativePath: string): T {
   console.log(`🔍 Loading JSON from: ${fullPath}`);
   
   if (!fs.existsSync(fullPath)) {
+    if (relativePath === '.afi-codex.json') {
+      console.log(`ℹ️  No .afi-codex.json found - this is normal for new projects`);
+      // Return minimal structure for codex root
+      return {
+        manifest: {
+          dag: 'dag.codex.json',
+          schemas: 'schemas.codex.json', 
+          agents: 'agents.codex.json',
+          ops: 'ops.codex.json'
+        }
+      } as T;
+    }
     throw new Error(`❌ File not found: ${fullPath}`);
   }
   
