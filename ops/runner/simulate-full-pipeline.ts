@@ -1,20 +1,45 @@
 import { runDAG, DAGSignal } from "../../core/dag-engine.js";
+import { VaultService } from "../../src/core/VaultService.js";
 import { writeFileSync } from "fs";
 import path from "path";
 import process from "process";
 
 const isReplay = process.argv.includes("--replay");
+const fromVault = process.argv.includes("--from-vault");
 const startTime = new Date();
 
 console.log(`🚀 DAG ${isReplay ? "Replay" : "Simulation"} started at ${startTime.toISOString()}`);
 
-const mockSignal: DAGSignal = {
-  signalId: "mock-signal-afi-0001",
-  score: Math.random(),
-  confidence: 0.95,
-  timestamp: new Date().toISOString(),
-  meta: { source: "simulator", strategy: "backtest" }
-};
+let signals: DAGSignal[] = [];
+
+if (fromVault) {
+  console.log(`📦 Loading signals from vault...`);
+  const vaultedSignals = VaultService.getVaultedSignals();
+  
+  signals = vaultedSignals.map(entry => ({
+    signalId: entry.signalId,
+    score: entry.signal?.score || Math.random(),
+    confidence: entry.signal?.confidence || 0.95,
+    timestamp: entry.timestamp,
+    meta: { 
+      source: "vault-replay", 
+      originalStage: entry.metadata?.lifecycleStage,
+      vaultedAt: entry.vaultedAt,
+      ...entry.signal?.meta 
+    }
+  }));
+  
+  console.log(`📊 Loaded ${signals.length} signals from vault`);
+} else {
+  const mockSignal: DAGSignal = {
+    signalId: "mock-signal-afi-0001",
+    score: Math.random(),
+    confidence: 0.95,
+    timestamp: new Date().toISOString(),
+    meta: { source: "simulator", strategy: "backtest" }
+  };
+  signals = [mockSignal];
+}
 
 (async () => {
   try {

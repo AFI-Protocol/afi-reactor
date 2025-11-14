@@ -1,9 +1,12 @@
-# AFI-Engine ⚡
+# AFI-Reactor ⚡
 
-[![AFI-Engine Validation](https://github.com/<OWNER>/<REPO>/actions/workflows/validate-all.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/validate-all.yml)
+[![AFI-Reactor Validation](https://github.com/AFI-Protocol/afi-reactor/actions/workflows/validate-all.yml/badge.svg)](https://github.com/AFI-Protocol/afi-reactor/actions/workflows/validate-all.yml)
 
-AFI-Engine is the **core DAG-based signal processing system** for **Agentic Financial Intelligence (AFI)**.  
-It orchestrates a multi-agent pipeline capable of generating, analyzing, validating, executing, and observing financial signals at scale.
+**AFI-Reactor is the canonical orchestrator for Agentic Financial Intelligence (AFI).**
+
+It orchestrates a multi-agent DAG-based pipeline capable of generating, analyzing, validating, executing, and observing financial signals at scale.
+
+> **Note:** This repository was renamed from `afi-engine` to `afi-reactor` on 2025-11-14 as part of the multi-repo reorganization to establish clear orchestration boundaries.
 
 ---
 
@@ -98,12 +101,42 @@ All commits to `main` trigger a full CI run with:
 
 ---
 
-## 🌌 AFI-Engine Vision
+## 📜 AFI Orchestrator Doctrine
 
-AFI-Engine is **agent-first**, **modular**, and **ElizaOS compatible**, powering use cases for:
-- Retail traders and institutions  
-- Agent developers and ML researchers  
-- Real-time financial signal generation and execution  
+**afi-reactor is the ONLY orchestrator in AFI Protocol.** All canonical pipelines, DAGs, and routing logic live here.
+
+### The 10 Commandments
+
+1. **afi-reactor is the orchestrator of AFI** - All canonical pipelines, DAGs, and routing logic live here—not in afi-core, not in random helpers.
+
+2. **afi-core is our runtime library, not our boss** - ElizaOS and AFI agents run inside pipelines defined by afi-reactor.
+
+3. **The DAG is law** - Every signal path (ingest → enrich → score → mint/review) must be expressible as a Reactor DAG; ad-hoc flows are anti-patterns.
+
+4. **Agents are nodes, not gods** - Individual agents (validators, mentors, tools) are pluggable nodes the DAG calls; they never control global orchestration.
+
+5. **Eliza's native orchestrator is an implementation detail** - We may wrap or reuse it, but only as a node/operator under afi-reactor's authority.
+
+6. **State & replay belong here** - Pipeline state, Codex replay, audits, and deterministic re-runs are owned by afi-reactor, even if storage is elsewhere.
+
+7. **Configuration is externalized** - Reactor reads network, persona, and pipeline configs from afi-config and related registries; no hard-coded magic.
+
+8. **No token/econ logic in afi-reactor** - Emissions, rewards, and AFI token rules live in afi-token; Reactor just emits events/hooks.
+
+9. **No infra glue in afi-reactor** - Deployment, Terraform, K8s, etc. live in afi-infra / afi-ops. Reactor exposes clean interfaces they can target.
+
+10. **If orchestration logic doesn't fit this doctrine, it's in the wrong repo** - Move it or refactor it until afi-reactor remains the single, boringly-obvious brain.
+
+**Full doctrine:** See [AFI_ORCHESTRATOR_DOCTRINE.md](../AFI_ORCHESTRATOR_DOCTRINE.md) in the workspace root.
+
+---
+
+## 🌌 AFI-Reactor Vision
+
+AFI-Reactor is **agent-first**, **modular**, and **ElizaOS compatible**, powering use cases for:
+- Retail traders and institutions
+- Agent developers and ML researchers
+- Real-time financial signal generation and execution
 - Experimentation, stress testing, and open innovation
 
 We embrace **stress-tested resilience**, inviting contributors to push the boundaries and make AFI stronger with every iteration.

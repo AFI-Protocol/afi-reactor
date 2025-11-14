@@ -1,74 +1,167 @@
 [
   {
-    "agentId": "augmentcode",
-    "linkedNodes": ["afi-ensemble-score"],
-    "description": "AugmentCode handles ensemble-based signal scoring using PoI and PoInsight balancing.",
+    "agentId": "MarketDataAgentV1",
+    "linkedNodes": ["market-data-streamer"],
+    "description": "Streams real-time market prices, OHLCV, and order books from multiple exchanges",
     "maintainer": "augmentcode",
     "agentReady": true,
-    "status": "active"
+    "status": "active",
+    "role": "generator",
+    "capabilities": ["price-streaming", "orderbook-analysis", "volume-tracking"],
+    "version": "1.0.0"
+  },
+  {
+    "agentId": "OnchainFeedAgentV1",
+    "linkedNodes": ["onchain-feed-ingestor"],
+    "description": "Ingests blockchain events and DeFi protocol data from multiple networks",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active",
+    "role": "generator",
+    "capabilities": ["blockchain-monitoring", "defi-analytics", "transaction-analysis"],
+    "version": "1.0.0"
+  },
+  {
+    "agentId": "SocialSignalAgentV1",
+    "linkedNodes": ["social-signal-crawler"],
+    "description": "Collects Twitter, Discord, and social sentiment signals for market analysis",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active",
+    "role": "generator",
+    "capabilities": ["social-crawling", "sentiment-extraction", "influence-scoring"],
+    "version": "1.0.0"
+  },
+  {
+    "agentId": "NewsFeedAgentV1",
+    "linkedNodes": ["news-feed-parser"],
+    "description": "Parses financial news and RSS feeds for breaking events and market impact",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active",
+    "role": "generator",
+    "capabilities": ["news-parsing", "event-extraction", "impact-scoring"],
+    "version": "1.0.0"
+  },
+  {
+    "agentId": "AIStrategyAgentV1",
+    "linkedNodes": ["ai-strategy-generator"],
+    "description": "Generates candidate trading signals using AI models and strategy frameworks",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active",
+    "role": "generator",
+    "capabilities": ["strategy-generation", "ai-modeling", "signal-creation"],
+    "version": "1.0.0"
+  },
+  {
+    "agentId": "TechnicalAnalysisAgentV1",
+    "linkedNodes": ["technical-analysis-node"],
+    "description": "Runs MACD, RSI, Bollinger, and other TA indicators for signal validation",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active",
+    "role": "analyzer",
+    "capabilities": ["technical-indicators", "trend-analysis", "support-resistance"],
+    "version": "1.0.0"
+  },
+  {
+    "agentId": "PatternRecognitionAgentV1",
+    "linkedNodes": ["pattern-recognition-node"],
+    "description": "Detects price action setups and chart patterns for trading opportunities",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active",
+    "role": "analyzer",
+    "capabilities": ["pattern-detection", "chart-analysis", "breakout-identification"],
+    "version": "1.0.0"
+  },
+  {
+    "agentId": "SentimentAnalysisAgentV1",
+    "linkedNodes": ["sentiment-analysis-node"],
+    "description": "Scores market and social sentiment for bias detection and trend confirmation",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active",
+    "role": "analyzer",
+    "capabilities": ["sentiment-scoring", "bias-detection", "crowd-psychology"],
+    "version": "1.0.0"
+  },
+  {
+    "agentId": "NewsEventAgentV1",
+    "linkedNodes": ["news-event-analysis-node"],
+    "description": "Evaluates market impact of news and events for signal enhancement",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active",
+    "role": "analyzer",
+    "capabilities": ["event-analysis", "impact-assessment", "market-correlation"],
+    "version": "1.0.0"
+  },
+  {
+    "agentId": "AIEnsembleAgentV1",
+    "linkedNodes": ["ai-ml-ensemble-node"],
+    "description": "Aggregates multiple analyses into a final weighted score using ensemble methods",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active",
+    "role": "analyzer",
+    "capabilities": ["ensemble-modeling", "weight-optimization", "score-aggregation"],
+    "version": "1.0.0"
+  },
+  {
+    "agentId": "augmentcode",
+    "linkedNodes": ["afi-ensemble-score"],
+    "description": "AugmentCode handles ensemble-based signal scoring using PoI and PoInsight balancing",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active",
+    "role": "scorer",
+    "capabilities": ["poi-scoring", "insight-balancing", "ensemble-validation"],
+    "version": "1.0.0"
   },
   {
     "agentId": "factory.droid",
     "linkedNodes": ["dao-mint-checkpoint"],
-    "description": "Factory Droids handle DAO quorum verification and checkpoint validation.",
+    "description": "Factory Droids handle DAO quorum verification and checkpoint validation",
     "maintainer": "factory.droid",
     "agentReady": true,
-    "status": "active"
+    "status": "active",
+    "role": "validator",
+    "capabilities": ["dao-consensus", "quorum-verification", "mint-eligibility"],
+    "version": "1.0.0"
   },
   {
     "agentId": "scarlet",
     "linkedNodes": ["tssd-vault-persist"],
-    "description": "Scarlet manages MongoDB T.S.S.D. Vault persistence of approved signals.",
+    "description": "Scarlet manages MongoDB T.S.S.D. Vault persistence of approved signals",
     "maintainer": "Scarlet",
     "agentReady": true,
-    "status": "active"
+    "status": "active",
+    "role": "persister",
+    "capabilities": ["vault-storage", "data-persistence", "signal-archival"],
+    "version": "1.0.0"
   },
   {
-    "agentId": "scarlet.cognition",
-    "linkedNodes": ["full-cognition-loop"],
-    "description": "Scarlet’s cognition-classifier agent for signal lineage and insight mapping.",
+    "agentId": "ExchangeExecutionAgentV1",
+    "linkedNodes": ["exchange-execution-node"],
+    "description": "Executes trades via exchanges with risk controls and position management",
+    "maintainer": "augmentcode",
+    "agentReady": true,
+    "status": "active",
+    "role": "executor",
+    "capabilities": ["trade-execution", "risk-management", "position-sizing"],
+    "version": "1.0.0"
+  },
+  {
+    "agentId": "TelemetryAgentV1",
+    "linkedNodes": ["telemetry-log-node"],
+    "description": "Logs all signals, scores, and execution results to T.S.S.D. vault for monitoring",
     "maintainer": "Scarlet",
     "agentReady": true,
-    "status": "active"
-  },
-  {
-    "agentId": "afi.technical",
-    "linkedModules": ["afi-technical-indicators"],
-    "description": "MCP-compatible agent specializing in technical indicator computation, including SMA, EMA, RSI, and more.",
-    "maintainer": "Scarlet",
-    "agentReady": true,
-    "status": "active"
-  },
-  {
-    "agentId": "afi.pattern",
-    "linkedModules": ["afi-pattern-detector"],
-    "description": "MCP agent that detects known chart patterns such as flags, wedges, and breakouts from signal history.",
-    "maintainer": "Scarlet",
-    "agentReady": false,
-    "status": "prototype"
-  },
-  {
-    "agentId": "afi.sentiment",
-    "linkedModules": ["afi-twitter-sentiment"],
-    "description": "MCP agent analyzing Twitter content for sentiment indicators relating to the target asset.",
-    "maintainer": "Scarlet",
-    "agentReady": false,
-    "status": "prototype"
-  },
-  {
-    "agentId": "afi.news",
-    "linkedModules": ["afi-news-reactor"],
-    "description": "MCP agent that parses financial news articles to identify reactions or correlations affecting market signals.",
-    "maintainer": "Scarlet",
-    "agentReady": false,
-    "status": "prototype"
-  },
-  {
-    "agentId": "afi.ml",
-    "linkedModules": ["afi-ml-ensemble"],
-    "description": "MCP agent simulating ensemble-based ML forecasting for enriched financial signals.",
-    "maintainer": "Scarlet",
-    "agentReady": false,
-    "status": "prototype"
+    "status": "active",
+    "role": "observer",
+    "capabilities": ["telemetry-logging", "performance-monitoring", "data-analytics"],
+    "version": "1.0.0"
   }
 ]
