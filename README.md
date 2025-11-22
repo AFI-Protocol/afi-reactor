@@ -8,6 +8,13 @@ It orchestrates a multi-agent DAG-based pipeline capable of generating, analyzin
 
 > **Note:** This repository was renamed from `afi-engine` to `afi-reactor` on 2025-11-14 as part of the multi-repo reorganization to establish clear orchestration boundaries.
 
+## 🤖 Droid Instructions
+
+**For AI agents and automated contributors**: See [AGENTS.md](./AGENTS.md) for canonical repo constraints, allowed tasks, and safe patch patterns.
+
+> **Note**: If AGENTS.md conflicts with this README, AGENTS.md wins.
+> **Critical**: Read `AFI_ORCHESTRATOR_DOCTRINE.md` before modifying DAG logic.
+
 ---
 
 ## 🚀 The 15-Node DAG
