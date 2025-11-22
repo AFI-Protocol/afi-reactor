@@ -1,0 +1,35 @@
+{
+  "repo": "afi-reactor",
+  "role": "Canonical DAG orchestrator for AFI Protocol",
+  "status": "active",
+  "language": "typescript",
+  "entrypoints": [
+    "src/cli/run-dag.ts",
+    "src/cli/replay-signals.ts"
+  ],
+  "provides": [
+    "dag-orchestration",
+    "signal-pipeline",
+    "codex-replay",
+    "validator-coordination",
+    "mentor-coordination"
+  ],
+  "dependsOn": [
+    "afi-core",
+    "afi-config",
+    "afi-plugins",
+    "afi-math"
+  ],
+  "consumers": [
+    "afi-ops",
+    "afi-infra"
+  ],
+  "droid_ready": true,
+  "notes": [
+    "Renamed from afi-engine on 2025-11-14",
+    "Follows AFI Orchestrator Doctrine",
+    "15-node DAG for signal processing",
+    "Git remote updated to afi-reactor.git on 2025-11-21"
+  ]
+}
+

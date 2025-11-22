@@ -1,7 +1,12 @@
 {
   "codexVersion": "2.0.0",
-  "description": "AFI Protocol unified Codex for 15-node DAG Engine with full agent readiness",
-  "lastUpdated": "2025-01-27T00:00:00Z",
+  "description": "AFI-Reactor: Canonical orchestrator for Agentic Financial Intelligence - 15-node DAG Engine with full agent readiness",
+  "lastUpdated": "2025-11-16T00:00:00Z",
+  "module": {
+    "name": "afi-reactor",
+    "role": "orchestrator",
+    "description": "AFI-Reactor is the canonical orchestrator that defines how agents and modules interact. It controls the DAG pipeline, execution order, and routing logic for all AFI Protocol operations."
+  },
   "manifest": {
     "dag": "./dag.codex.json",
     "schemas": "./schema.codex.json",
