@@ -12,32 +12,34 @@ console.log(`🚀 DAG ${isReplay ? "Replay" : "Simulation"} started at ${startTi
 
 let signals: DAGSignal[] = [];
 
+// Define mockSignal at top level for use in telemetry
+const mockSignal: DAGSignal = {
+  signalId: "mock-signal-afi-0001",
+  score: Math.random(),
+  confidence: 0.95,
+  timestamp: new Date().toISOString(),
+  meta: { source: "simulator", strategy: "backtest" }
+};
+
 if (fromVault) {
   console.log(`📦 Loading signals from vault...`);
   const vaultedSignals = VaultService.getVaultedSignals();
-  
+
   signals = vaultedSignals.map(entry => ({
     signalId: entry.signalId,
     score: entry.signal?.score || Math.random(),
     confidence: entry.signal?.confidence || 0.95,
     timestamp: entry.timestamp,
-    meta: { 
-      source: "vault-replay", 
+    meta: {
+      source: "vault-replay",
       originalStage: entry.metadata?.lifecycleStage,
       vaultedAt: entry.vaultedAt,
-      ...entry.signal?.meta 
+      ...entry.signal?.meta
     }
   }));
-  
+
   console.log(`📊 Loaded ${signals.length} signals from vault`);
 } else {
-  const mockSignal: DAGSignal = {
-    signalId: "mock-signal-afi-0001",
-    score: Math.random(),
-    confidence: 0.95,
-    timestamp: new Date().toISOString(),
-    meta: { source: "simulator", strategy: "backtest" }
-  };
   signals = [mockSignal];
 }
 
