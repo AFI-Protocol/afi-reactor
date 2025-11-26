@@ -70,11 +70,17 @@ npm run mentor-eval
 - `test/` — Jest tests
 
 **Depends on**: afi-core (runtime, validators)
-**Consumed by**: afi-ops (deployment), afi-infra (templates)
+**Consumed by**: afi-ops (deployment), afi-infra (templates), Eliza gateways (via HTTP/WS APIs)
 
 **Boundary with afi-core**:
 - `afi-reactor` = orchestration (DAG wiring, pipeline execution)
-- `afi-core` = runtime behavior (validators, scoring, ElizaOS integration)
+- `afi-core` = runtime behavior (validators, scoring)
+
+**Eliza integration**:
+- `afi-reactor` exposes HTTP/WS APIs for signal scoring, replay, and DAG introspection.
+- Eliza-based gateways and plugins may call these APIs as external clients.
+- `afi-reactor` MUST NOT import ElizaOS code, SDKs, or character definitions.
+- **Dependency direction**: Eliza gateways depend on afi-reactor; afi-reactor never depends on Eliza.
 
 ---
 
