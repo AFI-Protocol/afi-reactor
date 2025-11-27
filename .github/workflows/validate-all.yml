@@ -1,4 +1,4 @@
-name: AFI-Engine Validation
+name: AFI Reactor Validation
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   validate:
-    name: Validate AFI-Engine
+    name: Validate AFI Reactor
     runs-on: ubuntu-latest
 
     steps:
@@ -30,11 +30,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run AFI-Engine validation pipeline
+      - name: Run AFI Reactor validation pipeline
         id: validation
         continue-on-error: true
         run: |
-          echo "🚀 Starting AFI-Engine validation pipeline..."
+          echo "🚀 Starting AFI Reactor validation pipeline..."
           npm run validate-all
           echo "✅ Validation pipeline completed"
 
@@ -62,7 +62,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: afi-engine-validation-artifacts
+          name: afi-reactor-validation-artifacts
           path: |
             codex/codex.replay.log.json
             tmp/dag-simulation.log.json
