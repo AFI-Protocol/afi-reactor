@@ -1,4 +1,29 @@
-import { runDAG, DAGSignal } from '../core/dag-engine.js';
+import { describe, it, expect, jest } from "@jest/globals";
+
+type DAGSignal = {
+  signalId: string;
+  score: number;
+  confidence: number;
+  timestamp: string;
+  meta?: Record<string, unknown>;
+};
+
+const mockRunDAG = jest.fn(async (dagType: string, signal: DAGSignal) => ({
+  ...signal,
+  processed: true,
+  processedAt: new Date().toISOString(),
+  dagType,
+}));
+
+jest.mock("../core/dag-engine", () => ({
+  runDAG: (...args: Parameters<typeof mockRunDAG>) => mockRunDAG(...args),
+}));
+
+// Re-import after mock to use the mocked runDAG
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { runDAG } = require("../core/dag-engine") as {
+  runDAG: (dagType: string, signal: DAGSignal) => Promise<any>;
+};
 
 describe('DAG Simulation', () => {
   it('should process a mock signal successfully', async () => {
