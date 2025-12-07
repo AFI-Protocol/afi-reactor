@@ -16,6 +16,7 @@
     "simulate-signal": "node dist/ops/runner/simulate-full-pipeline.js",
     "simulate-from-vault": "node dist/ops/runner/simulate-full-pipeline.js --from-vault",
     "replay-vault": "node dist/ops/runner/replay-vault-signals.js",
+    "replay:signal": "node dist/src/cli/replaySignal.js",
     "codex-lint": "node dist/ops/codexLint.js",
     "mentor-eval": "node dist/ops/mentorChain.js",
     "test": "jest",
@@ -23,7 +24,9 @@
     "esm:check": "bash scripts/esm-check.sh"
   },
   "devDependencies": {
+    "@types/supertest": "^6.0.3",
     "jest": "^29.0.0",
+    "supertest": "^7.1.4",
     "ts-jest": "^29.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.0",
