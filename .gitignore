@@ -1,2 +1,28 @@
+# AFI-specific
 .aider*
 .factory/
+tmp/
+
+# Build artifacts
+dist/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+afi-core/
+
+# OS junk
+.DS_Store
+**/.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
