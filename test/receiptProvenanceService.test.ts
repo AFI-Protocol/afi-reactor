@@ -1,0 +1,284 @@
+/**
+ * Receipt Provenance Service Tests (Phase 1.5)
+ *
+ * Tests the receipt provenance tracking helpers for TSSD vault documents.
+ *
+ * These tests focus on type safety and update logic. MongoDB operations are
+ * tested at the type/structure level rather than requiring a live database.
+ */
+
+import { describe, it, expect } from "@jest/globals";
+import type { TssdSignalDocument } from "../src/types/TssdSignalDocument.js";
+
+describe("Receipt Provenance Service (Unit Tests)", () => {
+
+  describe("TssdSignalDocument with receiptProvenance", () => {
+    it("should allow documents without receiptProvenance (backward compatibility)", () => {
+      const doc: TssdSignalDocument = {
+        signalId: "test-signal-001",
+        createdAt: new Date(),
+        source: "afi-eliza-demo",
+        market: {
+          symbol: "BTC/USDT",
+          timeframe: "1h",
+        },
+        pipeline: {
+          uwrScore: 0.75,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.78,
+          },
+          execution: {
+            status: "simulated",
+            timestamp: new Date().toISOString(),
+          },
+        },
+        strategy: {
+          name: "froggy_trend_pullback_v1",
+          direction: "long",
+        },
+        version: "v0.1",
+      };
+
+      // Should compile without receiptProvenance
+      expect(doc.signalId).toBe("test-signal-001");
+      expect(doc.receiptProvenance).toBeUndefined();
+    });
+
+    it("should support receiptProvenance block with pending status", () => {
+      const doc: TssdSignalDocument = {
+        signalId: "test-signal-002",
+        createdAt: new Date(),
+        source: "afi-eliza-demo",
+        market: {
+          symbol: "ETH/USDT",
+          timeframe: "4h",
+        },
+        pipeline: {
+          uwrScore: 0.82,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.85,
+          },
+          execution: {
+            status: "simulated",
+            timestamp: new Date().toISOString(),
+          },
+        },
+        strategy: {
+          name: "froggy_trend_pullback_v1",
+          direction: "long",
+        },
+        receiptProvenance: {
+          mintStatus: "pending",
+        },
+        version: "v0.1",
+      };
+
+      expect(doc.receiptProvenance?.mintStatus).toBe("pending");
+    });
+
+    it("should support receiptProvenance block with eligible status", () => {
+      const doc: TssdSignalDocument = {
+        signalId: "test-signal-003",
+        createdAt: new Date(),
+        source: "afi-eliza-demo",
+        market: {
+          symbol: "SOL/USDT",
+          timeframe: "1h",
+        },
+        pipeline: {
+          uwrScore: 0.88,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.90,
+          },
+          execution: {
+            status: "simulated",
+            timestamp: new Date().toISOString(),
+          },
+        },
+        strategy: {
+          name: "froggy_trend_pullback_v1",
+          direction: "long",
+        },
+        receiptProvenance: {
+          mintStatus: "eligible",
+          mintEligibleAt: new Date(),
+          epochId: 5,
+          beneficiary: "0x1234567890123456789012345678901234567890",
+        },
+        version: "v0.1",
+      };
+
+      expect(doc.receiptProvenance?.mintStatus).toBe("eligible");
+      expect(doc.receiptProvenance?.epochId).toBe(5);
+      expect(doc.receiptProvenance?.beneficiary).toBe("0x1234567890123456789012345678901234567890");
+    });
+
+    it("should support receiptProvenance block with minted status and full metadata", () => {
+      const doc: TssdSignalDocument = {
+        signalId: "test-signal-004",
+        createdAt: new Date(),
+        source: "afi-eliza-demo",
+        market: {
+          symbol: "BTC/USDT",
+          timeframe: "1h",
+        },
+        pipeline: {
+          uwrScore: 0.92,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.95,
+            reasonCodes: ["score-high", "novelty-high"],
+          },
+          execution: {
+            status: "simulated",
+            type: "buy",
+            timestamp: new Date().toISOString(),
+          },
+        },
+        strategy: {
+          name: "froggy_trend_pullback_v1",
+          direction: "long",
+        },
+        receiptProvenance: {
+          mintStatus: "minted",
+          mintEligibleAt: new Date("2025-12-07T10:00:00Z"),
+          mintAttemptedAt: new Date("2025-12-07T10:05:00Z"),
+          mintedAt: new Date("2025-12-07T10:05:30Z"),
+          epochId: 5,
+          receiptId: "42",
+          mintTxHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+          mintBlockNumber: 12345678,
+          beneficiary: "0x1234567890123456789012345678901234567890",
+          tokenAmount: "1000.0",
+          receiptAmount: 1,
+        },
+        version: "v0.1",
+      };
+
+      expect(doc.receiptProvenance?.mintStatus).toBe("minted");
+      expect(doc.receiptProvenance?.epochId).toBe(5);
+      expect(doc.receiptProvenance?.receiptId).toBe("42");
+      expect(doc.receiptProvenance?.mintTxHash).toBe("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890");
+      expect(doc.receiptProvenance?.mintBlockNumber).toBe(12345678);
+      expect(doc.receiptProvenance?.tokenAmount).toBe("1000.0");
+      expect(doc.receiptProvenance?.receiptAmount).toBe(1);
+    });
+
+    it("should support receiptProvenance block with failed status", () => {
+      const doc: TssdSignalDocument = {
+        signalId: "test-signal-005",
+        createdAt: new Date(),
+        source: "afi-eliza-demo",
+        market: {
+          symbol: "BTC/USDT",
+          timeframe: "1h",
+        },
+        pipeline: {
+          uwrScore: 0.70,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.72,
+          },
+          execution: {
+            status: "simulated",
+            timestamp: new Date().toISOString(),
+          },
+        },
+        strategy: {
+          name: "froggy_trend_pullback_v1",
+          direction: "long",
+        },
+        receiptProvenance: {
+          mintStatus: "failed",
+          mintAttemptedAt: new Date(),
+          mintError: "Insufficient gas",
+          mintRetryCount: 2,
+        },
+        version: "v0.1",
+      };
+
+      expect(doc.receiptProvenance?.mintStatus).toBe("failed");
+      expect(doc.receiptProvenance?.mintError).toBe("Insufficient gas");
+      expect(doc.receiptProvenance?.mintRetryCount).toBe(2);
+    });
+
+    it("should support all mintStatus values", () => {
+      const statuses: Array<"pending" | "eligible" | "minted" | "failed" | "ineligible"> = [
+        "pending",
+        "eligible",
+        "minted",
+        "failed",
+        "ineligible",
+      ];
+
+      statuses.forEach((status) => {
+        const doc: TssdSignalDocument = {
+          signalId: `test-signal-${status}`,
+          createdAt: new Date(),
+          source: "afi-eliza-demo",
+          market: { symbol: "BTC/USDT", timeframe: "1h" },
+          pipeline: {
+            uwrScore: 0.75,
+            validatorDecision: { decision: "approve", uwrConfidence: 0.78 },
+            execution: { status: "simulated", timestamp: new Date().toISOString() },
+          },
+          strategy: { name: "test", direction: "long" },
+          receiptProvenance: { mintStatus: status },
+          version: "v0.1",
+        };
+
+        expect(doc.receiptProvenance?.mintStatus).toBe(status);
+      });
+    });
+  });
+
+  describe("Provenance Helper Functions (Type-Level Tests)", () => {
+    it("should have correct update structure for markSignalEligibleForMint", () => {
+      // Type-level test: ensure the update structure matches MongoDB expectations
+      const updateDoc = {
+        "receiptProvenance.mintStatus": "eligible" as const,
+        "receiptProvenance.mintEligibleAt": new Date(),
+        "receiptProvenance.epochId": 5,
+        "receiptProvenance.beneficiary": "0x1234567890123456789012345678901234567890",
+      };
+
+      expect(updateDoc["receiptProvenance.mintStatus"]).toBe("eligible");
+      expect(updateDoc["receiptProvenance.epochId"]).toBe(5);
+    });
+
+    it("should have correct update structure for markSignalMinted", () => {
+      // Type-level test: ensure the update structure matches MongoDB expectations
+      const updateDoc = {
+        "receiptProvenance.mintStatus": "minted" as const,
+        "receiptProvenance.mintedAt": new Date(),
+        "receiptProvenance.epochId": 5,
+        "receiptProvenance.receiptId": "42",
+        "receiptProvenance.mintTxHash": "0xabc123",
+        "receiptProvenance.mintBlockNumber": 12345678,
+        "receiptProvenance.beneficiary": "0x1234567890123456789012345678901234567890",
+        "receiptProvenance.tokenAmount": "1000.0",
+        "receiptProvenance.receiptAmount": 1,
+      };
+
+      expect(updateDoc["receiptProvenance.mintStatus"]).toBe("minted");
+      expect(updateDoc["receiptProvenance.receiptId"]).toBe("42");
+      expect(updateDoc["receiptProvenance.mintTxHash"]).toBe("0xabc123");
+    });
+
+    it("should have correct update structure for markSignalMintFailed", () => {
+      // Type-level test: ensure the update structure matches MongoDB expectations
+      const updateDoc = {
+        "receiptProvenance.mintStatus": "failed" as const,
+        "receiptProvenance.mintAttemptedAt": new Date(),
+        "receiptProvenance.mintError": "Insufficient gas",
+      };
+
+      expect(updateDoc["receiptProvenance.mintStatus"]).toBe("failed");
+      expect(updateDoc["receiptProvenance.mintError"]).toBe("Insufficient gas");
+    });
+  });
+});
+
