@@ -1,3 +1,8 @@
+// AFI-REACTOR DEV WEBHOOK HANDLER
+// submitSignal is a local dev helper that receives an incoming payload,
+// wraps it into a basic signal shape, and calls runDAG("signal-to-vault", ...).
+// It uses the stub DAG engine and is not part of the canonical orchestrator
+// or production infra.
 import type { Request, Response } from "express";
 import { runDAG } from "../../core/dag-engine.js";
 

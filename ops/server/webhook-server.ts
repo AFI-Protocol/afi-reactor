@@ -1,3 +1,7 @@
+// AFI-REACTOR DEV WEBHOOK SERVER (LOCAL ONLY)
+// This Express server is for local testing of DAG execution via HTTP.
+// It is NOT part of the canonical orchestrator runtime, is not used by CI,
+// and must not be treated as production infra or token/mint logic.
 import express, { Request, Response } from "express";
 import bodyParser from "body-parser";
 import { submitSignal } from "./submit-signal.js";

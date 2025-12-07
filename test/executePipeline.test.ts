@@ -1,3 +1,10 @@
+/**
+ * AFI Reactor – Dev/Test-Only Smoke Suite
+ *
+ * This file provides orchestrator-level smoke coverage for afi-reactor.
+ * It MUST NOT be treated as protocol-canonical behavior, UWR math, or vault logic.
+ * Safe for droids / CI as a guardrail only.
+ */
 import { describe, it, expect, jest } from "@jest/globals";
 
 const mockExecutePipeline = jest.fn(async () => ({
@@ -9,6 +16,7 @@ const mockExecutePipeline = jest.fn(async () => ({
   vaultStatus: "stored",
 }));
 
+// Dev-only: stub executePipeline to assert pipeline surface/shape, not real vault/TSSD behavior.
 jest.mock("../ops/runner/executePipeline", () => {
   return {
     executePipeline: (..._args: any[]) => mockExecutePipeline(),

@@ -1,3 +1,7 @@
+/**
+ * Orchestrator/dev utility to load Codex JSON files from disk.
+ * Not a protocol-level API; used by local tools and runners only.
+ */
 import fs from 'fs';
 import path from 'path';
 

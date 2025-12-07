@@ -1,3 +1,8 @@
+/**
+ * GENERIC SIMULATED execution helper — dev/demo only.
+ * Not a production execution layer or protocol-critical component.
+ * Real execution paths live outside afi-reactor; this only logs and returns a mock order.
+ */
 export async function executeSignal(signal: any): Promise<any> {
   const action = decideAction(signal);
 

@@ -1,6 +1,6 @@
-import { Signal } from "../types/Signal.js";
+import { ReactorSignalEnvelope } from "../types/ReactorSignalEnvelope.js";
 
-export async function analyze(signal: Signal): Promise<Signal & { persisted: boolean }> {
+export async function analyze(signal: ReactorSignalEnvelope): Promise<ReactorSignalEnvelope & { persisted: boolean }> {
   const persisted = true;
   console.log(`💾 Signal persisted to T.S.S.D. Vault`);
   return {

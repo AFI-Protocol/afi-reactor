@@ -1,6 +1,8 @@
+// AFI-REACTOR DEV-ONLY MENTORCHAIN INSTRUMENTATION
+// Reads codex/codex.replay.log.json and tmp/dag-simulation.log.json for ops health checks.
+// Not part of canonical protocol; no UWR/PoI/mint logic here.
 import fs from 'fs';
 import path from 'path';
-import { CodexReplayResult } from '../types/CodexReplayResult.js';
 
 interface MentorEvaluation {
   timestamp: string;

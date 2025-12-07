@@ -27,6 +27,9 @@ npm run build
 # Run tests (Jest)
 npm test
 
+# Check ESM invariants (lint for cross-repo imports, missing .js extensions, etc.)
+npm run esm:check
+
 # Validate all DAG configs and Codex metadata
 npm run validate-all
 
@@ -114,6 +117,48 @@ npm run mentor-eval
 - **Naming**: No "afi-engine" references; use "afi-reactor"
 - **Tests**: Jest, located in `test/`
 - **Codex**: All DAG runs must be Codex-replayable
+
+---
+
+## ESM Invariants
+
+**afi-reactor is pure ESM** and depends on **afi-core** as an ESM package. All code must follow strict ESM conventions to ensure runtime compatibility.
+
+**Required practices**:
+- All imports from **afi-core** must use the package name, never relative paths across repos:
+  ```typescript
+  // ✅ CORRECT
+  import { scoreFroggyTrendPullbackFromEnriched } from "afi-core/analysts/froggy.trend_pullback_v1.js";
+  import type { ValidatorDecisionBase } from "afi-core/validators/ValidatorDecision.js";
+
+  // ❌ WRONG - Never use cross-repo relative paths
+  import { scoreFroggyTrendPullbackFromEnriched } from "../../afi-core/analysts/froggy.trend_pullback_v1.js";
+  import type { ValidatorDecisionBase } from "../../afi-core/validators/ValidatorDecision.js";
+  ```
+- All relative imports within afi-reactor (e.g., from `src/` to `plugins/`) **must** include `.js` extensions:
+  ```typescript
+  // ✅ CORRECT
+  import alphaScoutIngest from "../../plugins/alpha-scout-ingest.plugin.js";
+
+  // ❌ WRONG
+  import alphaScoutIngest from "../../plugins/alpha-scout-ingest.plugin";
+  ```
+- External package imports (e.g., `from "express"`) do **not** need `.js` extensions.
+- No imports may reference `.ts` files at runtime.
+- New plugins and services must follow the same ESM pattern—no CommonJS.
+
+**Why these rules matter**:
+- afi-reactor uses plain `tsc` compilation (no bundler).
+- Node.js ESM requires explicit file extensions for relative imports.
+- Cross-repo relative paths break at runtime because `afi-core` is a separate npm package.
+- afi-core is linked via npm (`node_modules/afi-core -> ../../afi-core`), so imports must use the package name.
+
+**Validation**:
+- Run `npm run build` to verify TypeScript compiles without errors.
+- Run `npm run start:demo` to ensure the server starts without ESM module resolution errors.
+- Test endpoints (e.g., `/demo/prize-froggy`) to verify runtime imports work correctly.
+
+**For new contributors**: When adding new plugins or services, always use `afi-core/...` for cross-repo imports and include `.js` extensions for relative paths. This is non-negotiable for ESM compatibility.
 
 ---
 

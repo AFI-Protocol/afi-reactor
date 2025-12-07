@@ -1,3 +1,7 @@
+/**
+ * Dev/test-only replay scoring helper.
+ * Not canonical scoring or emissions; real scoring/UWR/PoI lives in afi-core/afi-token.
+ */
 interface ReplayResult {
   signalId: string;
   oldScore: number;

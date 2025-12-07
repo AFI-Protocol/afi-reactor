@@ -1,4 +1,4 @@
-import { Signal } from "../types/Signal.js";
+import { ReactorSignalEnvelope } from "../types/ReactorSignalEnvelope.js";
 
 const sampleHeadlines = [
   "Fed signals potential rate hike next quarter",
@@ -8,8 +8,8 @@ const sampleHeadlines = [
   "SEC delays decision on crypto regulations"
 ];
 
-export async function analyze(signal: Signal): Promise<
-  Signal & {
+export async function analyze(signal: ReactorSignalEnvelope): Promise<
+  ReactorSignalEnvelope & {
     newsImpactScore: number;
     headlineSummary: string;
     newsSentiment: "positive" | "neutral" | "negative";

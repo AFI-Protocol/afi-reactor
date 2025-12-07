@@ -45,8 +45,10 @@ interface Ops {
   pipelines?: Pipeline[];
 }
 
+const CODEX_BASE_DIR = path.resolve(__dirname, '..', 'config');
+
 function loadJSON<T>(relativePath: string): T {
-  const fullPath = path.resolve(__dirname, '..', 'codex', relativePath);
+  const fullPath = path.resolve(CODEX_BASE_DIR, relativePath);
   console.log(`🔍 Loading JSON from: ${fullPath}`);
   
   if (!fs.existsSync(fullPath)) {
@@ -56,7 +58,7 @@ function loadJSON<T>(relativePath: string): T {
       return {
         manifest: {
           dag: 'dag.codex.json',
-          schemas: 'schemas.codex.json', 
+          schemas: 'schema.codex.json', 
           agents: 'agents.codex.json',
           ops: 'ops.codex.json'
         }
@@ -143,6 +145,7 @@ function replayCodex(): CodexReplayResult[] {
 // Execute replay with enhanced logging
 const results = replayCodex();
 const logPath = path.resolve(__dirname, '..', 'codex', 'codex.replay.log.json');
+fs.mkdirSync(path.dirname(logPath), { recursive: true });
 
 // Agent-friendly structured output
 const summary = {

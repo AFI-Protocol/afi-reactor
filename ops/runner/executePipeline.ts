@@ -2,11 +2,11 @@ import { pathToFileURL } from 'url';
 import path from 'path';
 import { DAGNode } from '../../types/codex.js';
 import { loadCodexFile } from '../utils/loadCodex.js';
-import { getSignal } from '../utils/signalInput.js';
+import { getMockSignalEnvelope } from '../utils/mockSignal.js';
 
 export async function executePipeline(pipelineId: string, inputSignal?: any) {
-  const dag = await loadCodexFile<DAGNode[]>('codex/dag.codex.json');
-  const ops = await loadCodexFile<any>('codex/ops.codex.json');
+  const dag = await loadCodexFile<DAGNode[]>('config/dag.codex.json');
+  const ops = await loadCodexFile<any>('config/ops.codex.json');
   const pipeline = ops.pipelines.find((p: any) => p.name === pipelineId);
 
   if (!pipeline) {
@@ -14,7 +14,7 @@ export async function executePipeline(pipelineId: string, inputSignal?: any) {
     return;
   }
 
-  let signal = inputSignal ?? await getSignal();
+  let signal = inputSignal ?? await getMockSignalEnvelope(pipeline.entry);
   if (!signal) {
     console.warn(`⚠️ No signal returned from entry node: ${pipeline.entry}`);
     return;

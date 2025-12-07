@@ -1,6 +1,11 @@
+/**
+ * LOCAL DEV TOOL ONLY — checksum sandbox for strategy/agent metadata.
+ * Not the canonical AFI signal type or schema. No runtime/protocol/vault usage.
+ * Safe to ignore for protocol reasoning; used solely for local experiments.
+ */
 import crypto from 'crypto';
 
-interface Signal {
+interface ChecksumSignalStub {
   strategy: string;
   agent: string;
   category: string;
@@ -17,7 +22,7 @@ interface Signal {
 /**
  * Generates a unique checksum based on the signal content
  */
-function createChecksum(signal: Signal): string {
+function createChecksum(signal: ChecksumSignalStub): string {
   const data = JSON.stringify({
     strategy: signal.strategy,
     agent: signal.agent,
@@ -33,27 +38,14 @@ function createChecksum(signal: Signal): string {
 /**
  * Enriches a signal with a checksum in the meta field
  */
-export function enrichSignal(signal: Omit<Signal, 'meta'>): Signal {
-  const completeSignal: Signal = {
+export function enrichSignal(signal: Omit<ChecksumSignalStub, 'meta'>): ChecksumSignalStub {
+  const completeSignal: ChecksumSignalStub = {
     ...signal,
     meta: {
-      checksum: createChecksum(signal as Signal),
+      checksum: createChecksum(signal as ChecksumSignalStub),
     },
   };
   return completeSignal;
 }
 
-// Example usage (can be removed in production)
-if (require.main === module) {
-  const sampleSignal = enrichSignal({
-    strategy: 'scalping',
-    agent: 'demo-agent',
-    category: 'crypto',
-    source: 'simulated',
-    version: '1.0.0',
-    tags: ['test', 'simulation'],
-    createdBy: 'AFI',
-  });
-
-  console.log('✅ Sample enriched signal:', sampleSignal);
-}export const generateSignal = enrichSignal;
+export const generateSignal = enrichSignal;

@@ -1,12 +1,12 @@
+/**
+ * AFI Reactor – Dev/Test-Only Smoke Suite
+ *
+ * This file provides orchestrator-level smoke coverage for afi-reactor.
+ * It MUST NOT be treated as protocol-canonical behavior, UWR math, or vault logic.
+ * Safe for droids / CI as a guardrail only.
+ */
 import { describe, it, expect, jest } from "@jest/globals";
-
-type DAGSignal = {
-  signalId: string;
-  score: number;
-  confidence: number;
-  timestamp: string;
-  meta?: Record<string, unknown>;
-};
+import type { DAGSignal } from "../core/dag-engine.js";
 
 const mockRunDAG = jest.fn(async (dagType: string, signal: DAGSignal) => ({
   ...signal,
@@ -15,7 +15,7 @@ const mockRunDAG = jest.fn(async (dagType: string, signal: DAGSignal) => ({
   dagType,
 }));
 
-jest.mock("../core/dag-engine", () => ({
+jest.mock("../core/dag-engine.js", () => ({
   runDAG: (...args: Parameters<typeof mockRunDAG>) => mockRunDAG(...args),
 }));
 

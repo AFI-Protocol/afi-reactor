@@ -1,6 +1,5 @@
-// 🧬 Plugin: signal-lineager.plugin.ts
-// Purpose: Annotates signals with lineage metadata for tracing ancestry across scoring cycles.
-// Used in: Cognitive mapping, PoI ancestry, multi-hop signal validation.
+// 🧬 AFI-Reactor DAG plugin (lineage) — metadata only for replay/introspection.
+// Used for ancestry across scoring cycles and multi-hop validation tracing; does NOT implement PoI/PoInsight, emissions, or tokenomics.
 
 import { v4 as uuidv4 } from 'uuid';
 

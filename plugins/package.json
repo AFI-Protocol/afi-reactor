@@ -1,5 +1,5 @@
 {
-  "name": "afi-ensemble-scorer",
+  "name": "afi-reactor-plugins-meta",
   "version": "0.1.0",
   "main": "index.js",
   "type": "module",

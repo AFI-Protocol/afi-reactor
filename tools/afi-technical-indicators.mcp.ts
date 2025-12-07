@@ -1,7 +1,7 @@
 import { MongoClient } from "mongodb";
-import { Signal } from "../types/Signal.js"; // Ensure this path reflects your actual structure
+import { ReactorSignalEnvelope } from "../types/ReactorSignalEnvelope.js"; // Ensure this path reflects your actual structure
 
-export async function analyze(signal: Signal): Promise<Signal & { sma: number }> {
+export async function analyze(signal: ReactorSignalEnvelope): Promise<ReactorSignalEnvelope & { sma: number }> {
   const SMA_PERIOD = 5;
   const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017";
   const DB_NAME = "afi";

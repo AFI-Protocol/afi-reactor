@@ -1,6 +1,5 @@
-// 🏷️ Plugin 2: tag-propagator.plugin.ts
-// Purpose: Ensures tags, source strategy, and metadata persist and evolve across DAG nodes.
-// Used in: Strategy lineage tracking, signal filtering, agent learning modules.
+// 🏷️ AFI-Reactor DAG plugin (tag propagator) — tag/metadata propagation only.
+// No tokenomics, scoring logic, PoI/PoInsight, or vault semantics belong here.
 
 export async function run(signal: any) {
   if (!signal) throw new Error('Signal is undefined or null.');

@@ -1,4 +1,4 @@
-import { Signal } from "../types/Signal.js";
+import { ReactorSignalEnvelope } from "../types/ReactorSignalEnvelope.js";
 
 const mockPatterns = [
   "bullish flag",
@@ -8,8 +8,8 @@ const mockPatterns = [
   "double bottom"
 ];
 
-export async function analyze(signal: Signal): Promise<
-  Signal & {
+export async function analyze(signal: ReactorSignalEnvelope): Promise<
+  ReactorSignalEnvelope & {
     patternMatch: boolean;
     patternType: string | null;
     patternConfidence: number;

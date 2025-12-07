@@ -15,6 +15,24 @@
       "exit": "full-cognition-loop",
       "dagRef": "dag.codex.json",
       "status": "active"
+    },
+    {
+      "name": "froggy-trend-pullback-v1",
+      "entry": "alpha-scout-ingest",
+      "flow": [
+        "pixelrick-structurer",
+        "froggy-enrichment-adapter",
+        "froggy-analyst-node",
+        "froggy-ensemble-scorer",
+        "validator-decision-node",
+        "execution-sim-node",
+        "froggy-vault-echo"
+      ],
+      "exit": "froggy-vault-echo",
+      "dagRef": "dag.codex.json",
+      "description": "Demo pipeline: Alpha Scout → Pixel Rick → Froggy Analyst → Val Dook → Execution Sim → Vault. Implements the canonical agent chain for ElizaOS live demos.",
+      "status": "active",
+      "tags": ["demo", "froggy", "agent-chain"]
     }
   ],
   "tools": [

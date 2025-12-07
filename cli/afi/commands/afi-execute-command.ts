@@ -1,8 +1,12 @@
 #!/usr/bin/env tsx
+/**
+ * Local/dev CLI helper to execute a single registered execution agent against a signal JSON file.
+ * NOT protocol-critical runtime logic; MUST NOT perform on-chain calls directly.
+ * Uses config/execution-agent.registry.json as the source of truth for agent entries.
+ */
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
-import { fileURLToPath } from "url";
 
 dotenv.config();
 
@@ -30,13 +34,27 @@ async function main() {
     process.exit(1);
   }
 
+  if (!agent.entry || typeof agent.entry !== "string" || agent.entry.trim().length === 0) {
+    console.error(
+      `❌ Invalid or missing agent entry for ${agentName} in ${registryPath}. Expected a non-empty string.`
+    );
+    process.exit(1);
+  }
+
+  const agentPath = path.resolve(agent.entry);
+  if (!fs.existsSync(agentPath)) {
+    console.error(
+      `❌ Agent entry file not found for ${agentName}: ${agentPath} (check ${registryPath})`
+    );
+    process.exit(1);
+  }
+
   if (agent.auth === "env") {
     if (!process.env.API_KEY || !process.env.API_SECRET) {
       console.warn("⚠️ This agent requires API keys. Have you set your .env file securely?");
     }
   }
 
-  const agentPath = path.resolve(agent.entry);
   const { execute } = await import(agentPath);
 
   if (!fs.existsSync(signalFile)) {
