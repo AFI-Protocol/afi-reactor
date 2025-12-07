@@ -25,6 +25,7 @@ import {
   runFroggyTrendPullbackFromTradingView,
   type TradingViewAlertPayload,
 } from "./services/froggyDemoService.js";
+import { replaySignalById } from "./services/vaultReplayService.js";
 
 const app = express();
 
@@ -152,12 +153,70 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
 });
 
 /**
- * Prize Demo endpoint.
+ * Vault Replay endpoint.
  *
- * POST /demo/prize-froggy
+ * GET /replay/signal/:signalId
+ *
+ * READ-ONLY: Fetches a signal from the TSSD vault and replays it through the Froggy pipeline.
+ *
+ * This endpoint:
+ * - Fetches the stored signal document from MongoDB
+ * - Reconstructs the pipeline input from stored data
+ * - Re-runs the Froggy pipeline deterministically
+ * - Returns stored vs recomputed values for auditing
+ * - Does NOT write to MongoDB (read-only replay)
+ *
+ * Returns:
+ * {
+ *   "signalId": "...",
+ *   "stored": { ... },
+ *   "recomputed": { ... },
+ *   "comparison": { "uwrScoreDelta": 0.0021, "decisionChanged": false, "changes": [...] },
+ *   "replayMeta": { "ranAt": "...", "pipelineVersion": "...", "notes": "..." }
+ * }
+ */
+app.get("/replay/signal/:signalId", async (req: Request, res: Response) => {
+  try {
+    const { signalId } = req.params;
+
+    if (!signalId) {
+      return res.status(400).json({ error: "Missing required parameter: signalId" });
+    }
+
+    console.log(`🔄 Vault replay requested: ${signalId}`);
+
+    const replayResult = await replaySignalById(signalId);
+
+    if (!replayResult) {
+      console.warn(`⚠️  Signal not found: ${signalId}`);
+      return res.status(404).json({
+        error: "signal_not_found",
+        message: `Signal with ID '${signalId}' not found in TSSD vault`,
+      });
+    }
+
+    console.log(`✅ Vault replay complete: ${signalId}`, {
+      uwrScoreDelta: replayResult.comparison.uwrScoreDelta,
+      decisionChanged: replayResult.comparison.decisionChanged,
+    });
+
+    return res.status(200).json(replayResult);
+  } catch (err: any) {
+    console.error(`❌ Error in vault replay:`, err);
+    return res.status(500).json({
+      error: "internal_error",
+      message: err.message || "Unknown error",
+    });
+  }
+});
+
+/**
+ * AFI Eliza Demo endpoint.
+ *
+ * POST /demo/afi-eliza-demo
  *
  * DEMO-ONLY: Runs a pre-configured BTC trend-pullback signal through the Froggy pipeline
- * with detailed stage-by-stage summaries for the "Pipeline with Friends" demo.
+ * with detailed stage-by-stage summaries for the AFI Eliza Demo.
  *
  * This endpoint:
  * - Uses a fixed, deterministic demo payload (BTC/USDT 1h trend-pullback)
@@ -167,9 +226,9 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
  *
  * No tokenomics, emissions, or real trading. Demo purposes only.
  */
-app.post("/demo/prize-froggy", async (req: Request, res: Response) => {
+app.post("/demo/afi-eliza-demo", async (req: Request, res: Response) => {
   try {
-    console.log(`🏆 Prize Demo endpoint called`);
+    console.log(`🎯 AFI Eliza Demo endpoint called`);
 
     // Fixed demo payload for deterministic results
     const demoPayload: TradingViewAlertPayload = {
@@ -179,7 +238,7 @@ app.post("/demo/prize-froggy", async (req: Request, res: Response) => {
       strategy: "froggy_trend_pullback_v1",
       direction: "long",
       setupSummary: "Bullish pullback to 20 EMA after liquidity sweep below $67.2k. Volume increasing on bounce. Structure intact (higher highs).",
-      notes: "DEMO-ONLY: Prize pipeline sample for ElizaOS demo",
+      notes: "DEMO-ONLY: AFI Eliza Demo sample for ElizaOS integration",
       enrichmentProfile: {
         technical: { enabled: true, preset: "trend_pullback" },
         pattern: { enabled: true, preset: "reversal_patterns" },
@@ -195,7 +254,7 @@ app.post("/demo/prize-froggy", async (req: Request, res: Response) => {
       isDemo: true,
     });
 
-    console.log(`✅ Prize Demo complete:`, {
+    console.log(`✅ AFI Eliza Demo complete:`, {
       signalId: result.signalId,
       decision: result.validatorDecision?.decision,
       stages: result.stageSummaries?.length,
@@ -204,7 +263,7 @@ app.post("/demo/prize-froggy", async (req: Request, res: Response) => {
     // Return result with stage summaries
     return res.status(200).json(result);
   } catch (err: any) {
-    console.error(`❌ Error in Prize Demo:`, err);
+    console.error(`❌ Error in AFI Eliza Demo:`, err);
     return res.status(500).json({
       error: "internal_error",
       message: err.message || "Unknown error",
@@ -212,20 +271,31 @@ app.post("/demo/prize-froggy", async (req: Request, res: Response) => {
   }
 });
 
-// Start server
-const PORT = parseInt(process.env.AFI_REACTOR_PORT || "8080", 10);
-
-app.listen(PORT, () => {
-  console.log(`🚀 AFI-REACTOR HTTP DEMO SERVER`);
-  console.log(`   Listening on http://localhost:${PORT}`);
-  console.log(`   Endpoints:`);
-  console.log(`     GET  /health`);
-  console.log(`     POST /api/webhooks/tradingview`);
-  console.log(`     POST /demo/prize-froggy (Prize Demo with stage summaries)`);
-  console.log(``);
-  console.log(`   ⚠️  DEV/DEMO ONLY - No real trading or emissions`);
-  console.log(``);
-});
-
+// Export the app for testing
 export default app;
+
+/**
+ * Start server only when run directly (not when imported for tests).
+ *
+ * This allows tests to import the app without starting the server,
+ * while still allowing `npm run start:demo` to work normally.
+ *
+ * We check for NODE_ENV !== 'test' to avoid starting the server during Jest tests.
+ */
+if (process.env.NODE_ENV !== "test") {
+  const PORT = parseInt(process.env.AFI_REACTOR_PORT || "8080", 10);
+
+  app.listen(PORT, () => {
+    console.log(`🚀 AFI-REACTOR HTTP DEMO SERVER`);
+    console.log(`   Listening on http://localhost:${PORT}`);
+    console.log(`   Endpoints:`);
+    console.log(`     GET  /health`);
+    console.log(`     POST /api/webhooks/tradingview`);
+    console.log(`     POST /demo/afi-eliza-demo (AFI Eliza Demo with stage summaries)`);
+    console.log(`     GET  /replay/signal/:signalId (Vault Replay - Phase 2)`);
+    console.log(``);
+    console.log(`   ⚠️  DEV/DEMO ONLY - No real trading or emissions`);
+    console.log(``);
+  });
+}
 
