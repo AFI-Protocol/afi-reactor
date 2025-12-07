@@ -1,6 +1,6 @@
-import { Signal } from "../types/Signal.js";
+import { ReactorSignalEnvelope } from "../types/ReactorSignalEnvelope.js";
 
-export async function analyze(signal: Signal): Promise<Signal & { checkpointVerified: boolean }> {
+export async function analyze(signal: ReactorSignalEnvelope): Promise<ReactorSignalEnvelope & { checkpointVerified: boolean }> {
   const checkpointVerified = true;
   console.log(`✅ DAO checkpoint verification: ${checkpointVerified}`);
   return {

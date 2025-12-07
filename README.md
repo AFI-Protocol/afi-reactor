@@ -7,6 +7,7 @@
 It orchestrates a multi-agent DAG-based pipeline capable of generating, analyzing, validating, executing, and observing financial signals at scale.
 
 > **Note:** This repository was renamed from `afi-engine` to `afi-reactor` on 2025-11-14 as part of the multi-repo reorganization to establish clear orchestration boundaries.
+> **Canonical config:** DAG/Codex definitions live under `config/*.codex.json`. The `codex/` directory is reserved for runtime logs (e.g., replay outputs) and is not a source of truth.
 
 ## 🤖 Droid Instructions
 
@@ -96,7 +97,8 @@ npm run validate-all
 ## 📊 CI & Codex
 
 Artifacts from CI include:
-- `codex/codex.replay.log.json` → DAG node health and validation results  
+- `config/dag.codex.json` / `config/ops.codex.json` / `config/schema.codex.json` → canonical orchestrator config  
+- `codex/codex.replay.log.json` → generated replay log (runtime output; gitignored)  
 - `tmp/dag-simulation.log.json` → Simulation telemetry  
 - `tmp/mentor-evaluation.json` → MentorChain readiness scores
 

@@ -18,6 +18,7 @@ Replay focuses on the scoring → validation → vaulting slice of the DAG. A ty
 Replay-critical segments:
 - Scorer + validator + mint-decider equivalents (`afi-ensemble-score`, `dao-mint-checkpoint`, downstream validator decision outputs).
 - Persistence of validated artifacts (vaulted/persisted signal) used for later comparison.
+  - The canonical `vaulted-signal` schema is owned by **afi-infra**; afi-reactor consumes it via `config/schema.codex.json` as a DAG contract only, not as the implementation owner.
 
 ## ValidatorReplaySession (Conceptual)
 
@@ -54,6 +55,7 @@ Validators (and validator-like nodes) must:
 - In replay mode: avoid side effects (no writes to live vaults, no live minting); optionally emit diagnostics (e.g., “why approved/rejected”).
 
 Replay is an orchestrator concern, but validators must be replay-friendly.
+Replay consumes validator outputs, decision envelopes, and UWR-derived confidence values as defined in **afi-core** (e.g., `ValidatorDecision`, `UniversalWeightingRule`); afi-reactor does not implement UWR math or PoI/PoInsight logic, it only orchestrates replay over those contracts.
 
 ## Interaction with the TSSD Vault
 

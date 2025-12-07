@@ -1,9 +1,5 @@
-// typings.d.ts
-declare module 'body-parser';
-declare module 'express';
-declare module 'uuid';
-declare module 'dotenv';
-declare module 'commander';
+// Legacy ambient typings shim for older tests/missing module declarations.
+// Prefer real @types packages; this is a fallback only.
 
 // Optional: global placeholders for test frameworks
 declare var describe: any;

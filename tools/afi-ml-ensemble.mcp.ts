@@ -1,11 +1,11 @@
-import { Signal } from "../types/Signal.js";
+import { ReactorSignalEnvelope } from "../types/ReactorSignalEnvelope.js";
 
 const modelPool = ["XGBoost", "LightGBM", "RandomForest", "NeuralNet (v2.3)", "EnsembleStackerXL"];
 
 export async function analyze(
-  signal: Signal
+  signal: ReactorSignalEnvelope
 ): Promise<
-  Signal & {
+  ReactorSignalEnvelope & {
     prediction: number;
     confidenceLevel: number;
     modelUsed: string;

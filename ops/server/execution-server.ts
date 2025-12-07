@@ -1,3 +1,7 @@
+// AFI-REACTOR DEV EXECUTION SERVER (SIMULATED / LOCAL ONLY)
+// This Node HTTP server is for simulating execution-agent behavior locally.
+// It calls tools/agents/execution-agent.ts, which is also a dev-only helper.
+// Not used by CI or as part of the canonical orchestrator runtime.
 import http from "http";
 import { executeSignal } from "../../tools/agents/execution-agent.js"; // no .ts
 

@@ -1,21 +1,6 @@
 // 🔧 VaultService Stub - Scaffold Only
 // TODO: Implement real vault service logic
 
-export interface VaultedSignal {
-  signalId: string;
-  signal?: {
-    score?: number;
-    confidence?: number;
-    meta?: Record<string, any>;
-  };
-  timestamp: string;
-  vaultedAt: string;
-  metadata?: {
-    lifecycleStage?: string;
-    [key: string]: any;
-  };
-}
-
 export interface VaultQueryOptions {
   stage?: string;
   limit?: number;
@@ -23,11 +8,11 @@ export interface VaultQueryOptions {
 }
 
 export class VaultService {
-  static queryVault(options: VaultQueryOptions): VaultedSignal[] {
+  static queryVault(options: VaultQueryOptions): any[] {
     throw new Error('VaultService.queryVault not implemented yet');
   }
 
-  static getVaultedSignals(): VaultedSignal[] {
+  static getVaultedSignals(): any[] {
     throw new Error('VaultService.getVaultedSignals not implemented yet');
   }
 
@@ -39,4 +24,3 @@ export class VaultService {
     throw new Error('VaultService.replaySignal not implemented yet');
   }
 }
-

@@ -87,12 +87,11 @@ npm test
 
 ## Codex / Metadata
 
-### Updated: `codex/.afi-codex.json`
+### Updated: `config/*.codex.json` and `.afi-codex.json`
 
 **Changes:**
-- Added `module` section identifying `afi-reactor` as the orchestrator
-- Updated description to emphasize canonical orchestrator role
-- Updated `lastUpdated` timestamp to 2025-11-16
+- Canonical DAG/ops/schema/agent codex files live in `config/`
+- `.afi-codex.json` (repo root) retains orchestrator metadata
 - Preserved all existing agent mappings and health status
 
 **Existing Metadata:**
@@ -164,7 +163,8 @@ The following are explicitly **OUT OF SCOPE** for AFI-Reactor and belong in othe
 - `docs/REACTOR_HARDENING_SUMMARY.md` - This file
 
 ### Updated
-- `codex/.afi-codex.json` - Added module metadata and updated timestamp
+- `config/*.codex.json` - Canonical DAG/ops/schema/agent codex files
+- `.afi-codex.json` (root) - Orchestrator metadata
 
 ### Unchanged
 - `README.md` - Already clear and accurate, no changes needed
@@ -176,4 +176,3 @@ The following are explicitly **OUT OF SCOPE** for AFI-Reactor and belong in othe
 **Last Updated:** 2025-11-16  
 **Hardening Performed By:** AugmentCode  
 **Next Steps:** Resolve test configuration issues, finalize signal schema, add retry/failure policies
-

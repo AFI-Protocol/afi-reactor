@@ -112,5 +112,126 @@
     "codexVersion": "1.0.0",
     "maintainedBy": ["Scarlet"],
     "agentReady": false
+  },
+  {
+    "id": "alpha-scout-ingest",
+    "type": "source",
+    "plugin": "alpha-scout-ingest",
+    "input": [],
+    "output": "froggy_raw_signal",
+    "description": "Alpha Scout ingestion node: converts Alpha-style signal drafts into reactor signal envelopes for Froggy pipeline.",
+    "tags": ["froggy", "scout", "alpha", "demo"],
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["augmentcode"],
+    "schemaRef": "reactor-signal-envelope.schema.json"
+  },
+  {
+    "id": "pixelrick-structurer",
+    "type": "transform",
+    "plugin": "signal-structurer",
+    "input": ["froggy_raw_signal"],
+    "output": "froggy_structured_signal",
+    "description": "Pixel Rick structuring node: ensures signal meets afi-core base signal shape requirements.",
+    "tags": ["froggy", "engineer", "pixelrick", "demo"],
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["augmentcode"],
+    "schemaRef": "base-signal.schema.json"
+  },
+  {
+    "id": "froggy-enrichment-adapter",
+    "type": "transform",
+    "plugin": "froggy-enrichment-adapter",
+    "input": ["froggy_structured_signal"],
+    "output": "froggy_enriched_signal",
+    "description": "Froggy enrichment adapter: bridges reactor structured signal to Froggy enrichment input shape.",
+    "tags": ["froggy", "enrichment", "demo"],
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["augmentcode"],
+    "schemaRef": "froggy-enriched-view.schema.json"
+  },
+  {
+    "id": "froggy-analyst-node",
+    "type": "analyzer",
+    "plugin": "froggy.trend_pullback_v1",
+    "input": ["froggy_enriched_signal"],
+    "output": "froggy_analyzed_signal",
+    "description": "Froggy analyst node: runs trend_pullback_v1 strategy from afi-core, produces UWR-scored analysis.",
+    "tags": ["froggy", "analyst", "uwr", "demo"],
+    "config": {
+      "strategyId": "trend_pullback_v1",
+      "analystId": "froggy"
+    },
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["augmentcode"],
+    "schemaRef": "froggy-trend-pullback-score.schema.json"
+  },
+  {
+    "id": "froggy-ensemble-scorer",
+    "type": "scorer",
+    "plugin": "afi-ensemble-scorer",
+    "input": ["froggy_analyzed_signal"],
+    "output": "froggy_scored_signal",
+    "description": "Ensemble scorer for Froggy pipeline: balances PoI and PoInsight on analyzed signal.",
+    "tags": ["froggy", "scorer", "ensemble", "demo"],
+    "config": {
+      "poiWeight": 0.6,
+      "insightWeight": 0.4
+    },
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["augmentcode"],
+    "schemaRef": "scored-signal.schema.json"
+  },
+  {
+    "id": "validator-decision-node",
+    "type": "validator",
+    "plugin": "validator-decision-evaluator",
+    "input": ["froggy_scored_signal"],
+    "output": "froggy_validator_decision",
+    "description": "Validator decision node: transforms scored signal into ValidatorDecision envelope (afi-core contract).",
+    "tags": ["froggy", "validator", "valdook", "demo"],
+    "config": {
+      "approveThreshold": 0.7,
+      "rejectThreshold": 0.3
+    },
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["augmentcode"],
+    "schemaRef": "validator-decision.schema.json"
+  },
+  {
+    "id": "execution-sim-node",
+    "type": "executor",
+    "plugin": "execution-agent-sim",
+    "input": ["froggy_validator_decision"],
+    "output": "froggy_execution_result",
+    "description": "Execution simulation node: dev-only simulation of trade execution based on validator decision.",
+    "tags": ["froggy", "executor", "simulation", "demo"],
+    "config": {
+      "mode": "simulation",
+      "defaultAsset": "BTC/USDT",
+      "defaultAmount": 0.01
+    },
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["augmentcode"],
+    "schemaRef": "execution-result.schema.json"
+  },
+  {
+    "id": "froggy-vault-echo",
+    "type": "sink",
+    "plugin": "tssd-vault-service",
+    "input": ["froggy_execution_result"],
+    "output": "froggy_vault_echo",
+    "description": "T.S.S.D. Vault echo for Froggy pipeline: persists execution result to MongoDB vault.",
+    "tags": ["froggy", "vault", "persistence", "demo"],
+    "codexVersion": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["augmentcode"],
+    "schemaRef": "vaulted-signal.schema.json"
   }
 ]

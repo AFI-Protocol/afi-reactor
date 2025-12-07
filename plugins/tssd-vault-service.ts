@@ -1,32 +1,15 @@
-import { MongoClient } from "mongodb";
-import { config } from "dotenv";
-config();
-
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017";
-const DB_NAME = "afi";
-const COLLECTION = "tssd_signals";
-
-async function storeSignal(signal: any) {
-  const client = new MongoClient(MONGO_URI);
-  try {
-    await client.connect();
-    const db = client.db(DB_NAME);
-    const collection = db.collection(COLLECTION);
-    await collection.insertOne(signal);
-    console.log("🏦 Stored signal to MongoDB:", signal.signalId);
-  } catch (err) {
-    console.error("❌ Failed to store signal:", err);
-  } finally {
-    await client.close();
-  }
-}
+/**
+ * AFI-Reactor DAG plugin stub for TSSD vault node.
+ * Canonical vaulted-signal schema and real persistence live in afi-infra.
+ * Must not implement real database or on-chain token logic in production.
+ */
 
 export default {
   run: async (signal: any) => {
-    await storeSignal(signal);
+    console.log("🏦 [tssd-vault-service] DEV STUB – no real DB; canonical TSSD vault lives in afi-infra.");
     return {
       ...signal,
-      vaultStatus: "stored",
+      vaultStatus: signal?.vaultStatus || "stored",
     };
   },
 };

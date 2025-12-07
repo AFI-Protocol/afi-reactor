@@ -12,13 +12,15 @@
   },
   "scripts": {
     "build": "tsc",
+    "start:demo": "node dist/src/server.js",
     "simulate-signal": "node dist/ops/runner/simulate-full-pipeline.js",
     "simulate-from-vault": "node dist/ops/runner/simulate-full-pipeline.js --from-vault",
     "replay-vault": "node dist/ops/runner/replay-vault-signals.js",
     "codex-lint": "node dist/ops/codexLint.js",
     "mentor-eval": "node dist/ops/mentorChain.js",
     "test": "jest",
-    "validate-all": "npm run build && npm run codex-lint && npm run simulate-signal && npm run mentor-eval"
+    "validate-all": "npm run build && npm run codex-lint && npm run simulate-signal && npm run mentor-eval",
+    "esm:check": "bash scripts/esm-check.sh"
   },
   "devDependencies": {
     "jest": "^29.0.0",
