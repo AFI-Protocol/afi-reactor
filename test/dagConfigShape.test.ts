@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@jest/globals";
-import dagConfig from "../config/dag.codex.json" with { type: "json" };
+import dagConfig from "../config/dag.codex.json";
 
 describe("dag.codex.json shape", () => {
   it("loads without throwing", () => {
