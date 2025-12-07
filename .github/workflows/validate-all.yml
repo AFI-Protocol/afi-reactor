@@ -27,8 +27,28 @@ jobs:
           mkdir -p codex
           echo "✅ Created tmp/ and codex/ directories"
 
+      - name: Checkout afi-core dependency
+        uses: actions/checkout@v4
+        with:
+          repository: AFI-Protocol/afi-core
+          path: afi-core-dep
+          ref: migration/multi-repo-reorg
+
+      - name: Build afi-core dependency
+        run: |
+          cd afi-core-dep
+          npm ci
+          npm run build
+          echo "✅ Built afi-core dependency"
+
+      - name: Link afi-core to node_modules
+        run: |
+          mkdir -p node_modules
+          ln -s ../afi-core-dep node_modules/afi-core
+          echo "✅ Linked afi-core to node_modules"
+
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline
 
       - name: Run AFI Reactor validation pipeline
         id: validation
