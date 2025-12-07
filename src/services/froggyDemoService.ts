@@ -28,6 +28,8 @@ import froggyEnrichmentAdapter from "../../plugins/froggy-enrichment-adapter.plu
 import froggyAnalyst from "../../plugins/froggy.trend_pullback_v1.plugin.js";
 import validatorDecisionEvaluator from "../../plugins/validator-decision-evaluator.plugin.js";
 import executionAgentSim from "../../plugins/execution-agent-sim.plugin.js";
+import { getTssdVaultService } from "./tssdVaultService.js";
+import type { TssdSignalDocument } from "../types/TssdSignalDocument.js";
 
 // Import EnrichmentProfile type (type-only import to avoid rootDir issues)
 type EnrichmentProfile = any;
@@ -62,7 +64,7 @@ export interface TradingViewAlertPayload {
 }
 
 /**
- * Stage summary for Prize Demo.
+ * Stage summary for AFI Eliza Demo.
  * Each stage in the pipeline gets a summary entry.
  */
 export interface PipelineStageSummary {
@@ -115,10 +117,12 @@ export interface FroggyPipelineResult {
   };
   /** UWR score from Froggy analyst */
   uwrScore: number;
-  /** DEMO-ONLY: Stage-by-stage summaries for Prize Demo */
+  /** DEMO-ONLY: Stage-by-stage summaries for AFI Eliza Demo */
   stageSummaries?: PipelineStageSummary[];
   /** DEMO-ONLY: Marker to indicate this is a demo run */
   isDemo?: boolean;
+  /** Vault write status (Phase 1: TSSD vault integration) */
+  vaultWrite?: "success" | "failed" | "skipped";
 }
 
 /**
@@ -128,7 +132,7 @@ export interface FroggyPipelineResult {
  * as test/froggyPipeline.test.ts, making it easy to test and maintain.
  *
  * @param payload - TradingView alert payload
- * @param options - Optional configuration (e.g., includeStageSummaries for Prize Demo)
+ * @param options - Optional configuration (e.g., includeStageSummaries for AFI Eliza Demo)
  * @returns Pipeline result with validator decision and execution status
  */
 export async function runFroggyTrendPullbackFromTradingView(
@@ -230,7 +234,7 @@ export async function runFroggyTrendPullbackFromTradingView(
   }
 
   // Build final result
-  return {
+  const result: FroggyPipelineResult = {
     signalId: rawSignal.signalId,
     validatorDecision: {
       decision: validatorDecision.decision,
@@ -257,5 +261,51 @@ export async function runFroggyTrendPullbackFromTradingView(
     stageSummaries: options?.includeStageSummaries ? stageSummaries : undefined,
     isDemo: options?.isDemo,
   };
+
+  // Phase 1: TSSD Vault Integration
+  // Persist the final scored + validated signal to MongoDB (if enabled)
+  const vaultService = getTssdVaultService();
+  if (vaultService) {
+    const tssdDoc: TssdSignalDocument = {
+      signalId: rawSignal.signalId,
+      createdAt: new Date(),
+      source: options?.isDemo ? "afi-eliza-demo" : "tradingview-webhook",
+      market: {
+        symbol: payload.symbol,
+        timeframe: payload.timeframe,
+        market: payload.market,
+      },
+      pipeline: {
+        uwrScore: analyzedSignal.analysis.uwrScore,
+        validatorDecision: {
+          decision: validatorDecision.decision,
+          uwrConfidence: validatorDecision.uwrConfidence,
+          reasonCodes: validatorDecision.reasonCodes,
+        },
+        execution: {
+          status: executionResult.execution.status,
+          type: executionResult.execution.type,
+          asset: executionResult.execution.asset,
+          amount: executionResult.execution.amount,
+          simulatedPrice: executionResult.execution.simulatedPrice,
+          timestamp: executionResult.execution.timestamp,
+          notes: executionResult.execution.notes,
+        },
+        stageSummaries: options?.includeStageSummaries ? stageSummaries : undefined,
+      },
+      strategy: {
+        name: payload.strategy,
+        direction: payload.direction,
+      },
+      rawPayload: payload,
+      version: "v0.1",
+    };
+
+    result.vaultWrite = await vaultService.insertSignalDocument(tssdDoc);
+  } else {
+    result.vaultWrite = "skipped";
+  }
+
+  return result;
 }
 

@@ -1,7 +1,7 @@
-# Prize Demo Endpoint — Technical Specification
+# AFI Eliza Demo Endpoint — Technical Specification
 
-**Endpoint**: `POST /demo/prize-froggy`  
-**Purpose**: Run a pre-configured BTC trend-pullback signal through the Froggy pipeline with detailed stage summaries  
+**Endpoint**: `POST /demo/afi-eliza-demo`
+**Purpose**: Run a pre-configured BTC trend-pullback signal through the Froggy pipeline with detailed stage summaries
 **Status**: DEMO-ONLY (no real trading, no emissions)
 
 ---
@@ -21,13 +21,13 @@ This endpoint runs a fixed, deterministic demo payload through the complete Frog
 
 ## Request
 
-**Method**: `POST`  
-**URL**: `http://localhost:8080/demo/prize-froggy`  
-**Headers**: `Content-Type: application/json`  
+**Method**: `POST`
+**URL**: `http://localhost:8080/demo/afi-eliza-demo`
+**Headers**: `Content-Type: application/json`
 **Body**: Empty (uses fixed demo payload)
 
 ```bash
-curl -X POST http://localhost:8080/demo/prize-froggy \
+curl -X POST http://localhost:8080/demo/afi-eliza-demo \
   -H "Content-Type: application/json"
 ```
 
@@ -154,7 +154,7 @@ curl -X POST http://localhost:8080/demo/prize-froggy \
 
 ## Pipeline Flow
 
-The Prize Demo endpoint runs the signal through 6 stages:
+The AFI Eliza Demo endpoint runs the signal through 6 stages:
 
 1. **Alpha Scout Ingest** (Persona: Alpha)
    - Converts TradingView-like payload to reactor signal envelope
@@ -166,7 +166,7 @@ The Prize Demo endpoint runs the signal through 6 stages:
 
 3. **Froggy Enrichment Adapter** (Persona: Pixel Rick)
    - Applies enrichment "legos" (technical, pattern, sentiment, news, aiMl)
-   - For Prize Demo: only technical + pattern enabled
+   - For AFI Eliza Demo: only technical + pattern enabled
    - Returns enrichment categories in stage summary
 
 4. **Froggy Analyst** (Persona: Froggy)
@@ -187,10 +187,10 @@ The Prize Demo endpoint runs the signal through 6 stages:
 
 ## Usage in afi-eliza-gateway
 
-The `RUN_PRIZE_DEMO` action in afi-eliza-gateway calls this endpoint and formats the response for Phoenix to present:
+The `RUN_AFI_ELIZA_DEMO` action in afi-eliza-gateway calls this endpoint and formats the response for Phoenix to present:
 
 ```typescript
-const response = await fetch("http://localhost:8080/demo/prize-froggy", {
+const response = await fetch("http://localhost:8080/demo/afi-eliza-demo", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
 });
