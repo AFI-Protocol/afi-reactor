@@ -1,19 +1,21 @@
 /**
  * Simple Replay View Types
- * 
+ *
  * Defines the clean, read-only view of a TSSD signal for replay/audit purposes.
- * 
+ *
  * This is a "simple replay" - just fetching and presenting stored data,
  * NOT re-running the pipeline (that's the full ReplayResult in TssdSignalDocument.ts).
- * 
+ *
  * Use case:
  * - Quick signal lookup by ID
  * - UI/dashboard display
  * - Audit trail inspection
  * - Debugging without re-computation
- * 
+ *
  * @module SimpleReplayView
  */
+
+import type { SupportedLens } from "./UssLenses.js";
 
 /**
  * Simple Replay View
@@ -105,6 +107,14 @@ export interface SimpleReplayView {
     beneficiary?: string;
     tokenAmount?: string;
   };
+
+  /**
+   * USS Lenses (Phase 2: Enrichment Data)
+   *
+   * Versioned, structured enrichment data (technical, pattern, sentiment, etc.)
+   * Provides a clean, composable view of enrichment without needing to parse raw metadata.
+   */
+  lenses?: SupportedLens[];
 
   /** Full TSSD document (for debugging / advanced use) */
   raw?: any;

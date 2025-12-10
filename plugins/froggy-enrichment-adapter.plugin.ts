@@ -20,6 +20,9 @@ import type {
 import { getPriceFeedAdapter, getDefaultPriceSource } from "../src/adapters/exchanges/priceFeedRegistry.js";
 import type { OHLCVCandle } from "../src/adapters/exchanges/types.js";
 import { normalizeMarketType, mapMarketTypeToVenueType } from "../src/utils/marketUtils.js";
+import { computeTechnicalEnrichment, type AfiCandle } from "../src/enrichment/technicalIndicators.js";
+import { detectPatterns } from "../src/enrichment/patternRecognition.js";
+import type { TechnicalLensV1, PatternLensV1, SentimentLensV1, NewsLensV1, AiMlLensV1, SupportedLens } from "../src/types/UssLenses.js";
 
 /**
  * Input schema: structured signal from signal-structurer.
@@ -71,140 +74,20 @@ function isCategoryEnabled(
 }
 
 /**
- * Calculate technical indicators from real OHLCV data
- *
- * Computes EMA, RSI, and other indicators from actual price candles.
+ * Convert OHLCVCandle to AfiCandle format
  */
-function calculateTechnicalIndicators(candles: OHLCVCandle[]) {
-  if (candles.length < 50) {
-    throw new Error("Need at least 50 candles for technical indicators");
-  }
-
-  // Calculate EMA-20 and EMA-50
-  const ema20 = calculateEMA(candles, 20);
-  const ema50 = calculateEMA(candles, 50);
-
-  // Get latest candle
-  const latestCandle = candles[candles.length - 1];
-  const currentPrice = latestCandle.close;
-
-  // Calculate EMA distance percentage
-  const emaDistancePct = ((currentPrice - ema20) / ema20) * 100;
-
-  // Check if in "sweet spot" (within 1% of EMA-20)
-  const isInValueSweetSpot = Math.abs(emaDistancePct) <= 1;
-
-  // Check if price broke EMA with body (close below EMA for uptrend)
-  const brokeEmaWithBody = latestCandle.close < ema20 && latestCandle.open > ema20;
-
-  // Calculate RSI (simplified 14-period)
-  const rsi = calculateRSI(candles, 14);
-
-  // Calculate volume ratio (current vs average)
-  const avgVolume = candles.slice(-20).reduce((sum, c) => sum + c.volume, 0) / 20;
-  const volumeRatio = latestCandle.volume / avgVolume;
-
-  return {
-    emaDistancePct,
-    isInValueSweetSpot,
-    brokeEmaWithBody,
-    indicators: {
-      rsi,
-      ema_20: ema20,
-      ema_50: ema50,
-      volume_ratio: volumeRatio,
-    },
-  };
+function toAfiCandles(candles: OHLCVCandle[]): AfiCandle[] {
+  return candles.map((c) => ({
+    timestamp: c.timestamp,
+    open: c.open,
+    high: c.high,
+    low: c.low,
+    close: c.close,
+    volume: c.volume,
+  }));
 }
 
-/**
- * Calculate Exponential Moving Average (EMA)
- */
-function calculateEMA(candles: OHLCVCandle[], period: number): number {
-  const multiplier = 2 / (period + 1);
-  let ema = candles.slice(0, period).reduce((sum, c) => sum + c.close, 0) / period;
 
-  for (let i = period; i < candles.length; i++) {
-    ema = (candles[i].close - ema) * multiplier + ema;
-  }
-
-  return ema;
-}
-
-/**
- * Calculate Relative Strength Index (RSI)
- */
-function calculateRSI(candles: OHLCVCandle[], period: number = 14): number {
-  if (candles.length < period + 1) return 50; // Default neutral
-
-  let gains = 0;
-  let losses = 0;
-
-  // Calculate initial average gain/loss
-  for (let i = candles.length - period; i < candles.length; i++) {
-    const change = candles[i].close - candles[i - 1].close;
-    if (change > 0) gains += change;
-    else losses += Math.abs(change);
-  }
-
-  const avgGain = gains / period;
-  const avgLoss = losses / period;
-
-  if (avgLoss === 0) return 100;
-
-  const rs = avgGain / avgLoss;
-  const rsi = 100 - (100 / (1 + rs));
-
-  return rsi;
-}
-
-/**
- * Generate plausible technical indicators for demo purposes.
- *
- * Fallback when real data is not available.
- */
-function generateDemoTechnicalIndicators() {
-  // Generate plausible EMA distance (pullback scenario: -2% to +2%)
-  const emaDistancePct = (Math.random() - 0.5) * 4;
-
-  // Determine if in "sweet spot" (within 1% of EMA)
-  const isInValueSweetSpot = Math.abs(emaDistancePct) <= 1;
-
-  // Random chance of breaking EMA with body
-  const brokeEmaWithBody = Math.random() < 0.3;
-
-  return {
-    emaDistancePct,
-    isInValueSweetSpot,
-    brokeEmaWithBody,
-    indicators: {
-      rsi: 30 + Math.random() * 40, // RSI between 30-70 (typical range)
-      ema_20: 50000 + Math.random() * 1000,
-      ema_50: 49500 + Math.random() * 1000,
-      volume_ratio: 0.8 + Math.random() * 0.4, // 0.8-1.2x average
-    },
-  };
-}
-
-/**
- * Generate plausible pattern analysis for demo purposes.
- */
-function generateDemoPatternAnalysis() {
-  const patterns = [
-    { name: "bullish engulfing", confidence: 75 },
-    { name: "hammer", confidence: 65 },
-    { name: "liquidity sweep", confidence: 80 },
-    { name: "morning star", confidence: 70 },
-    { name: "none", confidence: 0 },
-  ];
-  
-  const pattern = patterns[Math.floor(Math.random() * patterns.length)];
-  
-  return {
-    patternName: pattern.name !== "none" ? pattern.name : undefined,
-    patternConfidence: pattern.confidence || undefined,
-  };
-}
 
 /**
  * Enrich structured signal with Froggy-compatible data.
@@ -229,13 +112,20 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
   // Track which categories were actually enriched
   const enrichedCategories: string[] = [];
 
-  // Determine price source (BloFin or demo)
+  // USS Lenses array
+  const lenses: SupportedLens[] = [];
+
+  // Determine price source (BloFin/Coinbase or demo)
   // This may be overridden to "demo" if real data fetch fails
   let actualPriceSource = getDefaultPriceSource();
 
-  // Fetch real price data if using BloFin, otherwise use demo data
+  // Fetch real OHLCV data and compute USS lenses
   let technical: any = undefined;
-  if (isCategoryEnabled(effectiveProfile, "technical")) {
+  let pattern: any = undefined;
+  let technicalLensPayload: TechnicalLensV1["payload"] | null = null;
+  let patternLensPayload: PatternLensV1["payload"] | null = null;
+
+  if (isCategoryEnabled(effectiveProfile, "technical") || isCategoryEnabled(effectiveProfile, "pattern")) {
     if (actualPriceSource !== "demo") {
       try {
         // Fetch real OHLCV data from exchange
@@ -246,58 +136,143 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
           limit: 100, // Need enough candles for EMA-50
         });
 
-        // Calculate technical indicators from real data
-        technical = calculateTechnicalIndicators(candles);
-        enrichedCategories.push("technical");
+        // Convert to AfiCandle format
+        const afiCandles = toAfiCandles(candles);
+
+        // Compute technical lens (if enabled)
+        if (isCategoryEnabled(effectiveProfile, "technical")) {
+          technicalLensPayload = computeTechnicalEnrichment(afiCandles);
+          if (technicalLensPayload) {
+            // Add USS lens
+            lenses.push({
+              type: "technical",
+              version: "v1",
+              payload: technicalLensPayload,
+            });
+
+            // Keep legacy format for afi-core compatibility
+            technical = {
+              emaDistancePct: technicalLensPayload.emaDistancePct,
+              isInValueSweetSpot: technicalLensPayload.isInValueSweetSpot,
+              brokeEmaWithBody: false, // Not computed in new version
+              indicators: {
+                rsi: technicalLensPayload.rsi14,
+                ema_20: technicalLensPayload.ema20,
+                ema_50: technicalLensPayload.ema50,
+                volume_ratio: technicalLensPayload.volumeRatio,
+              },
+            };
+            enrichedCategories.push("technical");
+          }
+        }
+
+        // Compute pattern lens (if enabled)
+        if (isCategoryEnabled(effectiveProfile, "pattern")) {
+          patternLensPayload = detectPatterns(afiCandles);
+          if (patternLensPayload) {
+            // Add USS lens
+            lenses.push({
+              type: "pattern",
+              version: "v1",
+              payload: patternLensPayload,
+            });
+
+            // Keep legacy format for afi-core compatibility
+            pattern = {
+              patternName: patternLensPayload.patternName,
+              patternConfidence: patternLensPayload.patternConfidence,
+            };
+            enrichedCategories.push("pattern");
+          }
+        }
 
         console.log(`✅ Enrichment: Fetched real price data from ${actualPriceSource} for ${validatedInput.meta.symbol}`);
       } catch (error) {
-        // Fall back to demo data if real data fetch fails
-        console.warn(`⚠️  Enrichment: Failed to fetch real price data from ${actualPriceSource}, falling back to demo data:`, error);
+        // Fall back to demo/null if real data fetch fails
+        console.warn(`⚠️  Enrichment: Failed to fetch real price data from ${actualPriceSource}:`, error);
         actualPriceSource = "demo";  // Update to reflect actual source used
-        technical = generateDemoTechnicalIndicators();
-        enrichedCategories.push("technical");
       }
-    } else {
-      // Use demo data
-      technical = generateDemoTechnicalIndicators();
-      enrichedCategories.push("technical");
     }
   }
 
-  const pattern = isCategoryEnabled(effectiveProfile, "pattern")
-    ? generateDemoPatternAnalysis()
-    : undefined;
-  if (pattern) enrichedCategories.push("pattern");
+  // Sentiment lens (demo data for now)
+  let sentiment: any = undefined;
+  if (isCategoryEnabled(effectiveProfile, "sentiment")) {
+    const sentimentPayload: SentimentLensV1["payload"] = {
+      score: 0.5 + (Math.random() - 0.5) * 0.4, // 0.3-0.7 range
+      tags: ["bullish", "trending"],
+      source: "demo",
+    };
 
-  const sentiment = isCategoryEnabled(effectiveProfile, "sentiment")
-    ? {
-        score: 0.5 + (Math.random() - 0.5) * 0.4, // 0.3-0.7 range
-        tags: ["bullish", "trending"],
-      }
-    : undefined;
-  if (sentiment) enrichedCategories.push("sentiment");
+    lenses.push({
+      type: "sentiment",
+      version: "v1",
+      payload: sentimentPayload,
+    });
 
-  const news = isCategoryEnabled(effectiveProfile, "news")
-    ? {
-        hasShockEvent: false,
-        shockDirection: "none" as const,
-        headlines: [],
-      }
-    : undefined;
-  if (news) enrichedCategories.push("news");
+    sentiment = {
+      score: sentimentPayload.score,
+      tags: sentimentPayload.tags,
+    };
+    enrichedCategories.push("sentiment");
+  }
 
-  const aiMl = isCategoryEnabled(effectiveProfile, "aiMl")
-    ? {
-        ensembleScore: 0.6 + Math.random() * 0.2, // 0.6-0.8 range
-        modelTags: ["trend-following", "pullback"],
-      }
-    : undefined;
-  if (aiMl) enrichedCategories.push("aiMl");
+  // News lens (demo data for now)
+  let news: any = undefined;
+  if (isCategoryEnabled(effectiveProfile, "news")) {
+    const newsPayload: NewsLensV1["payload"] = {
+      hasShockEvent: false,
+      shockDirection: "none",
+      headlines: [],
+    };
+
+    lenses.push({
+      type: "news",
+      version: "v1",
+      payload: newsPayload,
+    });
+
+    news = {
+      hasShockEvent: newsPayload.hasShockEvent,
+      shockDirection: newsPayload.shockDirection,
+      headlines: newsPayload.headlines,
+    };
+    enrichedCategories.push("news");
+  }
+
+  // AI/ML lens (demo data for now)
+  let aiMl: any = undefined;
+  if (isCategoryEnabled(effectiveProfile, "aiMl")) {
+    const aiMlPayload: AiMlLensV1["payload"] = {
+      ensembleScore: 0.6 + Math.random() * 0.2, // 0.6-0.8 range
+      modelTags: ["trend-following", "pullback"],
+    };
+
+    lenses.push({
+      type: "aiMl",
+      version: "v1",
+      payload: aiMlPayload,
+    });
+
+    aiMl = {
+      ensembleScore: aiMlPayload.ensembleScore,
+      modelTags: aiMlPayload.modelTags,
+    };
+    enrichedCategories.push("aiMl");
+  }
 
   // Normalize market type and determine venue type
   const normalizedMarketType = normalizeMarketType(validatedInput.meta.market);
   const venueType = mapMarketTypeToVenueType(normalizedMarketType, actualPriceSource === "demo");
+
+  // Build enrichment stage summary (human-readable hint from lenses)
+  let enrichmentSummary = `Applied enrichment legos: ${enrichedCategories.join(", ")}`;
+  if (technicalLensPayload) {
+    enrichmentSummary += `. Trend: ${technicalLensPayload.trendBias} (EMA20=${technicalLensPayload.ema20.toFixed(2)}, RSI=${technicalLensPayload.rsi14.toFixed(0)})`;
+  }
+  if (patternLensPayload?.patternName) {
+    enrichmentSummary += `. Pattern: ${patternLensPayload.patternName}`;
+  }
 
   // Build FroggyEnrichedView
   const enriched: FroggyEnrichedView = {
@@ -317,6 +292,9 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
     },
   };
 
+  // Attach USS lenses (Phase 2: Enrichment Data)
+  (enriched as any).lenses = lenses;
+
   // Attach price source metadata as a separate property (not part of afi-core's FroggyEnrichedView)
   // This will be read by froggyDemoService for TSSD vault persistence
   // PROVENANCE REQUIREMENT: These fields are REQUIRED for TSSD vault writes
@@ -324,7 +302,13 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
     priceSource: actualPriceSource,  // Use actual source (may be "demo" if fallback occurred)
     venueType,
     marketType: normalizedMarketType,  // Include normalized market type for TSSD
+    // Mirror enrichment data for debugging/provenance
+    technicalIndicators: technicalLensPayload || undefined,
+    patternSignals: patternLensPayload || undefined,
   };
+
+  // Attach enrichment summary for stage summaries
+  (enriched as any)._enrichmentSummary = enrichmentSummary;
 
   return enriched;
 }

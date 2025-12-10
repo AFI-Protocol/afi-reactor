@@ -58,9 +58,9 @@ export async function getSimpleReplayViewBySignalId(
 
 /**
  * Map a TSSD document to a SimpleReplayView
- * 
+ *
  * Transforms the raw MongoDB document into a clean, UI-friendly format.
- * 
+ *
  * @param doc - TSSD signal document from MongoDB
  * @returns SimpleReplayView
  */
@@ -108,6 +108,9 @@ function mapTssdDocumentToSimpleView(doc: TssdSignalDocument): SimpleReplayView 
           tokenAmount: doc.receiptProvenance.tokenAmount,
         }
       : undefined,
+
+    // Include USS lenses (Phase 2: Enrichment Data)
+    lenses: doc.lenses,
 
     // Include full raw document for debugging
     raw: doc,

@@ -184,11 +184,12 @@ export async function runFroggyTrendPullbackFromTradingView(
 
   if (options?.includeStageSummaries) {
     const enrichmentCategories = enrichedSignal.enrichmentMeta?.categories || [];
+    const enrichmentSummary = (enrichedSignal as any)._enrichmentSummary || `Applied enrichment legos: ${enrichmentCategories.join(", ")}`;
     stageSummaries.push({
       stage: "enrichment",
       persona: "Pixel Rick",
       status: "complete",
-      summary: `Applied enrichment legos: ${enrichmentCategories.join(", ")}`,
+      summary: enrichmentSummary,
       enrichmentCategories,
     });
   }
@@ -273,6 +274,13 @@ export async function runFroggyTrendPullbackFromTradingView(
     const venueType = (enrichedSignal as any)._priceFeedMetadata?.venueType;
     const marketType = (enrichedSignal as any)._priceFeedMetadata?.marketType;
 
+    // Extract USS lenses from enriched signal
+    const lenses = (enrichedSignal as any).lenses || [];
+
+    // Extract mirrored metadata for debugging
+    const technicalIndicators = (enrichedSignal as any)._priceFeedMetadata?.technicalIndicators;
+    const patternSignals = (enrichedSignal as any)._priceFeedMetadata?.patternSignals;
+
     // PROVENANCE GUARDRAIL: Enforce priceSource and venueType for all TSSD writes
     // These fields are required for audit trail and data provenance tracking
     if (!priceSource || !venueType) {
@@ -299,6 +307,11 @@ export async function runFroggyTrendPullbackFromTradingView(
         market: marketType || payload.market,  // Use normalized marketType from enrichment
         priceSource,  // Now guaranteed to be non-empty
         venueType,    // Now guaranteed to be non-empty
+      },
+      lenses: lenses.length > 0 ? lenses : undefined,  // USS lenses (Phase 2)
+      _priceFeedMetadata: {  // Mirrored metadata for debugging (DEPRECATED)
+        technicalIndicators,
+        patternSignals,
       },
       pipeline: {
         uwrScore: analyzedSignal.analysis.uwrScore,

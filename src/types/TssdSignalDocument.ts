@@ -9,9 +9,12 @@
  *
  * Phase 1: Basic persistence only (no replay, no complex querying)
  * Phase 1.5: Receipt provenance tracking (off-chain only, no on-chain minting)
+ * Phase 2: USS lenses for enrichment data (technical, pattern, sentiment, etc.)
  *
  * @module TssdSignalDocument
  */
+
+import type { SupportedLens } from "./UssLenses.js";
 
 /**
  * T.S.S.D. Vault Document
@@ -89,6 +92,50 @@ export interface TssdSignalDocument {
   strategy: {
     name: string;          // e.g., "froggy_trend_pullback_v1"
     direction: string;     // e.g., "long", "short", "neutral"
+  };
+
+  /**
+   * USS Lenses (Phase 2: Enrichment Data)
+   *
+   * Versioned, structured enrichment data attached as USS lenses.
+   * Each lens provides domain-specific enrichment (technical, pattern, sentiment, etc.)
+   * in a forward-compatible, composable format.
+   *
+   * Lenses are optional and backward-compatible with Phase 1 documents.
+   */
+  lenses?: SupportedLens[];
+
+  /**
+   * Price Feed Metadata (Debugging/Provenance)
+   *
+   * Mirrors key enrichment data for debugging and provenance tracking.
+   * This is a transitional field - enrichment data should primarily live in lenses.
+   *
+   * DEPRECATED: Use lenses instead. This field will be removed in a future version.
+   */
+  _priceFeedMetadata?: {
+    /** Technical indicators (mirrored from TechnicalLensV1) */
+    technicalIndicators?: {
+      ema20?: number;
+      ema50?: number;
+      rsi14?: number;
+      atr14?: number;
+      trendBias?: string;
+      volumeRatio?: number;
+      emaDistancePct?: number;
+      isInValueSweetSpot?: boolean;
+    };
+    /** Pattern signals (mirrored from PatternLensV1) */
+    patternSignals?: {
+      bullishEngulfing?: boolean;
+      bearishEngulfing?: boolean;
+      pinBar?: boolean;
+      insideBar?: boolean;
+      structureBias?: string;
+      trendPullbackConfirmed?: boolean;
+      patternName?: string;
+      patternConfidence?: number;
+    };
   };
 
   /** Original inbound payload (for replay/audit) */
