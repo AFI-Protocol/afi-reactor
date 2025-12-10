@@ -10,6 +10,7 @@
 # Price feed source (required)
 export AFI_PRICE_FEED_SOURCE=demo      # Use mock data
 export AFI_PRICE_FEED_SOURCE=blofin    # Use real BloFin exchange data
+export AFI_PRICE_FEED_SOURCE=coinbase  # Use real Coinbase exchange data (spot only)
 
 # MongoDB connection (optional - enables TSSD vault)
 export AFI_MONGO_URI=mongodb://localhost:27017/afi

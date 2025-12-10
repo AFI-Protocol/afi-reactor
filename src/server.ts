@@ -26,8 +26,10 @@ import {
   type TradingViewAlertPayload,
 } from "./services/froggyDemoService.js";
 import { replaySignalById } from "./services/vaultReplayService.js";
+import { getSimpleReplayViewBySignalId } from "./services/tssdSimpleReplayService.js";
 import testEndpointsRouter from "./routes/testEndpoints.js";
 import blofinTestEndpointsRouter from "./routes/blofinTestEndpoints.js";
+import coinbaseTestEndpointsRouter from "./routes/coinbaseTestEndpoints.js";
 
 const app = express();
 
@@ -45,6 +47,9 @@ app.use("/test", testEndpointsRouter);
 
 // Mount BloFin test endpoints (dev/demo only)
 app.use("/test/blofin", blofinTestEndpointsRouter);
+
+// Mount Coinbase test endpoints (dev/demo only)
+app.use("/test/coinbase", coinbaseTestEndpointsRouter);
 
 /**
  * Health check endpoint.
@@ -164,17 +169,36 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
  * Vault Replay endpoint.
  *
  * GET /replay/signal/:signalId
+ * GET /replay/signal/:signalId?mode=simple
+ * GET /replay/signal/:signalId?mode=full
  *
- * READ-ONLY: Fetches a signal from the TSSD vault and replays it through the Froggy pipeline.
+ * READ-ONLY: Fetches a signal from the TSSD vault.
  *
- * This endpoint:
- * - Fetches the stored signal document from MongoDB
- * - Reconstructs the pipeline input from stored data
- * - Re-runs the Froggy pipeline deterministically
- * - Returns stored vs recomputed values for auditing
- * - Does NOT write to MongoDB (read-only replay)
+ * Two modes:
+ * 1. Simple mode (default, or ?mode=simple):
+ *    - Fast read-only view of stored signal
+ *    - No pipeline re-run
+ *    - Returns clean JSON view for UIs/dashboards
  *
- * Returns:
+ * 2. Full mode (?mode=full):
+ *    - Re-runs the Froggy pipeline deterministically
+ *    - Compares stored vs recomputed values
+ *    - Returns detailed comparison for auditing
+ *
+ * Simple mode returns:
+ * {
+ *   "replay": {
+ *     "signalId": "...",
+ *     "createdAt": "...",
+ *     "source": "...",
+ *     "market": { ... },
+ *     "strategy": { ... },
+ *     "pipeline": { ... },
+ *     "raw": { ... }
+ *   }
+ * }
+ *
+ * Full mode returns:
  * {
  *   "signalId": "...",
  *   "stored": { ... },
@@ -186,12 +210,45 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
 app.get("/replay/signal/:signalId", async (req: Request, res: Response) => {
   try {
     const { signalId } = req.params;
+    const mode = (req.query.mode as string) || "simple";
 
+    // Validate signalId
     if (!signalId) {
-      return res.status(400).json({ error: "Missing required parameter: signalId" });
+      return res.status(400).json({
+        error: "bad_request",
+        message: "Missing required parameter: signalId"
+      });
     }
 
-    console.log(`🔄 Vault replay requested: ${signalId}`);
+    // Validate mode
+    if (mode !== "simple" && mode !== "full") {
+      return res.status(400).json({
+        error: "bad_request",
+        message: `Invalid mode: '${mode}'. Must be 'simple' or 'full'`,
+      });
+    }
+
+    // Simple mode: Fast read-only view
+    if (mode === "simple") {
+      console.log(`📖 Simple replay requested: ${signalId}`);
+
+      const simpleView = await getSimpleReplayViewBySignalId(signalId);
+
+      if (!simpleView) {
+        console.warn(`⚠️  Signal not found: ${signalId}`);
+        return res.status(404).json({
+          error: "signal_not_found",
+          message: `Signal with ID '${signalId}' not found in TSSD vault`,
+          signalId,
+        });
+      }
+
+      console.log(`✅ Simple replay complete: ${signalId}`);
+      return res.status(200).json({ replay: simpleView });
+    }
+
+    // Full mode: Re-run pipeline and compare
+    console.log(`🔄 Full replay requested: ${signalId}`);
 
     const replayResult = await replaySignalById(signalId);
 
@@ -200,10 +257,11 @@ app.get("/replay/signal/:signalId", async (req: Request, res: Response) => {
       return res.status(404).json({
         error: "signal_not_found",
         message: `Signal with ID '${signalId}' not found in TSSD vault`,
+        signalId,
       });
     }
 
-    console.log(`✅ Vault replay complete: ${signalId}`, {
+    console.log(`✅ Full replay complete: ${signalId}`, {
       uwrScoreDelta: replayResult.comparison.uwrScoreDelta,
       decisionChanged: replayResult.comparison.decisionChanged,
     });
@@ -211,9 +269,20 @@ app.get("/replay/signal/:signalId", async (req: Request, res: Response) => {
     return res.status(200).json(replayResult);
   } catch (err: any) {
     console.error(`❌ Error in vault replay:`, err);
+
+    // Check if it's a vault unavailable error
+    if (err.message && err.message.includes("not configured")) {
+      return res.status(503).json({
+        error: "vault_unavailable",
+        message: "TSSD replay unavailable",
+        reason: "MongoDB not configured (AFI_MONGO_URI not set)",
+      });
+    }
+
+    // Generic internal error
     return res.status(500).json({
       error: "internal_error",
-      message: err.message || "Unknown error",
+      message: err.message || "Unknown error during replay",
     });
   }
 });
@@ -301,7 +370,8 @@ if (process.env.NODE_ENV !== "test") {
     console.log(`     GET  /health`);
     console.log(`     POST /api/webhooks/tradingview`);
     console.log(`     POST /demo/afi-eliza-demo (AFI Eliza Demo with stage summaries)`);
-    console.log(`     GET  /replay/signal/:signalId (Vault Replay - Phase 2)`);
+    console.log(`     GET  /replay/signal/:signalId (Simple replay - read-only view)`);
+    console.log(`     GET  /replay/signal/:signalId?mode=full (Full replay - re-run pipeline)`);
     console.log(``);
     console.log(`   Test Endpoints (dev/demo only):`);
     console.log(`     POST /test/enrichment - Test enrichment stage only`);
@@ -312,6 +382,11 @@ if (process.env.NODE_ENV !== "test") {
     console.log(`     GET  /test/blofin/ohlcv?symbol=BTC/USDT&timeframe=1h&limit=50`);
     console.log(`     GET  /test/blofin/ticker?symbol=BTC/USDT`);
     console.log(`     GET  /test/blofin/status`);
+    console.log(``);
+    console.log(`   Coinbase Test Endpoints (dev/demo only):`);
+    console.log(`     GET  /test/coinbase/ohlcv?symbol=BTC/USDT&timeframe=1h&limit=50`);
+    console.log(`     GET  /test/coinbase/ticker?symbol=BTC/USDT`);
+    console.log(`     GET  /test/coinbase/status`);
     console.log(``);
     console.log(`   Price Feed: ${process.env.AFI_PRICE_FEED_SOURCE || "demo (mock data)"}`);
     console.log(`   ⚠️  DEV/DEMO ONLY - No real trading or emissions`);

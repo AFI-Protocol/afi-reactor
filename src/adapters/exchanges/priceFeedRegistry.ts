@@ -11,15 +11,17 @@
 
 import type { PriceFeedAdapter, PriceSourceId } from "./types.js";
 import { blofinPriceFeedAdapter } from "./blofinPriceFeedAdapter.js";
+import { coinbasePriceFeedAdapter } from "./coinbasePriceFeedAdapter.js";
 import { demoPriceFeedAdapter } from "./demoPriceFeedAdapter.js";
 
 /**
  * Price Feed Adapter Registry
- * 
+ *
  * Maps price source IDs to adapter instances.
  */
 const PRICE_FEED_ADAPTERS: Record<string, PriceFeedAdapter> = {
   blofin: blofinPriceFeedAdapter,
+  coinbase: coinbasePriceFeedAdapter,
   demo: demoPriceFeedAdapter,
 };
 
