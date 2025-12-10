@@ -21,13 +21,15 @@
     "ops/**/*",
     "core/**/*",
     "codex/**/*",
+    "scripts/**/*",
     "typings.d.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "scripts/pipeline-smoke.ts"
   ],
   "ts-node": {
     "esm": true

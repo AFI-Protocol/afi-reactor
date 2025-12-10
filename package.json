@@ -21,6 +21,7 @@
     "mentor-eval": "node dist/ops/mentorChain.js",
     "test": "jest",
     "validate-all": "npm run build && npm run codex-lint && npm run simulate-signal && npm run mentor-eval",
+    "verify:tssd:blofin": "node dist/scripts/verify-tssd-blofin.js",
     "esm:check": "bash scripts/esm-check.sh"
   },
   "devDependencies": {
@@ -35,6 +36,7 @@
   "dependencies": {
     "@types/mongodb": "^4.0.6",
     "afi-core": "file:../afi-core",
+    "ccxt": "^4.5.26",
     "commander": "^14.0.0",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",

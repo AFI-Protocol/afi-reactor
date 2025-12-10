@@ -17,6 +17,9 @@ import type {
   FroggyEnrichedView,
   EnrichmentProfile
 } from "afi-core/analysts/froggy.enrichment_adapter.js";
+import { getPriceFeedAdapter, getDefaultPriceSource } from "../src/adapters/exchanges/priceFeedRegistry.js";
+import type { OHLCVCandle } from "../src/adapters/exchanges/types.js";
+import { normalizeMarketType, mapMarketTypeToVenueType } from "../src/utils/marketUtils.js";
 
 /**
  * Input schema: structured signal from signal-structurer.
@@ -68,18 +71,105 @@ function isCategoryEnabled(
 }
 
 /**
+ * Calculate technical indicators from real OHLCV data
+ *
+ * Computes EMA, RSI, and other indicators from actual price candles.
+ */
+function calculateTechnicalIndicators(candles: OHLCVCandle[]) {
+  if (candles.length < 50) {
+    throw new Error("Need at least 50 candles for technical indicators");
+  }
+
+  // Calculate EMA-20 and EMA-50
+  const ema20 = calculateEMA(candles, 20);
+  const ema50 = calculateEMA(candles, 50);
+
+  // Get latest candle
+  const latestCandle = candles[candles.length - 1];
+  const currentPrice = latestCandle.close;
+
+  // Calculate EMA distance percentage
+  const emaDistancePct = ((currentPrice - ema20) / ema20) * 100;
+
+  // Check if in "sweet spot" (within 1% of EMA-20)
+  const isInValueSweetSpot = Math.abs(emaDistancePct) <= 1;
+
+  // Check if price broke EMA with body (close below EMA for uptrend)
+  const brokeEmaWithBody = latestCandle.close < ema20 && latestCandle.open > ema20;
+
+  // Calculate RSI (simplified 14-period)
+  const rsi = calculateRSI(candles, 14);
+
+  // Calculate volume ratio (current vs average)
+  const avgVolume = candles.slice(-20).reduce((sum, c) => sum + c.volume, 0) / 20;
+  const volumeRatio = latestCandle.volume / avgVolume;
+
+  return {
+    emaDistancePct,
+    isInValueSweetSpot,
+    brokeEmaWithBody,
+    indicators: {
+      rsi,
+      ema_20: ema20,
+      ema_50: ema50,
+      volume_ratio: volumeRatio,
+    },
+  };
+}
+
+/**
+ * Calculate Exponential Moving Average (EMA)
+ */
+function calculateEMA(candles: OHLCVCandle[], period: number): number {
+  const multiplier = 2 / (period + 1);
+  let ema = candles.slice(0, period).reduce((sum, c) => sum + c.close, 0) / period;
+
+  for (let i = period; i < candles.length; i++) {
+    ema = (candles[i].close - ema) * multiplier + ema;
+  }
+
+  return ema;
+}
+
+/**
+ * Calculate Relative Strength Index (RSI)
+ */
+function calculateRSI(candles: OHLCVCandle[], period: number = 14): number {
+  if (candles.length < period + 1) return 50; // Default neutral
+
+  let gains = 0;
+  let losses = 0;
+
+  // Calculate initial average gain/loss
+  for (let i = candles.length - period; i < candles.length; i++) {
+    const change = candles[i].close - candles[i - 1].close;
+    if (change > 0) gains += change;
+    else losses += Math.abs(change);
+  }
+
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+
+  if (avgLoss === 0) return 100;
+
+  const rs = avgGain / avgLoss;
+  const rsi = 100 - (100 / (1 + rs));
+
+  return rsi;
+}
+
+/**
  * Generate plausible technical indicators for demo purposes.
- * 
- * In production, these would come from real market data sources.
- * For demo, we generate realistic-looking values that Froggy can process.
+ *
+ * Fallback when real data is not available.
  */
 function generateDemoTechnicalIndicators() {
   // Generate plausible EMA distance (pullback scenario: -2% to +2%)
   const emaDistancePct = (Math.random() - 0.5) * 4;
-  
+
   // Determine if in "sweet spot" (within 1% of EMA)
   const isInValueSweetSpot = Math.abs(emaDistancePct) <= 1;
-  
+
   // Random chance of breaking EMA with body
   const brokeEmaWithBody = Math.random() < 0.3;
 
@@ -122,7 +212,8 @@ function generateDemoPatternAnalysis() {
  * Now honors EnrichmentProfile from signal.meta.enrichmentProfile:
  * - Only populates enrichment sections that are enabled in the profile
  * - Uses default profile (all enabled) if no profile is provided
- * - Still uses demo/mocked data, but shaped according to the profile
+ * - Fetches real price data from configured exchange (BloFin) when AFI_PRICE_FEED_SOURCE is set
+ * - Falls back to demo/mocked data when price source is "demo" or fetch fails
  *
  * @param signal - Structured signal from Pixel Rick
  * @returns FroggyEnrichedView ready for Froggy analyst
@@ -138,11 +229,41 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
   // Track which categories were actually enriched
   const enrichedCategories: string[] = [];
 
-  // Generate demo enrichment data only for enabled categories
-  const technical = isCategoryEnabled(effectiveProfile, "technical")
-    ? generateDemoTechnicalIndicators()
-    : undefined;
-  if (technical) enrichedCategories.push("technical");
+  // Determine price source (BloFin or demo)
+  // This may be overridden to "demo" if real data fetch fails
+  let actualPriceSource = getDefaultPriceSource();
+
+  // Fetch real price data if using BloFin, otherwise use demo data
+  let technical: any = undefined;
+  if (isCategoryEnabled(effectiveProfile, "technical")) {
+    if (actualPriceSource !== "demo") {
+      try {
+        // Fetch real OHLCV data from exchange
+        const adapter = getPriceFeedAdapter(actualPriceSource);
+        const candles = await adapter.getOHLCV({
+          symbol: validatedInput.meta.symbol,
+          timeframe: validatedInput.meta.timeframe,
+          limit: 100, // Need enough candles for EMA-50
+        });
+
+        // Calculate technical indicators from real data
+        technical = calculateTechnicalIndicators(candles);
+        enrichedCategories.push("technical");
+
+        console.log(`✅ Enrichment: Fetched real price data from ${actualPriceSource} for ${validatedInput.meta.symbol}`);
+      } catch (error) {
+        // Fall back to demo data if real data fetch fails
+        console.warn(`⚠️  Enrichment: Failed to fetch real price data from ${actualPriceSource}, falling back to demo data:`, error);
+        actualPriceSource = "demo";  // Update to reflect actual source used
+        technical = generateDemoTechnicalIndicators();
+        enrichedCategories.push("technical");
+      }
+    } else {
+      // Use demo data
+      technical = generateDemoTechnicalIndicators();
+      enrichedCategories.push("technical");
+    }
+  }
 
   const pattern = isCategoryEnabled(effectiveProfile, "pattern")
     ? generateDemoPatternAnalysis()
@@ -174,11 +295,15 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
     : undefined;
   if (aiMl) enrichedCategories.push("aiMl");
 
+  // Normalize market type and determine venue type
+  const normalizedMarketType = normalizeMarketType(validatedInput.meta.market);
+  const venueType = mapMarketTypeToVenueType(normalizedMarketType, actualPriceSource === "demo");
+
   // Build FroggyEnrichedView
   const enriched: FroggyEnrichedView = {
     signalId: validatedInput.signalId,
     symbol: validatedInput.meta.symbol,
-    market: validatedInput.meta.market,
+    market: normalizedMarketType,  // Use normalized market type
     timeframe: validatedInput.meta.timeframe,
     technical,
     pattern,
@@ -190,6 +315,15 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
       enrichedBy: "froggy-enrichment-adapter",
       enrichedAt: new Date().toISOString(),
     },
+  };
+
+  // Attach price source metadata as a separate property (not part of afi-core's FroggyEnrichedView)
+  // This will be read by froggyDemoService for TSSD vault persistence
+  // PROVENANCE REQUIREMENT: These fields are REQUIRED for TSSD vault writes
+  (enriched as any)._priceFeedMetadata = {
+    priceSource: actualPriceSource,  // Use actual source (may be "demo" if fallback occurred)
+    venueType,
+    marketType: normalizedMarketType,  // Include normalized market type for TSSD
   };
 
   return enriched;

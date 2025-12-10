@@ -34,6 +34,20 @@ export interface TssdSignalDocument {
     symbol: string;        // e.g., "BTC/USDT"
     timeframe: string;     // e.g., "1h", "15m", "4h"
     market?: string;       // e.g., "spot", "perp", "futures"
+
+    /**
+     * Price source metadata (Phase: BloFin Integration)
+     *
+     * REQUIRED for any pipeline that uses price data (e.g., Froggy enrichment).
+     * These fields track data provenance for audit and debugging.
+     *
+     * - priceSource: Which adapter provided the price data (e.g., "blofin", "demo")
+     * - venueType: Type of market venue (e.g., "crypto_perps", "crypto_spot", "demo")
+     *
+     * The froggyDemoService enforces these fields are present before writing to TSSD vault.
+     */
+    priceSource?: string;  // e.g., "blofin", "demo" - REQUIRED for price-based pipelines
+    venueType?: string;    // e.g., "crypto_perps", "crypto_spot", "demo" - REQUIRED for price-based pipelines
   };
 
   /** Pipeline execution results */

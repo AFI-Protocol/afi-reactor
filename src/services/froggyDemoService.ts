@@ -122,7 +122,9 @@ export interface FroggyPipelineResult {
   /** DEMO-ONLY: Marker to indicate this is a demo run */
   isDemo?: boolean;
   /** Vault write status (Phase 1: TSSD vault integration) */
-  vaultWrite?: "success" | "failed" | "skipped";
+  vaultWrite?: "success" | "failed" | "skipped" | "failed-missing-provenance";
+  /** Vault error message (if vaultWrite === "failed-missing-provenance") */
+  vaultError?: string;
 }
 
 /**
@@ -266,6 +268,27 @@ export async function runFroggyTrendPullbackFromTradingView(
   // Persist the final scored + validated signal to MongoDB (if enabled)
   const vaultService = getTssdVaultService();
   if (vaultService) {
+    // Extract price source metadata from enriched signal
+    const priceSource = (enrichedSignal as any)._priceFeedMetadata?.priceSource;
+    const venueType = (enrichedSignal as any)._priceFeedMetadata?.venueType;
+    const marketType = (enrichedSignal as any)._priceFeedMetadata?.marketType;
+
+    // PROVENANCE GUARDRAIL: Enforce priceSource and venueType for all TSSD writes
+    // These fields are required for audit trail and data provenance tracking
+    if (!priceSource || !venueType) {
+      const errorMsg = `❌ TSSD Vault Write BLOCKED: Missing provenance metadata for signal ${rawSignal.signalId}. ` +
+        `priceSource=${priceSource}, venueType=${venueType}. ` +
+        `All price-based pipelines MUST attach _priceFeedMetadata in enrichment stage.`;
+      console.error(errorMsg);
+
+      // Mark vault write as failed and include error in result
+      result.vaultWrite = "failed-missing-provenance";
+      (result as any).vaultError = errorMsg;
+
+      // Return early - do NOT write incomplete provenance to vault
+      return result;
+    }
+
     const tssdDoc: TssdSignalDocument = {
       signalId: rawSignal.signalId,
       createdAt: new Date(),
@@ -273,7 +296,9 @@ export async function runFroggyTrendPullbackFromTradingView(
       market: {
         symbol: payload.symbol,
         timeframe: payload.timeframe,
-        market: payload.market,
+        market: marketType || payload.market,  // Use normalized marketType from enrichment
+        priceSource,  // Now guaranteed to be non-empty
+        venueType,    // Now guaranteed to be non-empty
       },
       pipeline: {
         uwrScore: analyzedSignal.analysis.uwrScore,

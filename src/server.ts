@@ -26,6 +26,8 @@ import {
   type TradingViewAlertPayload,
 } from "./services/froggyDemoService.js";
 import { replaySignalById } from "./services/vaultReplayService.js";
+import testEndpointsRouter from "./routes/testEndpoints.js";
+import blofinTestEndpointsRouter from "./routes/blofinTestEndpoints.js";
 
 const app = express();
 
@@ -37,6 +39,12 @@ app.use((req: Request, res: Response, next) => {
   console.log(`🔥 ${new Date().toISOString()} ${req.method} ${req.url}`);
   next();
 });
+
+// Mount test endpoints router (dev/demo only)
+app.use("/test", testEndpointsRouter);
+
+// Mount BloFin test endpoints (dev/demo only)
+app.use("/test/blofin", blofinTestEndpointsRouter);
 
 /**
  * Health check endpoint.
@@ -230,16 +238,17 @@ app.post("/demo/afi-eliza-demo", async (req: Request, res: Response) => {
   try {
     console.log(`🎯 AFI Eliza Demo endpoint called`);
 
-    // Fixed demo payload for deterministic results
+    // Use request body to allow customization (symbol, market, timeframe, etc.)
+    // Fall back to demo defaults if not provided
     const demoPayload: TradingViewAlertPayload = {
-      symbol: "BTC/USDT",
-      market: "spot",
-      timeframe: "1h",
-      strategy: "froggy_trend_pullback_v1",
-      direction: "long",
-      setupSummary: "Bullish pullback to 20 EMA after liquidity sweep below $67.2k. Volume increasing on bounce. Structure intact (higher highs).",
-      notes: "DEMO-ONLY: AFI Eliza Demo sample for ElizaOS integration",
-      enrichmentProfile: {
+      symbol: req.body.symbol || "BTC/USDT",
+      market: req.body.market || "spot",
+      timeframe: req.body.timeframe || "1h",
+      strategy: req.body.strategy || "froggy_trend_pullback_v1",
+      direction: req.body.direction || "long",
+      setupSummary: req.body.setupSummary || "Bullish pullback to 20 EMA after liquidity sweep below $67.2k. Volume increasing on bounce. Structure intact (higher highs).",
+      notes: req.body.notes || "DEMO-ONLY: AFI Eliza Demo sample for ElizaOS integration",
+      enrichmentProfile: req.body.enrichmentProfile || {
         technical: { enabled: true, preset: "trend_pullback" },
         pattern: { enabled: true, preset: "reversal_patterns" },
         sentiment: { enabled: false },
@@ -294,6 +303,17 @@ if (process.env.NODE_ENV !== "test") {
     console.log(`     POST /demo/afi-eliza-demo (AFI Eliza Demo with stage summaries)`);
     console.log(`     GET  /replay/signal/:signalId (Vault Replay - Phase 2)`);
     console.log(``);
+    console.log(`   Test Endpoints (dev/demo only):`);
+    console.log(`     POST /test/enrichment - Test enrichment stage only`);
+    console.log(`     POST /test/analysis   - Test analysis stage only`);
+    console.log(`     POST /test/validator  - Test validator stage only`);
+    console.log(``);
+    console.log(`   BloFin Test Endpoints (dev/demo only):`);
+    console.log(`     GET  /test/blofin/ohlcv?symbol=BTC/USDT&timeframe=1h&limit=50`);
+    console.log(`     GET  /test/blofin/ticker?symbol=BTC/USDT`);
+    console.log(`     GET  /test/blofin/status`);
+    console.log(``);
+    console.log(`   Price Feed: ${process.env.AFI_PRICE_FEED_SOURCE || "demo (mock data)"}`);
     console.log(`   ⚠️  DEV/DEMO ONLY - No real trading or emissions`);
     console.log(``);
   });
