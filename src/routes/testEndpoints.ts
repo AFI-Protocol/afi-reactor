@@ -21,11 +21,18 @@ const router = Router();
 
 /**
  * Test Enrichment Stage Only
- * 
- * Accepts a structured signal and returns enriched signal.
+ *
+ * Accepts either a minimal payload or a fully structured signal and returns enriched signal.
  * Bypasses ingestion and structuring stages.
- * 
- * Example payload:
+ *
+ * Minimal payload example:
+ * {
+ *   "signalId": "test-001",
+ *   "symbol": "BTCUSDT",
+ *   "timeframe": "1h"
+ * }
+ *
+ * Full structured signal example:
  * {
  *   "signalId": "test-001",
  *   "score": 0,
@@ -40,24 +47,47 @@ const router = Router();
  *     "enrichmentProfile": {
  *       "technical": { "enabled": true, "preset": "trend_pullback" }
  *     }
- *   },
- *   "structured": {
- *     "normalizedTimestamp": "2025-12-09T12:00:00Z",
- *     "hasValidMeta": true,
- *     "structuredBy": "test"
  *   }
  * }
  */
 router.post("/enrichment", async (req, res) => {
   try {
-    const structuredSignal = req.body;
-    
-    if (!structuredSignal.signalId) {
+    const payload = req.body;
+
+    if (!payload.signalId) {
       return res.status(400).json({ error: "Missing signalId" });
     }
-    
+
+    // Auto-structure minimal payloads
+    let structuredSignal;
+    if (!payload.meta || !payload.score || !payload.confidence || !payload.timestamp) {
+      // Minimal payload - auto-structure it
+      const symbol = payload.symbol || payload.meta?.symbol || "BTCUSDT";
+      const timeframe = payload.timeframe || payload.meta?.timeframe || "1h";
+      const market = payload.market || payload.meta?.market || "perp";
+
+      structuredSignal = {
+        signalId: payload.signalId,
+        score: payload.score ?? 0,
+        confidence: payload.confidence ?? 0.5,
+        timestamp: payload.timestamp || new Date().toISOString(),
+        meta: {
+          symbol,
+          market,
+          timeframe,
+          strategy: payload.strategy || payload.meta?.strategy || "froggy_trend_pullback_v1",
+          direction: payload.direction || payload.meta?.direction || "neutral",
+          source: payload.source || payload.meta?.source || "test-endpoint",
+          enrichmentProfile: payload.enrichmentProfile || payload.meta?.enrichmentProfile,
+        },
+      };
+    } else {
+      // Already structured
+      structuredSignal = payload;
+    }
+
     const enriched = await froggyEnrichmentAdapter.run(structuredSignal);
-    
+
     res.json({
       stage: "enrichment",
       input: structuredSignal,
@@ -66,9 +96,9 @@ router.post("/enrichment", async (req, res) => {
     });
   } catch (error: any) {
     console.error("Enrichment test failed:", error);
-    res.status(500).json({ 
-      error: "Enrichment test failed", 
-      message: error.message 
+    res.status(500).json({
+      error: "Enrichment test failed",
+      message: error.message
     });
   }
 });

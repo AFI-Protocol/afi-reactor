@@ -1,24 +1,30 @@
 /**
  * 🚦 AFI-REACTOR HTTP DEMO SERVER
- * 
+ *
  * This server is for dev/demo only. It exposes:
  *   - GET /health
  *   - POST /api/webhooks/tradingview
- * 
+ *
  * It runs the Froggy trend-pullback pipeline using simulated execution.
- * 
+ *
  * ⚠️ DEV/DEMO ONLY:
  * - No real trading or token emissions occur here
  * - Execution is simulated only
  * - No real exchange API calls
  * - Uses demo enrichment data
- * 
+ *
  * Environment variables:
  * - AFI_REACTOR_PORT: Server port (default: 8080)
  * - WEBHOOK_SHARED_SECRET: Optional shared secret for webhook authentication
- * 
+ * - COINALYZE_API_KEY: Optional API key for Coinalyze perp sentiment data
+ * - AFI_PRICE_FEED_SOURCE: Price feed source (demo, blofin, coinbase)
+ *
  * @module server
  */
+
+// ⚠️ CRITICAL: Load environment variables FIRST before any other imports
+import dotenv from "dotenv";
+dotenv.config();
 
 import express, { Request, Response } from "express";
 import {
@@ -68,6 +74,23 @@ app.get("/health", (req: Request, res: Response) => {
     status: "ok",
     service: "afi-reactor",
     froggyPipeline: "available",
+  });
+});
+
+/**
+ * Debug endpoint to check environment variables (dev/demo only).
+ *
+ * GET /debug/env
+ */
+app.get("/debug/env", (req: Request, res: Response) => {
+  const coinalyzeKey = process.env.COINALYZE_API_KEY;
+  const priceFeedSource = process.env.AFI_PRICE_FEED_SOURCE;
+
+  res.json({
+    COINALYZE_API_KEY: coinalyzeKey ? `${coinalyzeKey.substring(0, 8)}...` : "NOT SET",
+    AFI_PRICE_FEED_SOURCE: priceFeedSource || "NOT SET (defaults to 'demo')",
+    AFI_REACTOR_PORT: process.env.AFI_REACTOR_PORT || "NOT SET (defaults to 8080)",
+    NODE_ENV: process.env.NODE_ENV || "NOT SET",
   });
 });
 

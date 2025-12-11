@@ -8,7 +8,7 @@
  * to ensure the data flows correctly through the pipeline.
  */
 
-import { describe, it, expect } from "@jest/globals";
+import { describe, it, expect, jest, beforeEach } from "@jest/globals";
 import alphaScoutIngest from "../plugins/alpha-scout-ingest.plugin.js";
 import signalStructurer from "../plugins/signal-structurer.plugin.js";
 import froggyEnrichmentAdapter from "../plugins/froggy-enrichment-adapter.plugin.js";
@@ -16,8 +16,30 @@ import froggyAnalyst from "../plugins/froggy.trend_pullback_v1.plugin.js";
 import validatorDecisionEvaluator from "../plugins/validator-decision-evaluator.plugin.js";
 import executionAgentSim from "../plugins/execution-agent-sim.plugin.js";
 import type { EnrichmentProfile } from "afi-core/analysts/froggy.enrichment_adapter.js";
+import type { CoinalyzePerpMetrics } from "../src/adapters/coinalyze/coinalyzeClient.js";
+import { fetchCoinalyzePerpMetrics } from "../src/adapters/coinalyze/coinalyzeClient.js";
+
+// Mock Coinalyze client to avoid real API calls in tests
+jest.mock("../src/adapters/coinalyze/coinalyzeClient.js", () => ({
+  fetchCoinalyzePerpMetrics: jest.fn(),
+}));
 
 describe("Froggy Pipeline Integration", () => {
+  beforeEach(() => {
+    // Clear all mocks before each test
+    jest.clearAllMocks();
+
+    // Set up default mock response for Coinalyze
+    const mockMetrics: CoinalyzePerpMetrics = {
+      fundingRate: 0.0005, // 0.05% - normal regime
+      fundingHistory: [0.0004, 0.0005, 0.0006],
+      oiUsd: 1000000000,
+      oiHistoryUsd: [980000000, 990000000, 1000000000], // +2% change
+      longShortRatio: 1.05,
+    };
+
+    (fetchCoinalyzePerpMetrics as jest.MockedFunction<typeof fetchCoinalyzePerpMetrics>).mockResolvedValue(mockMetrics);
+  });
   it("should process a signal through the complete pipeline", async () => {
     // Step 1: Alpha Scout ingests a draft signal
     const alphaDraft = {

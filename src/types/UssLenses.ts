@@ -82,20 +82,62 @@ export interface PatternLensV1 extends UssLens {
 }
 
 /**
+ * Funding regime classification for perp markets
+ */
+export type FundingRegime =
+  | "elevated_positive"
+  | "normal"
+  | "elevated_negative";
+
+/**
+ * Positioning bias based on funding and open interest
+ */
+export type PositioningBias =
+  | "crowded_long"
+  | "crowded_short"
+  | "balanced";
+
+/**
  * Sentiment Lens V1 - Market Sentiment
  *
- * Provides sentiment analysis from social media, news, and on-chain data.
+ * Provides sentiment analysis from social media, news, on-chain data,
+ * and perp market positioning (funding rates, open interest).
+ *
+ * Supports both legacy social sentiment (score, tags, source) and
+ * new perp sentiment fields (perpSentimentScore, fundingRegime, etc.)
+ * for backward compatibility.
  */
 export interface SentimentLensV1 extends UssLens {
   type: "sentiment";
   version: "v1";
   payload: {
+    // ===== Legacy Social Sentiment Fields (backward compatible) =====
     /** Sentiment score (0.0 = bearish, 0.5 = neutral, 1.0 = bullish) */
-    score: number;
+    score?: number;
     /** Sentiment tags */
     tags?: string[];
     /** Source of sentiment data */
     source?: string;
+
+    // ===== Perp Sentiment Fields (Froggy-specific) =====
+    /** Perp sentiment score (0-100, where 50 = neutral) */
+    perpSentimentScore?: number;
+    /** Funding rate regime classification */
+    fundingRegime?: FundingRegime;
+    /** Positioning bias based on funding + OI */
+    positioningBias?: PositioningBias;
+    /** Open interest change over 24h (percentage) */
+    oiChange24hPct?: number;
+    /** Open interest trend direction */
+    oiTrend?: "rising" | "falling" | "flat";
+    /** Fear & Greed index (0-100, optional placeholder for future) */
+    fearGreedScore?: number;
+    /** Provider metadata for perp sentiment */
+    providerMeta?: {
+      primary: "coinalyze" | "binance" | "demo";
+      secondary?: "binance" | "coingecko";
+      symbols: string[]; // e.g. ["BTCUSDT_PERP.A"]
+    };
   };
 }
 

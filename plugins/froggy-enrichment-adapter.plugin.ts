@@ -22,6 +22,7 @@ import type { OHLCVCandle } from "../src/adapters/exchanges/types.js";
 import { normalizeMarketType, mapMarketTypeToVenueType } from "../src/utils/marketUtils.js";
 import { computeTechnicalEnrichment } from "../src/enrichment/technicalIndicators.js";
 import { detectPatterns } from "../src/enrichment/patternRecognition.js";
+import { computeFroggySentiment } from "../src/indicator/froggySentimentProfile.js";
 import type { AfiCandle } from "../src/types/AfiCandle.js";
 import type { TechnicalLensV1, PatternLensV1, SentimentLensV1, NewsLensV1, AiMlLensV1, SupportedLens } from "../src/types/UssLenses.js";
 
@@ -127,95 +128,106 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
   let patternLensPayload: PatternLensV1["payload"] | null = null;
 
   if (isCategoryEnabled(effectiveProfile, "technical") || isCategoryEnabled(effectiveProfile, "pattern")) {
-    if (actualPriceSource !== "demo") {
-      try {
-        // Fetch real OHLCV data from exchange
-        const adapter = getPriceFeedAdapter(actualPriceSource);
-        const candles = await adapter.getOHLCV({
-          symbol: validatedInput.meta.symbol,
-          timeframe: validatedInput.meta.timeframe,
-          limit: 100, // Need enough candles for EMA-50
-        });
+    try {
+      // Fetch OHLCV data from exchange (or demo adapter)
+      const adapter = getPriceFeedAdapter(actualPriceSource);
+      const candles = await adapter.getOHLCV({
+        symbol: validatedInput.meta.symbol,
+        timeframe: validatedInput.meta.timeframe,
+        limit: 100, // Need enough candles for EMA-50
+      });
 
-        // Convert to AfiCandle format
-        const afiCandles = toAfiCandles(candles);
+      // Convert to AfiCandle format
+      const afiCandles = toAfiCandles(candles);
 
-        // Compute technical lens (if enabled)
-        if (isCategoryEnabled(effectiveProfile, "technical")) {
-          technicalLensPayload = computeTechnicalEnrichment(afiCandles);
-          if (technicalLensPayload) {
-            // Add USS lens
-            lenses.push({
-              type: "technical",
-              version: "v1",
-              payload: technicalLensPayload,
-            });
+      // Compute technical lens (if enabled)
+      if (isCategoryEnabled(effectiveProfile, "technical")) {
+        technicalLensPayload = computeTechnicalEnrichment(afiCandles);
+        if (technicalLensPayload) {
+          // Add USS lens
+          lenses.push({
+            type: "technical",
+            version: "v1",
+            payload: technicalLensPayload,
+          });
 
-            // Keep legacy format for afi-core compatibility
-            technical = {
-              emaDistancePct: technicalLensPayload.emaDistancePct,
-              isInValueSweetSpot: technicalLensPayload.isInValueSweetSpot,
-              brokeEmaWithBody: false, // Not computed in new version
-              indicators: {
-                rsi: technicalLensPayload.rsi14,
-                ema_20: technicalLensPayload.ema20,
-                ema_50: technicalLensPayload.ema50,
-                volume_ratio: technicalLensPayload.volumeRatio,
-              },
-            };
-            enrichedCategories.push("technical");
-          }
+          // Keep legacy format for afi-core compatibility
+          technical = {
+            emaDistancePct: technicalLensPayload.emaDistancePct,
+            isInValueSweetSpot: technicalLensPayload.isInValueSweetSpot,
+            brokeEmaWithBody: false, // Not computed in new version
+            indicators: {
+              rsi: technicalLensPayload.rsi14,
+              ema_20: technicalLensPayload.ema20,
+              ema_50: technicalLensPayload.ema50,
+              volume_ratio: technicalLensPayload.volumeRatio,
+            },
+          };
+          enrichedCategories.push("technical");
         }
-
-        // Compute pattern lens (if enabled)
-        if (isCategoryEnabled(effectiveProfile, "pattern")) {
-          patternLensPayload = detectPatterns(afiCandles);
-          if (patternLensPayload) {
-            // Add USS lens
-            lenses.push({
-              type: "pattern",
-              version: "v1",
-              payload: patternLensPayload,
-            });
-
-            // Keep legacy format for afi-core compatibility
-            pattern = {
-              patternName: patternLensPayload.patternName,
-              patternConfidence: patternLensPayload.patternConfidence,
-            };
-            enrichedCategories.push("pattern");
-          }
-        }
-
-        console.log(`✅ Enrichment: Fetched real price data from ${actualPriceSource} for ${validatedInput.meta.symbol}`);
-      } catch (error) {
-        // Fall back to demo/null if real data fetch fails
-        console.warn(`⚠️  Enrichment: Failed to fetch real price data from ${actualPriceSource}:`, error);
-        actualPriceSource = "demo";  // Update to reflect actual source used
       }
+
+      // Compute pattern lens (if enabled)
+      if (isCategoryEnabled(effectiveProfile, "pattern")) {
+        patternLensPayload = detectPatterns(afiCandles);
+        if (patternLensPayload) {
+          // Add USS lens
+          lenses.push({
+            type: "pattern",
+            version: "v1",
+            payload: patternLensPayload,
+          });
+
+          // Keep legacy format for afi-core compatibility
+          pattern = {
+            patternName: patternLensPayload.patternName,
+            patternConfidence: patternLensPayload.patternConfidence,
+          };
+          enrichedCategories.push("pattern");
+        }
+      }
+
+      console.log(`✅ Enrichment: Fetched price data from ${actualPriceSource} for ${validatedInput.meta.symbol}`);
+    } catch (error) {
+      // Fail-soft: skip technical/pattern enrichment if price data unavailable
+      console.warn(`⚠️  Enrichment: Failed to fetch price data from ${actualPriceSource}:`, error);
+      console.warn(`⚠️  Enrichment: Skipping technical and pattern enrichment`);
     }
   }
 
-  // Sentiment lens (demo data for now)
+  // Sentiment lens (Coinalyze perp sentiment)
   let sentiment: any = undefined;
   if (isCategoryEnabled(effectiveProfile, "sentiment")) {
-    const sentimentPayload: SentimentLensV1["payload"] = {
-      score: 0.5 + (Math.random() - 0.5) * 0.4, // 0.3-0.7 range
-      tags: ["bullish", "trending"],
-      source: "demo",
-    };
+    // Fetch real perp sentiment from Coinalyze
+    // Default to BTC perp, but could be parameterized per signal in the future
+    const sentimentPayload = await computeFroggySentiment("BTCUSDT_PERP.A", "1h");
 
-    lenses.push({
-      type: "sentiment",
-      version: "v1",
-      payload: sentimentPayload,
-    });
+    if (sentimentPayload) {
+      // Add USS lens
+      lenses.push({
+        type: "sentiment",
+        version: "v1",
+        payload: sentimentPayload,
+      });
 
-    sentiment = {
-      score: sentimentPayload.score,
-      tags: sentimentPayload.tags,
-    };
-    enrichedCategories.push("sentiment");
+      // Keep legacy format for afi-core compatibility
+      // Map perpSentimentScore (0-100) to legacy score (0.0-1.0)
+      const legacyScore = sentimentPayload.perpSentimentScore
+        ? sentimentPayload.perpSentimentScore / 100
+        : 0.5;
+
+      sentiment = {
+        score: legacyScore,
+        tags: [
+          sentimentPayload.positioningBias || "balanced",
+          sentimentPayload.fundingRegime || "normal",
+        ],
+      };
+      enrichedCategories.push("sentiment");
+    } else {
+      // Fallback to null if Coinalyze is unavailable
+      console.warn("⚠️  Sentiment enrichment: Coinalyze data unavailable, skipping sentiment lens");
+    }
   }
 
   // News lens (demo data for now)
