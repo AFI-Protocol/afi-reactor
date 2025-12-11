@@ -53,10 +53,62 @@ export interface TechnicalLensV1 extends UssLens {
 }
 
 /**
+ * Pattern Regime Summary - Multi-day/multi-week market state context
+ *
+ * Provides regime-level context for pattern interpretation, including:
+ * - Cycle phase (early/mid/late bull, bear, sideways, etc.)
+ * - Trend state and volatility regime
+ * - Top/bottom risk assessment
+ * - External sentiment indicators (Fear & Greed)
+ */
+export interface PatternRegimeSummary {
+  /** Overall multi-day / multi-week "state of the market" */
+  cyclePhase?:
+    | "early_bull"
+    | "mid_bull"
+    | "late_bull"
+    | "bear"
+    | "sideways"
+    | "capitulation"
+    | "accumulation"
+    | "euphoria"
+    | "unknown";
+
+  /** Current trend state based on price action */
+  trendState?: "uptrend" | "downtrend" | "range" | "choppy";
+
+  /** Volatility regime classification */
+  volRegime?: "low" | "normal" | "high" | "extreme";
+
+  /** Top/bottom risk assessment */
+  topBottomRisk?:
+    | "top_risk"        // elevated probability we're in a late-stage top or overheated zone
+    | "bottom_risk"     // elevated probability of capitulation / bottoming conditions
+    | "neutral";
+
+  /** Optional labels from external indicators (Fear & Greed, etc.) */
+  externalLabels?: {
+    /** Fear & Greed index value (0-100) from Alternative.me */
+    fearGreedValue?: number;
+    /** Fear & Greed classification */
+    fearGreedLabel?:
+      | "extreme_fear"
+      | "fear"
+      | "neutral"
+      | "greed"
+      | "extreme_greed"
+      | "unknown";
+    /** Short human-readable explanation */
+    notes?: string;
+  };
+}
+
+/**
  * Pattern Lens V1 - Candlestick & Chart Patterns
  *
  * Provides detected candlestick patterns and structural analysis.
  * Includes classic patterns (engulfing, pin bar, etc.) and trend structure.
+ * Now also includes optional regime-level context for multi-day market state.
  */
 export interface PatternLensV1 extends UssLens {
   type: "pattern";
@@ -78,6 +130,8 @@ export interface PatternLensV1 extends UssLens {
     patternName?: string;
     /** Pattern confidence score (0-100) */
     patternConfidence?: number;
+    /** Regime-level market context (optional, from external data sources) */
+    regime?: PatternRegimeSummary;
   };
 }
 

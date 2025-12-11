@@ -23,6 +23,7 @@ import { normalizeMarketType, mapMarketTypeToVenueType } from "../src/utils/mark
 import { computeTechnicalEnrichment } from "../src/enrichment/technicalIndicators.js";
 import { detectPatterns } from "../src/enrichment/patternRecognition.js";
 import { computeFroggySentiment } from "../src/indicator/froggySentimentProfile.js";
+import { computePatternRegimeSummary } from "../src/indicator/patternRegimeProfile.js";
 import type { AfiCandle } from "../src/types/AfiCandle.js";
 import type { TechnicalLensV1, PatternLensV1, SentimentLensV1, NewsLensV1, AiMlLensV1, SupportedLens } from "../src/types/UssLenses.js";
 
@@ -170,6 +171,22 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
       // Compute pattern lens (if enabled)
       if (isCategoryEnabled(effectiveProfile, "pattern")) {
         patternLensPayload = detectPatterns(afiCandles);
+
+        // Compute regime-level context (async, from external APIs)
+        // This adds multi-day market state context to the pattern lens
+        const regimeSummary = await computePatternRegimeSummary(
+          validatedInput.meta.symbol,
+          validatedInput.meta.timeframe
+        ).catch((err) => {
+          console.warn(`⚠️  Pattern Regime: Failed to compute regime:`, err.message);
+          return null;
+        });
+
+        // Merge regime into pattern payload if available
+        if (regimeSummary && patternLensPayload) {
+          patternLensPayload.regime = regimeSummary;
+        }
+
         if (patternLensPayload) {
           // Add USS lens
           lenses.push({
@@ -179,10 +196,17 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
           });
 
           // Keep legacy format for afi-core compatibility
+          // Mirror regime data to top-level pattern object when available
           pattern = {
             patternName: patternLensPayload.patternName,
             patternConfidence: patternLensPayload.patternConfidence,
           };
+
+          // Add regime if available
+          if (patternLensPayload.regime) {
+            (pattern as any).regime = patternLensPayload.regime;
+          }
+
           enrichedCategories.push("pattern");
         }
       }
@@ -285,6 +309,14 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
   }
   if (patternLensPayload?.patternName) {
     enrichmentSummary += `. Pattern: ${patternLensPayload.patternName}`;
+  }
+  if (patternLensPayload?.regime) {
+    const regime = patternLensPayload.regime;
+    enrichmentSummary += `. Regime: ${regime.cyclePhase || "unknown"} (${regime.trendState || "?"}, ${regime.volRegime || "?"} vol`;
+    if (regime.externalLabels?.fearGreedLabel) {
+      enrichmentSummary += `, ${regime.externalLabels.fearGreedLabel}`;
+    }
+    enrichmentSummary += `)`;
   }
 
   // Build FroggyEnrichedView
