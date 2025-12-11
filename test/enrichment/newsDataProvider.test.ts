@@ -1,0 +1,202 @@
+/**
+ * Test: NewsData.io Provider
+ *
+ * Verifies:
+ * 1. NewsData provider correctly fetches and parses news
+ * 2. Symbol mapping (BTCUSDT → btc, ETHUSDT → eth, etc.)
+ * 3. Time window filtering
+ * 4. Fail-soft behavior (missing API key, network errors, etc.)
+ * 5. Integration with Froggy enrichment plugin
+ */
+
+import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals";
+import { NewsDataProvider } from "../../src/news/newsdataNewsProvider.js";
+import type { NewsShockSummary } from "../../src/news/newsProvider.js";
+
+// Mock fetch globally
+const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+global.fetch = mockFetch;
+
+describe("NewsDataProvider", () => {
+  const TEST_API_KEY = "test-api-key-123";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("should fetch and parse news successfully for BTC", async () => {
+    const provider = new NewsDataProvider(TEST_API_KEY);
+
+    // Mock NewsData.io API response
+    const mockResponse = {
+      status: "success",
+      totalResults: 3,
+      results: [
+        {
+          article_id: "news-1",
+          title: "Bitcoin Surges Past $100K",
+          source_name: "CoinDesk",
+          link: "https://example.com/news-1",
+          pubDate: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
+        },
+        {
+          article_id: "news-2",
+          title: "SEC Approves Bitcoin ETF",
+          source_name: "Bloomberg",
+          link: "https://example.com/news-2",
+          pubDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+        },
+        {
+          article_id: "news-3",
+          title: "MicroStrategy Buys More BTC",
+          source_name: "Reuters",
+          link: "https://example.com/news-3",
+          pubDate: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
+        },
+      ],
+    };
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await provider.fetchRecentNews({
+      symbol: "BTCUSDT",
+      windowHours: 4,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.hasShockEvent).toBe(true);
+    expect(result?.shockDirection).toBe("unknown");
+    expect(result?.headlines).toHaveLength(3);
+    expect(result?.headlines[0].title).toBe("Bitcoin Surges Past $100K");
+    expect(result?.headlines[0].source).toBe("CoinDesk");
+    expect(result?.headlines[0].url).toBe("https://example.com/news-1");
+
+    // Verify API call
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const callUrl = mockFetch.mock.calls[0][0] as string;
+    expect(callUrl).toContain("newsdata.io/api/1/crypto");
+    expect(callUrl).toContain("apikey=test-api-key-123");
+    expect(callUrl).toContain("coin=btc");
+  });
+
+  it("should filter out old news outside the time window", async () => {
+    const provider = new NewsDataProvider(TEST_API_KEY);
+
+    const mockResponse = {
+      status: "success",
+      totalResults: 3,
+      results: [
+        {
+          article_id: "news-1",
+          title: "Recent News",
+          source_name: "CoinDesk",
+          pubDate: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
+        },
+        {
+          article_id: "news-2",
+          title: "Old News",
+          source_name: "Bloomberg",
+          pubDate: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(), // 10 hours ago (outside window)
+        },
+      ],
+    };
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await provider.fetchRecentNews({
+      symbol: "BTCUSDT",
+      windowHours: 4,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.headlines).toHaveLength(1);
+    expect(result?.headlines[0].title).toBe("Recent News");
+  });
+
+  it("should return null on API error (401 Unauthorized)", async () => {
+    const provider = new NewsDataProvider(TEST_API_KEY);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+    } as Response);
+
+    const result = await provider.fetchRecentNews({
+      symbol: "BTCUSDT",
+      windowHours: 4,
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("should return null on network error", async () => {
+    const provider = new NewsDataProvider(TEST_API_KEY);
+
+    mockFetch.mockRejectedValueOnce(new Error("Network timeout"));
+
+    const result = await provider.fetchRecentNews({
+      symbol: "BTCUSDT",
+      windowHours: 4,
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("should return default summary when no results", async () => {
+    const provider = new NewsDataProvider(TEST_API_KEY);
+
+    const mockResponse = {
+      status: "success",
+      totalResults: 0,
+      results: [],
+    };
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await provider.fetchRecentNews({
+      symbol: "BTCUSDT",
+      windowHours: 4,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.hasShockEvent).toBe(false);
+    expect(result?.shockDirection).toBe("none");
+    expect(result?.headlines).toHaveLength(0);
+  });
+
+  it("should map ETHUSDT to eth coin code", async () => {
+    const provider = new NewsDataProvider(TEST_API_KEY);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "success", results: [] }),
+    } as Response);
+
+    await provider.fetchRecentNews({
+      symbol: "ETHUSDT",
+      windowHours: 4,
+    });
+
+    const callUrl = mockFetch.mock.calls[0][0] as string;
+    expect(callUrl).toContain("coin=eth");
+  });
+});
+

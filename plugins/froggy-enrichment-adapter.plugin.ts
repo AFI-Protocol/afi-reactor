@@ -26,6 +26,9 @@ import { computeFroggySentiment } from "../src/indicator/froggySentimentProfile.
 import { computePatternRegimeSummary } from "../src/indicator/patternRegimeProfile.js";
 import type { AfiCandle } from "../src/types/AfiCandle.js";
 import type { TechnicalLensV1, PatternLensV1, SentimentLensV1, NewsLensV1, AiMlLensV1, SupportedLens } from "../src/types/UssLenses.js";
+import type { NewsProvider, NewsShockSummary } from "../src/news/newsProvider.js";
+import { DEFAULT_NEWS_SUMMARY } from "../src/news/newsProvider.js";
+import { createNewsDataProvider } from "../src/news/newsdataNewsProvider.js";
 
 /**
  * Input schema: structured signal from signal-structurer.
@@ -74,6 +77,31 @@ function isCategoryEnabled(
   const categoryConfig = profile[category];
   if (!categoryConfig) return true; // Missing category = enabled
   return categoryConfig.enabled !== false; // Explicit false = disabled
+}
+
+/**
+ * Create a NewsProvider based on environment configuration
+ *
+ * Supports:
+ * - NEWS_PROVIDER=newsdata → NewsData.io provider
+ * - NEWS_PROVIDER=none or unset → null (news enrichment disabled)
+ *
+ * Returns null if provider is disabled or configuration is invalid.
+ */
+function createNewsProvider(): NewsProvider | null {
+  const providerType = process.env.NEWS_PROVIDER?.toLowerCase();
+
+  if (!providerType || providerType === "none") {
+    console.log("[NewsProvider] News enrichment disabled (NEWS_PROVIDER not set or 'none')");
+    return null;
+  }
+
+  if (providerType === "newsdata") {
+    return createNewsDataProvider();
+  }
+
+  console.warn(`[NewsProvider] Unknown NEWS_PROVIDER: ${providerType}. News enrichment disabled.`);
+  return null;
 }
 
 /**
@@ -254,13 +282,38 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
     }
   }
 
-  // News lens (demo data for now)
+  // News lens - pluggable provider (NewsData.io, etc.)
   let news: any = undefined;
   if (isCategoryEnabled(effectiveProfile, "news")) {
+    // Create provider (cached singleton would be better for production)
+    const newsProvider = createNewsProvider();
+
+    let newsSummary: NewsShockSummary | null = null;
+
+    if (newsProvider) {
+      try {
+        const windowHours = process.env.NEWS_WINDOW_HOURS
+          ? parseInt(process.env.NEWS_WINDOW_HOURS, 10)
+          : 4;
+
+        newsSummary = await newsProvider.fetchRecentNews({
+          symbol: validatedInput.meta.symbol ?? "BTCUSDT",
+          windowHours,
+        });
+      } catch (err) {
+        console.warn(`[NewsEnrichment] Error fetching news for ${validatedInput.meta.symbol}:`, err);
+        newsSummary = null;
+      }
+    }
+
+    // Use provider data if available, otherwise fall back to default
+    const effectiveNews = newsSummary ?? DEFAULT_NEWS_SUMMARY;
+
+    // Map to NewsLensV1 payload format
     const newsPayload: NewsLensV1["payload"] = {
-      hasShockEvent: false,
-      shockDirection: "none",
-      headlines: [],
+      hasShockEvent: effectiveNews.hasShockEvent,
+      shockDirection: effectiveNews.shockDirection,
+      headlines: effectiveNews.headlines.map((h) => h.title), // Convert NewsHeadline[] to string[]
     };
 
     lenses.push({
@@ -269,6 +322,7 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
       payload: newsPayload,
     });
 
+    // Mirror to top-level news object (for afi-core compatibility)
     news = {
       hasShockEvent: newsPayload.hasShockEvent,
       shockDirection: newsPayload.shockDirection,

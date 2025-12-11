@@ -207,7 +207,7 @@ export interface NewsLensV1 extends UssLens {
     /** Whether a shock event was detected */
     hasShockEvent: boolean;
     /** Direction of shock (if any) */
-    shockDirection: "bullish" | "bearish" | "none";
+    shockDirection: "bullish" | "bearish" | "none" | "unknown";
     /** Recent headlines */
     headlines?: string[];
   };
