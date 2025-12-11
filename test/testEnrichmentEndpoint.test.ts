@@ -154,5 +154,115 @@ describe("POST /test/enrichment", () => {
 
     expect(response.body.error).toBe("Missing signalId");
   });
+
+  it("should use FROGGY_MAX_ENRICHMENT_PROFILE when useMaxEnrichment is true", async () => {
+    const response = await request(app)
+      .post("/test/enrichment")
+      .send({
+        signalId: "froggy-max-001",
+        symbol: "BTCUSDT",
+        timeframe: "1h",
+        useMaxEnrichment: true,
+      })
+      .expect(200);
+
+    const result = response.body;
+
+    // Verify enrichment profile was applied
+    expect(result.input.meta.enrichmentProfile).toBeDefined();
+    expect(result.input.meta.enrichmentProfile.technical).toEqual({ enabled: true });
+    expect(result.input.meta.enrichmentProfile.pattern).toEqual({ enabled: true });
+    expect(result.input.meta.enrichmentProfile.sentiment).toEqual({ enabled: true });
+    expect(result.input.meta.enrichmentProfile.news).toEqual({ enabled: true });
+    expect(result.input.meta.enrichmentProfile.aiMl).toEqual({ enabled: false });
+
+    // Verify enriched output has expected categories
+    const enriched = result.output;
+    expect(enriched.enrichmentMeta.categories).toContain("technical");
+    expect(enriched.enrichmentMeta.categories).toContain("pattern");
+    expect(enriched.enrichmentMeta.categories).toContain("sentiment");
+
+    // News category is included if NEWS_PROVIDER is set, otherwise skipped
+    // This is expected behavior - news enrichment requires NEWS_PROVIDER env var
+    if (process.env.NEWS_PROVIDER && process.env.NEWS_PROVIDER !== "none") {
+      expect(enriched.enrichmentMeta.categories).toContain("news");
+      expect(enriched.news).toBeDefined();
+      expect(enriched.newsFeatures).toBeDefined();
+    }
+
+    // aiMl is explicitly disabled in FROGGY_MAX_ENRICHMENT_PROFILE
+    expect(enriched.enrichmentMeta.categories).not.toContain("aiMl");
+
+    // Verify technical enrichment is present
+    expect(enriched.technical).toBeDefined();
+    expect(enriched.technical.indicators).toBeDefined();
+
+    // Verify pattern enrichment is present
+    expect(enriched.pattern).toBeDefined();
+
+    // Verify sentiment enrichment is present
+    expect(enriched.sentiment).toBeDefined();
+  });
+
+  it("should prioritize explicit enrichmentProfile over useMaxEnrichment flag", async () => {
+    // Custom profile that disables all categories
+    const customProfile = {
+      technical: { enabled: false },
+      pattern: { enabled: false },
+      sentiment: { enabled: false },
+      news: { enabled: false },
+      aiMl: { enabled: false },
+    };
+
+    const response = await request(app)
+      .post("/test/enrichment")
+      .send({
+        signalId: "froggy-custom-001",
+        symbol: "BTCUSDT",
+        timeframe: "1h",
+        useMaxEnrichment: true,  // This should be ignored
+        enrichmentProfile: customProfile,
+      })
+      .expect(200);
+
+    const result = response.body;
+
+    // Verify custom profile was used (not FROGGY_MAX_ENRICHMENT_PROFILE)
+    expect(result.input.meta.enrichmentProfile).toEqual(customProfile);
+
+    // Verify enriched output has NO categories (all disabled)
+    const enriched = result.output;
+    expect(enriched.enrichmentMeta.categories).toHaveLength(0);
+    expect(enriched.technical).toBeUndefined();
+    expect(enriched.pattern).toBeUndefined();
+    expect(enriched.sentiment).toBeUndefined();
+    expect(enriched.news).toBeUndefined();
+    expect(enriched.newsFeatures).toBeUndefined();
+  });
+
+  it("should use default profile when neither enrichmentProfile nor useMaxEnrichment is provided", async () => {
+    const response = await request(app)
+      .post("/test/enrichment")
+      .send({
+        signalId: "froggy-default-001",
+        symbol: "BTCUSDT",
+        timeframe: "1h",
+        // No enrichmentProfile, no useMaxEnrichment
+      })
+      .expect(200);
+
+    const result = response.body;
+
+    // Verify no enrichment profile was set in input (falls back to default in adapter)
+    expect(result.input.meta.enrichmentProfile).toBeUndefined();
+
+    // Verify enriched output has all categories (default profile enables all)
+    const enriched = result.output;
+    expect(enriched.enrichmentMeta.categories).toContain("technical");
+    expect(enriched.enrichmentMeta.categories).toContain("pattern");
+    expect(enriched.enrichmentMeta.categories).toContain("sentiment");
+    expect(enriched.enrichmentMeta.categories).toContain("news");
+    expect(enriched.enrichmentMeta.categories).toContain("aiMl");
+  });
 });
 

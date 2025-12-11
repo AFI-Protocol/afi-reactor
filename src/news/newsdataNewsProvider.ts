@@ -18,6 +18,7 @@ import type {
   NewsProviderParams,
   NewsShockSummary,
   NewsHeadline,
+  NewsItem,
   NewsShockDirection,
 } from "./newsProvider.js";
 
@@ -78,10 +79,16 @@ export class NewsDataProvider implements NewsProvider {
 
   async fetchRecentNews(params: NewsProviderParams): Promise<NewsShockSummary | null> {
     const { symbol, windowHours = 4 } = params;
+    const debugNews = process.env.AFI_DEBUG_NEWS === "1";
 
     try {
       // Map symbol to coin/query
       const { coin, query } = mapSymbolToCoinQuery(symbol);
+
+      if (debugNews) {
+        console.log(`[NewsDataProvider] DEBUG: symbol="${symbol}" → coin="${coin}", query="${query}"`);
+        console.log(`[NewsDataProvider] DEBUG: windowHours=${windowHours}`);
+      }
 
       // Build query params
       const queryParams = new URLSearchParams({
@@ -98,6 +105,13 @@ export class NewsDataProvider implements NewsProvider {
 
       // Fetch from NewsData.io
       const url = `${this.baseUrl}?${queryParams.toString()}`;
+
+      if (debugNews) {
+        // Mask API key in URL for logging
+        const maskedUrl = url.replace(/apikey=[^&]+/, `apikey=${this.apiKey.slice(0, 3)}...${this.apiKey.slice(-3)}`);
+        console.log(`[NewsDataProvider] DEBUG: Fetching ${maskedUrl}`);
+      }
+
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -105,6 +119,10 @@ export class NewsDataProvider implements NewsProvider {
         },
         signal: AbortSignal.timeout(10000), // 10s timeout
       });
+
+      if (debugNews) {
+        console.log(`[NewsDataProvider] DEBUG: Response status=${response.status} ${response.statusText}`);
+      }
 
       if (!response.ok) {
         console.warn(
@@ -115,6 +133,10 @@ export class NewsDataProvider implements NewsProvider {
 
       const data: NewsDataResponse = await response.json();
 
+      if (debugNews) {
+        console.log(`[NewsDataProvider] DEBUG: Response status="${data.status}", totalResults=${data.totalResults}, results.length=${data.results?.length ?? 0}`);
+      }
+
       if (data.status !== "success" || !data.results || data.results.length === 0) {
         console.log(`[NewsDataProvider] No news results for ${symbol}`);
         return {
@@ -124,34 +146,92 @@ export class NewsDataProvider implements NewsProvider {
         };
       }
 
-      // Filter by time window and convert to NewsHeadline[]
+      // Filter by time window and convert to NewsItem[]
       const cutoffTime = Date.now() - windowHours * 60 * 60 * 1000;
-      const headlines: NewsHeadline[] = data.results
-        .map((article) => ({
-          id: article.article_id,
-          title: article.title,
-          source: article.source_name || article.source_id || "Unknown",
-          url: article.link,
-          publishedAt: article.pubDate || new Date().toISOString(),
-        }))
-        .filter((headline) => {
-          const pubTime = new Date(headline.publishedAt).getTime();
-          return pubTime >= cutoffTime;
+      const MAX_ITEMS = 10;
+
+      if (debugNews) {
+        console.log(`[NewsDataProvider] DEBUG: cutoffTime=${new Date(cutoffTime).toISOString()}, now=${new Date().toISOString()}`);
+        console.log(`[NewsDataProvider] DEBUG: Articles before filtering: ${data.results.length}`);
+        // Log first 3 article timestamps
+        data.results.slice(0, 3).forEach((article, i) => {
+          console.log(`[NewsDataProvider] DEBUG: Article ${i + 1}: pubDate="${article.pubDate}", title="${article.title.slice(0, 50)}..."`);
+        });
+      }
+
+      // Step 1: Filter by time window and convert to NewsItem[]
+      const recentItems: NewsItem[] = data.results
+        .map((article) => {
+          const pubDate = article.pubDate ? new Date(article.pubDate) : new Date();
+          return {
+            id: article.article_id,
+            title: article.title,
+            source: article.source_name || article.source_id || "Unknown",
+            url: article.link || "",
+            publishedAt: pubDate,
+          };
+        })
+        .filter((item) => {
+          const pubTime = item.publishedAt.getTime();
+          const isRecent = pubTime >= cutoffTime;
+          if (debugNews && !isRecent) {
+            const ageHours = ((Date.now() - pubTime) / (1000 * 60 * 60)).toFixed(1);
+            console.log(`[NewsDataProvider] DEBUG: Filtered out article (${ageHours}h old): "${item.title.slice(0, 40)}..."`);
+          }
+          return isRecent;
         })
         .sort((a, b) => {
           // Sort descending (newest first)
-          return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
-        })
-        .slice(0, 5); // Limit to top 5 headlines
+          return b.publishedAt.getTime() - a.publishedAt.getTime();
+        });
+
+      if (debugNews) {
+        console.log(`[NewsDataProvider] DEBUG: Items after time filtering: ${recentItems.length}`);
+      }
+
+      // Step 2: Deduplicate by normalized (title, source)
+      const seen = new Set<string>();
+      const dedupedItems: NewsItem[] = [];
+
+      for (const item of recentItems) {
+        const titleNormalized = item.title.trim().toLowerCase();
+        const sourceNormalized = item.source.trim().toLowerCase();
+        const key = `${titleNormalized}::${sourceNormalized}`;
+
+        if (!seen.has(key)) {
+          seen.add(key);
+          dedupedItems.push(item);
+        } else if (debugNews) {
+          console.log(`[NewsDataProvider] DEBUG: Duplicate filtered: "${item.title.slice(0, 40)}..." from ${item.source}`);
+        }
+      }
+
+      if (debugNews) {
+        console.log(`[NewsDataProvider] DEBUG: Items after deduplication: ${dedupedItems.length}`);
+      }
+
+      // Step 3: Cap to MAX_ITEMS
+      const items = dedupedItems.slice(0, MAX_ITEMS);
+
+      if (debugNews) {
+        console.log(`[NewsDataProvider] DEBUG: Final items (capped to ${MAX_ITEMS}): ${items.length}`);
+        if (items.length > 0) {
+          console.log(`[NewsDataProvider] DEBUG: Sample item: "${items[0].title}" from ${items[0].source} (${items[0].publishedAt.toISOString()})`);
+        }
+      }
+
+      // Step 4: Build legacy headlines array (title strings only)
+      const headlines = items.map((item) => item.title);
 
       // Compute shock summary
-      const hasShockEvent = headlines.length > 0;
+      const hasShockEvent = items.length > 0;
       const shockDirection: NewsShockDirection = hasShockEvent ? "unknown" : "none";
 
       return {
         hasShockEvent,
         shockDirection,
         headlines,
+        items,
       };
     } catch (error) {
       console.warn(`[NewsDataProvider] Error fetching news for ${symbol}:`, error);

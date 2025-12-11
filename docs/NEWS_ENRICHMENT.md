@@ -27,15 +27,16 @@ export interface NewsProviderParams {
 export interface NewsShockSummary {
   hasShockEvent: boolean;
   shockDirection: "bullish" | "bearish" | "none" | "unknown";
-  headlines: NewsHeadline[];
+  headlines: string[];        // Legacy: title-only strings for backward compatibility
+  items?: NewsItem[];         // New: structured items with full metadata
 }
 
-export interface NewsHeadline {
+export interface NewsItem {
   id: string;
   title: string;
   source: string;
-  url?: string;
-  publishedAt: string; // ISO 8601
+  url: string;
+  publishedAt: Date;          // Date object (converted to ISO string in USS lens)
 }
 ```
 
@@ -128,9 +129,20 @@ AFI trading symbols are mapped to news queries:
 
 ### 4. Time Filtering
 
-Only headlines published within the last `windowHours` are included. Results are sorted by `publishedAt` descending (newest first) and limited to the top 5 headlines.
+Only headlines published within the last `windowHours` are included. Results are sorted by `publishedAt` descending (newest first).
 
-### 5. Shock Detection
+### 5. Deduplication
+
+Articles are deduplicated by normalized `(title, source)` pairs:
+- Titles and sources are trimmed and lowercased for comparison
+- Only the first occurrence of each unique `(title, source)` is kept
+- Same title from different sources are kept (e.g., "Bitcoin Hits $100K" from both CoinDesk and Bloomberg)
+
+### 6. Capping
+
+Results are capped to a maximum of **10 unique items** to avoid noise and keep enrichment payloads manageable.
+
+### 7. Shock Detection
 
 For v1, shock detection is simple:
 - `hasShockEvent = true` if any headlines exist
@@ -155,7 +167,8 @@ The system is designed to **never break enrichment** due to news provider issues
 {
   hasShockEvent: false,
   shockDirection: "none",
-  headlines: []
+  headlines: [],
+  items: []
 }
 ```
 
@@ -180,12 +193,34 @@ News data appears in two places in the enriched signal:
           "Bitcoin Surges Past $100K as Institutional Demand Soars",
           "SEC Approves Spot Bitcoin ETF Applications",
           "MicroStrategy Adds 5,000 BTC to Treasury"
+        ],
+        "items": [
+          {
+            "title": "Bitcoin Surges Past $100K as Institutional Demand Soars",
+            "source": "CoinDesk",
+            "url": "https://coindesk.com/...",
+            "publishedAt": "2025-12-11T19:30:00Z"
+          },
+          {
+            "title": "SEC Approves Spot Bitcoin ETF Applications",
+            "source": "Bloomberg",
+            "url": "https://bloomberg.com/...",
+            "publishedAt": "2025-12-11T18:45:00Z"
+          },
+          {
+            "title": "MicroStrategy Adds 5,000 BTC to Treasury",
+            "source": "Reuters",
+            "url": "https://reuters.com/...",
+            "publishedAt": "2025-12-11T17:20:00Z"
+          }
         ]
       }
     }
   ]
 }
 ```
+
+**Note:** The `headlines` array contains title strings only (legacy format for backward compatibility). The `items` array contains full structured metadata including source, URL, and publication timestamp.
 
 ### 2. Top-Level News Object (afi-core compatibility)
 
@@ -198,10 +233,99 @@ News data appears in two places in the enriched signal:
       "Bitcoin Surges Past $100K as Institutional Demand Soars",
       "SEC Approves Spot Bitcoin ETF Applications",
       "MicroStrategy Adds 5,000 BTC to Treasury"
+    ],
+    "items": [
+      {
+        "title": "Bitcoin Surges Past $100K as Institutional Demand Soars",
+        "source": "CoinDesk",
+        "url": "https://coindesk.com/...",
+        "publishedAt": "2025-12-11T19:30:00Z"
+      },
+      {
+        "title": "SEC Approves Spot Bitcoin ETF Applications",
+        "source": "Bloomberg",
+        "url": "https://bloomberg.com/...",
+        "publishedAt": "2025-12-11T18:45:00Z"
+      },
+      {
+        "title": "MicroStrategy Adds 5,000 BTC to Treasury",
+        "source": "Reuters",
+        "url": "https://reuters.com/...",
+        "publishedAt": "2025-12-11T17:20:00Z"
+      }
     ]
   }
 }
 ```
+
+**Backward Compatibility:**
+- `headlines`: Array of title strings (legacy format) - always present
+- `items`: Array of structured news items with full metadata (v2 format) - optional, may be undefined for older consumers
+
+### 3. News Features (UWR-Ready, Not Wired Yet)
+
+The `newsFeatures` field provides a derived summary of news enrichment for potential use in UWR scoring or other downstream systems. **This field is currently not used by UWR math** - it's an additive layer for future integration.
+
+```json
+{
+  "newsFeatures": {
+    "hasNewsShock": true,
+    "headlineCount": 3,
+    "mostRecentMinutesAgo": 15,
+    "oldestMinutesAgo": 135,
+    "hasExchangeEvent": false,
+    "hasRegulatoryEvent": true,
+    "hasMacroEvent": false
+  }
+}
+```
+
+**Field Descriptions:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `hasNewsShock` | boolean | True if `hasShockEvent === true` |
+| `headlineCount` | number | Number of unique headlines in the time window |
+| `mostRecentMinutesAgo` | number \| null | Minutes since most recent article (null if no items) |
+| `oldestMinutesAgo` | number \| null | Minutes since oldest article (null if no items) |
+| `hasExchangeEvent` | boolean | True if headlines mention exchanges (Binance, Coinbase, OKX, etc.) |
+| `hasRegulatoryEvent` | boolean | True if headlines mention regulation (SEC, ETF, lawsuit, etc.) |
+| `hasMacroEvent` | boolean | True if headlines mention macro events (Fed, inflation, etc.) |
+
+**Keyword Detection:**
+
+Categorical flags use simple case-insensitive keyword matching on article titles and sources:
+
+- **Exchange Events**: binance, coinbase, bybit, okx, blofin, bitget, kraken, gemini, ftx, bitfinex, huobi, kucoin
+- **Regulatory Events**: sec, cftc, regulation, lawsuit, ban, etf, approval, denied, fined, penalty, enforcement, compliance, ruling
+- **Macro Events**: fed, federal reserve, interest rate, inflation, jobs report, gdp, recession, treasury, bond yield, stock market, s&p, nasdaq, dow, unemployment
+
+**Usage:**
+
+```typescript
+// Access newsFeatures from enriched output
+const enriched = await froggyEnrichmentPlugin.run(signal);
+
+if (enriched.newsFeatures) {
+  console.log(`News shock: ${enriched.newsFeatures.hasNewsShock}`);
+  console.log(`Headlines: ${enriched.newsFeatures.headlineCount}`);
+  console.log(`Most recent: ${enriched.newsFeatures.mostRecentMinutesAgo} min ago`);
+
+  if (enriched.newsFeatures.hasRegulatoryEvent) {
+    console.log("⚠️  Regulatory event detected");
+  }
+}
+```
+
+**Future Integration:**
+
+The `newsFeatures` field is designed to be easily integrated into UWR scoring in the future. For example:
+
+- **Insight Axis**: Regulatory or macro events could boost insight score
+- **Execution Axis**: Recent news (< 30 min) could affect timing quality
+- **Risk Axis**: Exchange-related events could signal elevated risk
+
+Currently, `newsFeatures` is computed but **not used** by any scoring logic. It's purely informational.
 
 ---
 
@@ -273,6 +397,74 @@ If you hit the limit:
 - Increase `NEWS_WINDOW_HOURS` to reduce API calls
 - Implement caching (Redis with 1-hour TTL)
 - Upgrade to a paid NewsData.io plan
+
+---
+
+## Froggy Max Enrichment Demo
+
+### FROGGY_MAX_ENRICHMENT_PROFILE
+
+For quick demos and testing, use the **FROGGY_MAX_ENRICHMENT_PROFILE** preset to enable all currently wired enrichment categories:
+
+```typescript
+// Defined in: afi-reactor/src/config/enrichmentProfiles.ts
+export const FROGGY_MAX_ENRICHMENT_PROFILE: EnrichmentProfile = {
+  technical: { enabled: true },   // ✅ EMA, RSI, ATR, volume
+  pattern: { enabled: true },     // ✅ Chart patterns, regime, Fear & Greed
+  sentiment: { enabled: true },   // ✅ Funding rates, OI, positioning
+  news: { enabled: true },        // ✅ News headlines, shock detection, newsFeatures
+  aiMl: { enabled: false },       // ❌ Reserved lane (not yet wired)
+};
+```
+
+### Using with /test/enrichment Endpoint
+
+Instead of passing a full `enrichmentProfile` object, use the `useMaxEnrichment` flag:
+
+```bash
+# Quick demo with all enrichment categories enabled
+curl -X POST "http://localhost:8080/test/enrichment" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "signalId": "froggy-demo-001",
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "useMaxEnrichment": true
+  }'
+```
+
+**Response includes:**
+- ✅ `output.technical` - Technical indicators (EMA, RSI, ATR)
+- ✅ `output.pattern` - Chart patterns and regime detection
+- ✅ `output.sentiment` - Funding rates and positioning bias
+- ✅ `output.news` - News headlines and shock detection
+- ✅ `output.newsFeatures` - Derived news features (timing, categorical flags)
+- ✅ `output.lenses[]` - USS lenses for all enabled categories
+
+**Priority order:**
+1. Explicit `enrichmentProfile` object (highest priority)
+2. `useMaxEnrichment: true` → uses FROGGY_MAX_ENRICHMENT_PROFILE
+3. No profile specified → uses default profile (all categories enabled)
+
+**Example:**
+```bash
+# This uses the custom profile (ignores useMaxEnrichment)
+curl -X POST "http://localhost:8080/test/enrichment" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "signalId": "custom-001",
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "useMaxEnrichment": true,
+    "enrichmentProfile": {
+      "technical": { "enabled": true },
+      "pattern": { "enabled": false },
+      "sentiment": { "enabled": false },
+      "news": { "enabled": false },
+      "aiMl": { "enabled": false }
+    }
+  }'
+```
 
 ---
 

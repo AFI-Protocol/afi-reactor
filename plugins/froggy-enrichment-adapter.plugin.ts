@@ -29,6 +29,7 @@ import type { TechnicalLensV1, PatternLensV1, SentimentLensV1, NewsLensV1, AiMlL
 import type { NewsProvider, NewsShockSummary } from "../src/news/newsProvider.js";
 import { DEFAULT_NEWS_SUMMARY } from "../src/news/newsProvider.js";
 import { createNewsDataProvider } from "../src/news/newsdataNewsProvider.js";
+import { computeNewsFeatures, type NewsFeatures } from "../src/news/newsFeatures.js";
 
 /**
  * Input schema: structured signal from signal-structurer.
@@ -90,6 +91,13 @@ function isCategoryEnabled(
  */
 function createNewsProvider(): NewsProvider | null {
   const providerType = process.env.NEWS_PROVIDER?.toLowerCase();
+  const debugNews = process.env.AFI_DEBUG_NEWS === "1";
+
+  if (debugNews) {
+    console.log(`[NewsProvider] DEBUG: NEWS_PROVIDER="${providerType}"`);
+    const apiKey = process.env.NEWSDATA_API_KEY;
+    console.log(`[NewsProvider] DEBUG: NEWSDATA_API_KEY=${apiKey ? `${apiKey.slice(0, 3)}...${apiKey.slice(-3)}` : "NOT SET"}`);
+  }
 
   if (!providerType || providerType === "none") {
     console.log("[NewsProvider] News enrichment disabled (NEWS_PROVIDER not set or 'none')");
@@ -97,7 +105,11 @@ function createNewsProvider(): NewsProvider | null {
   }
 
   if (providerType === "newsdata") {
-    return createNewsDataProvider();
+    const provider = createNewsDataProvider();
+    if (debugNews) {
+      console.log(`[NewsProvider] DEBUG: Created NewsDataProvider: ${provider ? "SUCCESS" : "FAILED (null)"}`);
+    }
+    return provider;
   }
 
   console.warn(`[NewsProvider] Unknown NEWS_PROVIDER: ${providerType}. News enrichment disabled.`);
@@ -133,12 +145,22 @@ function toAfiCandles(candles: OHLCVCandle[]): AfiCandle[] {
  * @returns FroggyEnrichedView ready for Froggy analyst
  */
 async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
+  const debugNews = process.env.AFI_DEBUG_NEWS === "1";
+
+  if (debugNews) {
+    process.stderr.write(`[FroggyEnrichment] ⚡ Starting enrichment for signal ${signal.signalId}\n`);
+  }
+
   // Validate input
   const validatedInput = inputSchema.parse(signal);
 
   // Read enrichment profile from signal meta (or use default)
   const profile = validatedInput.meta.enrichmentProfile as EnrichmentProfile | undefined;
   const effectiveProfile = profile || getDefaultEnrichmentProfile();
+
+  if (debugNews) {
+    process.stderr.write(`[FroggyEnrichment] effectiveProfile: ${JSON.stringify(effectiveProfile)}\n`);
+  }
 
   // Track which categories were actually enriched
   const enrichedCategories: string[] = [];
@@ -284,9 +306,16 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
 
   // News lens - pluggable provider (NewsData.io, etc.)
   let news: any = undefined;
+  let newsFeatures: NewsFeatures | null | undefined = undefined;  // Declare outside block for FroggyEnrichedView
   if (isCategoryEnabled(effectiveProfile, "news")) {
+    const debugNews = process.env.AFI_DEBUG_NEWS === "1";
+
     // Create provider (cached singleton would be better for production)
     const newsProvider = createNewsProvider();
+
+    if (debugNews) {
+      console.log(`[NewsEnrichment] Provider created: ${newsProvider ? newsProvider.constructor.name : "null"}`);
+    }
 
     let newsSummary: NewsShockSummary | null = null;
 
@@ -296,10 +325,18 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
           ? parseInt(process.env.NEWS_WINDOW_HOURS, 10)
           : 4;
 
+        if (debugNews) {
+          console.log(`[NewsEnrichment] DEBUG: Calling fetchRecentNews for symbol="${validatedInput.meta.symbol}", windowHours=${windowHours}`);
+        }
+
         newsSummary = await newsProvider.fetchRecentNews({
           symbol: validatedInput.meta.symbol ?? "BTCUSDT",
           windowHours,
         });
+
+        if (debugNews) {
+          console.log(`[NewsEnrichment] DEBUG: fetchRecentNews returned:`, JSON.stringify(newsSummary, null, 2));
+        }
       } catch (err) {
         console.warn(`[NewsEnrichment] Error fetching news for ${validatedInput.meta.symbol}:`, err);
         newsSummary = null;
@@ -309,11 +346,21 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
     // Use provider data if available, otherwise fall back to default
     const effectiveNews = newsSummary ?? DEFAULT_NEWS_SUMMARY;
 
-    // Map to NewsLensV1 payload format
+    if (debugNews) {
+      console.log(`[NewsEnrichment] DEBUG: effectiveNews (after fallback):`, JSON.stringify(effectiveNews, null, 2));
+    }
+
+    // Map to NewsLensV1 payload format (with structured items)
     const newsPayload: NewsLensV1["payload"] = {
       hasShockEvent: effectiveNews.hasShockEvent,
       shockDirection: effectiveNews.shockDirection,
-      headlines: effectiveNews.headlines.map((h) => h.title), // Convert NewsHeadline[] to string[]
+      headlines: effectiveNews.headlines, // Already string[] from provider
+      items: effectiveNews.items?.map((item) => ({
+        title: item.title,
+        source: item.source,
+        url: item.url,
+        publishedAt: item.publishedAt.toISOString(),
+      })),
     };
 
     lenses.push({
@@ -327,7 +374,13 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
       hasShockEvent: newsPayload.hasShockEvent,
       shockDirection: newsPayload.shockDirection,
       headlines: newsPayload.headlines,
+      items: newsPayload.items,
     };
+
+    // Compute NewsFeatures from news enrichment (UWR-ready, not wired yet)
+    // This is an additive layer that doesn't affect current UWR scoring
+    newsFeatures = computeNewsFeatures(newsSummary);
+
     enrichedCategories.push("news");
   }
 
@@ -384,6 +437,7 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
     sentiment,
     news,
     aiMl,
+    newsFeatures: newsFeatures || undefined,  // Add newsFeatures (UWR-ready, not wired yet)
     enrichmentMeta: {
       categories: enrichedCategories,
       enrichedBy: "froggy-enrichment-adapter",

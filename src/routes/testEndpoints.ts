@@ -16,6 +16,7 @@ import { Router } from "express";
 import froggyEnrichmentAdapter from "../../plugins/froggy-enrichment-adapter.plugin.js";
 import froggyAnalyst from "../../plugins/froggy.trend_pullback_v1.plugin.js";
 import validatorDecisionEvaluator from "../../plugins/validator-decision-evaluator.plugin.js";
+import { FROGGY_MAX_ENRICHMENT_PROFILE } from "../config/enrichmentProfiles.js";
 
 const router = Router();
 
@@ -30,6 +31,14 @@ const router = Router();
  *   "signalId": "test-001",
  *   "symbol": "BTCUSDT",
  *   "timeframe": "1h"
+ * }
+ *
+ * Minimal payload with max enrichment:
+ * {
+ *   "signalId": "test-001",
+ *   "symbol": "BTCUSDT",
+ *   "timeframe": "1h",
+ *   "useMaxEnrichment": true
  * }
  *
  * Full structured signal example:
@@ -58,6 +67,16 @@ router.post("/enrichment", async (req, res) => {
       return res.status(400).json({ error: "Missing signalId" });
     }
 
+    // Determine enrichment profile with priority:
+    // 1. Explicit enrichmentProfile object (highest priority)
+    // 2. useMaxEnrichment flag → FROGGY_MAX_ENRICHMENT_PROFILE
+    // 3. Default profile (handled by enrichment adapter)
+    let effectiveEnrichmentProfile = payload.enrichmentProfile || payload.meta?.enrichmentProfile;
+
+    if (!effectiveEnrichmentProfile && payload.useMaxEnrichment === true) {
+      effectiveEnrichmentProfile = FROGGY_MAX_ENRICHMENT_PROFILE;
+    }
+
     // Auto-structure minimal payloads
     let structuredSignal;
     if (!payload.meta || !payload.score || !payload.confidence || !payload.timestamp) {
@@ -78,12 +97,15 @@ router.post("/enrichment", async (req, res) => {
           strategy: payload.strategy || payload.meta?.strategy || "froggy_trend_pullback_v1",
           direction: payload.direction || payload.meta?.direction || "neutral",
           source: payload.source || payload.meta?.source || "test-endpoint",
-          enrichmentProfile: payload.enrichmentProfile || payload.meta?.enrichmentProfile,
+          enrichmentProfile: effectiveEnrichmentProfile,
         },
       };
     } else {
-      // Already structured
+      // Already structured - apply enrichment profile if determined
       structuredSignal = payload;
+      if (effectiveEnrichmentProfile && !structuredSignal.meta.enrichmentProfile) {
+        structuredSignal.meta.enrichmentProfile = effectiveEnrichmentProfile;
+      }
     }
 
     const enriched = await froggyEnrichmentAdapter.run(structuredSignal);

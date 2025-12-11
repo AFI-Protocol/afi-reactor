@@ -11,7 +11,7 @@
  */
 
 /**
- * A single news headline from any provider
+ * A single news headline from any provider (legacy format)
  */
 export interface NewsHeadline {
   /** Unique identifier for this headline */
@@ -27,6 +27,22 @@ export interface NewsHeadline {
 }
 
 /**
+ * Structured news item with full metadata (v2 format)
+ */
+export interface NewsItem {
+  /** Unique identifier for this news item */
+  id: string;
+  /** Article title */
+  title: string;
+  /** News source name */
+  source: string;
+  /** URL to full article */
+  url: string;
+  /** Publication timestamp as Date object */
+  publishedAt: Date;
+}
+
+/**
  * Direction of a news shock event
  */
 export type NewsShockDirection = "bullish" | "bearish" | "none" | "unknown";
@@ -36,14 +52,20 @@ export type NewsShockDirection = "bullish" | "bearish" | "none" | "unknown";
  *
  * This maps directly to the NewsLensV1 payload and top-level news object
  * in FroggyEnrichedView.
+ *
+ * BACKWARD COMPATIBILITY:
+ * - headlines: string[] - Legacy format (title-only strings)
+ * - items: NewsItem[] - New structured format with full metadata (optional)
  */
 export interface NewsShockSummary {
   /** Whether a shock event was detected */
   hasShockEvent: boolean;
   /** Direction of shock (if any) */
   shockDirection: NewsShockDirection;
-  /** Recent headlines (typically top 5-10) */
-  headlines: NewsHeadline[];
+  /** Recent headlines (legacy format - title strings only) */
+  headlines: string[];
+  /** Structured news items with full metadata (optional, v2 format) */
+  items?: NewsItem[];
 }
 
 /**
@@ -82,5 +104,6 @@ export const DEFAULT_NEWS_SUMMARY: NewsShockSummary = {
   hasShockEvent: false,
   shockDirection: "none",
   headlines: [],
+  items: [],
 };
 

@@ -199,6 +199,10 @@ export interface SentimentLensV1 extends UssLens {
  * News Lens V1 - News & Events
  *
  * Provides news and event analysis.
+ *
+ * BACKWARD COMPATIBILITY:
+ * - headlines: string[] - Legacy format (title-only strings)
+ * - items: NewsItem[] - New structured format with full metadata (optional)
  */
 export interface NewsLensV1 extends UssLens {
   type: "news";
@@ -208,8 +212,15 @@ export interface NewsLensV1 extends UssLens {
     hasShockEvent: boolean;
     /** Direction of shock (if any) */
     shockDirection: "bullish" | "bearish" | "none" | "unknown";
-    /** Recent headlines */
+    /** Recent headlines (legacy format - title strings only) */
     headlines?: string[];
+    /** Structured news items with full metadata (optional, v2 format) */
+    items?: {
+      title: string;
+      source: string;
+      url: string;
+      publishedAt: string; // ISO 8601 string at lens level
+    }[];
   };
 }
 
