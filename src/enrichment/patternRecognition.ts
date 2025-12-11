@@ -8,7 +8,7 @@
  */
 
 import type { PatternLensV1 } from "../types/UssLenses.js";
-import type { AfiCandle } from "./technicalIndicators.js";
+import type { AfiCandle } from "../types/AfiCandle.js";
 
 /**
  * Detect patterns from OHLCV candles.

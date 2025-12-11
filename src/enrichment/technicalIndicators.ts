@@ -1,29 +1,28 @@
 /**
  * Technical Indicators - Deterministic Computation
  *
- * Computes technical indicators from OHLCV candle data.
+ * Computes technical indicators from OHLCV candle data using the AFI Indicator Kernel.
  * All functions are deterministic and fail-soft (return null on insufficient data).
+ *
+ * The Indicator Kernel wraps the `trading-signals` library for battle-tested implementations:
+ * - EMA: Exponential Moving Average
+ * - RSI: Relative Strength Index (Wilder's smoothed - more accurate than simple averaging)
+ * - ATR: Average True Range (Wilder's smoothed - more accurate than SMA)
  *
  * @module technicalIndicators
  */
 
 import type { TechnicalLensV1 } from "../types/UssLenses.js";
-
-/**
- * Neutral candle type for AFI enrichment.
- * Compatible with any exchange adapter's OHLCV format.
- */
-export interface AfiCandle {
-  timestamp: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
+import type { AfiCandle } from "../types/AfiCandle.js";
+import { computeFroggyBundle } from "../indicator/froggyProfile.js";
 
 /**
  * Compute technical enrichment from OHLCV candles.
+ *
+ * Uses Froggy's indicator profile (powered by AFI Indicator Kernel + `trading-signals`):
+ * - EMA-20, EMA-50: Exponential Moving Averages
+ * - RSI-14: Relative Strength Index (Wilder's smoothed method)
+ * - ATR-14: Average True Range (Wilder's smoothed method)
  *
  * Requires at least 50 candles for EMA-50 calculation.
  * Returns null if insufficient data.
@@ -43,15 +42,18 @@ export function computeTechnicalEnrichment(
   }
 
   try {
-    // Calculate EMAs
-    const ema20 = calculateEMA(candles, 20);
-    const ema50 = calculateEMA(candles, 50);
+    // Compute indicators using Froggy's indicator profile
+    const bundle = computeFroggyBundle(candles);
 
-    // Calculate RSI
-    const rsi14 = calculateRSI(candles, 14);
+    if (!bundle) {
+      console.debug(
+        "⚠️  Technical enrichment: Froggy indicator bundle computation failed. Skipping."
+      );
+      return null;
+    }
 
-    // Calculate ATR (optional, requires high/low data)
-    const atr14 = calculateATR(candles, 14);
+    // Extract indicator values from Froggy bundle
+    const { ema20, ema50, rsi14, atr14 } = bundle;
 
     // Get latest candle
     const latestCandle = candles[candles.length - 1];
@@ -96,7 +98,19 @@ export function computeTechnicalEnrichment(
   }
 }
 
+// ============================================================================
+// DEPRECATED: Hand-rolled indicator functions (kept for validation only)
+// ============================================================================
+//
+// These functions are no longer used in production code.
+// They are kept for validation/testing purposes to compare against
+// the Indicator Kernel's `trading-signals` library implementations.
+//
+// TODO: Move these to a separate validation test file.
+// ============================================================================
+
 /**
+ * @deprecated Use `computeIndicatorBundle()` from Indicator Kernel instead.
  * Calculate Exponential Moving Average (EMA)
  *
  * @param candles - Array of candles
@@ -119,7 +133,11 @@ export function calculateEMA(candles: AfiCandle[], period: number): number {
 }
 
 /**
+ * @deprecated Use `computeIndicatorBundle()` from Indicator Kernel instead.
  * Calculate Relative Strength Index (RSI)
+ *
+ * NOTE: This is a simplified implementation using simple averaging.
+ * The Indicator Kernel uses Wilder's smoothed method, which is more accurate.
  *
  * @param candles - Array of candles
  * @param period - RSI period (typically 14)
@@ -153,7 +171,11 @@ export function calculateRSI(
 }
 
 /**
+ * @deprecated Use `computeIndicatorBundle()` from Indicator Kernel instead.
  * Calculate Average True Range (ATR)
+ *
+ * NOTE: This is a simplified implementation using simple moving average.
+ * The Indicator Kernel uses Wilder's smoothed method, which is more accurate.
  *
  * Measures volatility using high/low/close data.
  *

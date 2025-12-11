@@ -20,8 +20,9 @@ import type {
 import { getPriceFeedAdapter, getDefaultPriceSource } from "../src/adapters/exchanges/priceFeedRegistry.js";
 import type { OHLCVCandle } from "../src/adapters/exchanges/types.js";
 import { normalizeMarketType, mapMarketTypeToVenueType } from "../src/utils/marketUtils.js";
-import { computeTechnicalEnrichment, type AfiCandle } from "../src/enrichment/technicalIndicators.js";
+import { computeTechnicalEnrichment } from "../src/enrichment/technicalIndicators.js";
 import { detectPatterns } from "../src/enrichment/patternRecognition.js";
+import type { AfiCandle } from "../src/types/AfiCandle.js";
 import type { TechnicalLensV1, PatternLensV1, SentimentLensV1, NewsLensV1, AiMlLensV1, SupportedLens } from "../src/types/UssLenses.js";
 
 /**
