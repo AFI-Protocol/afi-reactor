@@ -30,6 +30,7 @@ import type { NewsProvider, NewsShockSummary } from "../src/news/newsProvider.js
 import { DEFAULT_NEWS_SUMMARY } from "../src/news/newsProvider.js";
 import { createNewsDataProvider } from "../src/news/newsdataNewsProvider.js";
 import { computeNewsFeatures, type NewsFeatures } from "../src/news/newsFeatures.js";
+import { fetchAiMlForFroggy, type TinyBrainsFroggyInput, type TinyBrainsAiMl } from "../src/aiMl/tinyBrainsClient.js";
 
 /**
  * Input schema: structured signal from signal-structurer.
@@ -384,25 +385,63 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
     enrichedCategories.push("news");
   }
 
-  // AI/ML lens (demo data for now)
-  let aiMl: any = undefined;
+  // AI/ML enrichment - Tiny Brains integration
+  let aiMl: TinyBrainsAiMl | undefined = undefined;
   if (isCategoryEnabled(effectiveProfile, "aiMl")) {
-    const aiMlPayload: AiMlLensV1["payload"] = {
-      ensembleScore: 0.6 + Math.random() * 0.2, // 0.6-0.8 range
-      modelTags: ["trend-following", "pullback"],
+    const debugAiMl = process.env.AFI_DEBUG_AIML === "1";
+
+    if (debugAiMl) {
+      console.log(`[AiMlEnrichment] Category enabled, preparing Tiny Brains input`);
+    }
+
+    // Build lightweight input for Tiny Brains service
+    // Use signalId as traceId for observability (no explicit trace infrastructure yet)
+    const tinyBrainsInput: TinyBrainsFroggyInput = {
+      signalId: validatedInput.signalId,
+      symbol: validatedInput.meta.symbol,
+      timeframe: validatedInput.meta.timeframe,
+      traceId: validatedInput.signalId, // Use signalId as trace ID for now
+      technical,
+      pattern,
+      sentiment,
+      newsFeatures: newsFeatures || undefined,
     };
 
-    lenses.push({
-      type: "aiMl",
-      version: "v1",
-      payload: aiMlPayload,
-    });
+    try {
+      // Call Tiny Brains service (fail-soft: returns undefined if unavailable)
+      const aiMlPrediction = await fetchAiMlForFroggy(tinyBrainsInput);
 
-    aiMl = {
-      ensembleScore: aiMlPayload.ensembleScore,
-      modelTags: aiMlPayload.modelTags,
-    };
-    enrichedCategories.push("aiMl");
+      if (aiMlPrediction) {
+        if (debugAiMl) {
+          console.log(`[AiMlEnrichment] Received prediction:`, JSON.stringify(aiMlPrediction, null, 2));
+        }
+
+        // Attach to FroggyEnrichedView
+        aiMl = aiMlPrediction;
+
+        // Create USS lens for AI/ML (v1 format - legacy schema for now)
+        // TODO: Update AiMlLensV1 to match FroggyAiMlV1 schema
+        const aiMlPayload: AiMlLensV1["payload"] = {
+          ensembleScore: aiMlPrediction.convictionScore,
+          modelTags: aiMlPrediction.regime ? [aiMlPrediction.regime] : [],
+        };
+
+        lenses.push({
+          type: "aiMl",
+          version: "v1",
+          payload: aiMlPayload,
+        });
+
+        enrichedCategories.push("aiMl");
+      } else {
+        if (debugAiMl) {
+          console.log(`[AiMlEnrichment] No prediction received (service unavailable or disabled)`);
+        }
+      }
+    } catch (err) {
+      // This should not happen (fetchAiMlForFroggy is fail-soft), but guard anyway
+      console.warn(`[AiMlEnrichment] Unexpected error:`, err);
+    }
   }
 
   // Normalize market type and determine venue type
