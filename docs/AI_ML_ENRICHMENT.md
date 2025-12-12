@@ -16,7 +16,14 @@ Froggy's enrichment pipeline now supports an optional **AI/ML enrichment lane** 
 
 ### Tiny Brains Service
 
-The Tiny Brains service is a separate Python microservice that:
+The Tiny Brains service is a **standalone Python microservice** that lives in its own repo folder (`afi-tiny-brains`) at the workspace root, separate from `afi-reactor`.
+
+**Integration:**
+- `afi-reactor` communicates with Tiny Brains **purely over HTTP** via `TINY_BRAINS_URL`
+- No Python imports or local path dependencies
+- Service can be deployed independently or run locally for development
+
+**What it does:**
 - Receives enrichment context (technical, pattern, sentiment, newsFeatures)
 - Runs ML models to generate predictions
 - Returns predictions in the `FroggyAiMlV1` format
@@ -152,11 +159,17 @@ const profile = {
 
 ### Local Development
 
-1. **Start Tiny Brains service** (separate Python microservice):
+1. **Start Tiny Brains service** (from afi-reactor root):
    ```bash
-   cd tiny-brains-service
-   python -m uvicorn main:app --host 0.0.0.0 --port 8090
+   # Option 1: Use the dev runner script
+   ./scripts/run_tiny_brains_dev.sh
+
+   # Option 2: Start manually from workspace root
+   cd ../afi-tiny-brains
+   uvicorn tiny_brains_service.service:app --host 0.0.0.0 --port 8090 --reload
    ```
+
+   **Note:** The Tiny Brains service now lives in `afi-tiny-brains/` at the workspace root, not inside `afi-reactor`.
 
 2. **Configure afi-reactor**:
    ```bash
