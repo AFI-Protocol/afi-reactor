@@ -17,10 +17,48 @@ describe("Vault Replay Service (Unit Tests)", () => {
 
   describe("ReplayResult Type", () => {
     it("should have correct structure for a valid replay result", () => {
+      const mockAnalystScore1 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.78,
+        uwrAxes: { structure: 0.75, execution: 0.75, risk: 0.75, insight: 0.75 },
+        uwrScore: 0.75,
+      };
+
+      const mockAnalystScore2 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.78,
+        uwrAxes: { structure: 0.7521, execution: 0.7521, risk: 0.7521, insight: 0.7521 },
+        uwrScore: 0.7521,
+      };
+
       const replayResult: ReplayResult = {
         signalId: "test-signal-001",
         stored: {
-          uwrScore: 0.75,
+          analystScore: mockAnalystScore1,
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.78,
@@ -41,7 +79,11 @@ describe("Vault Replay Service (Unit Tests)", () => {
           },
         },
         recomputed: {
-          uwrScore: 0.7521,
+          analystScore: mockAnalystScore2,
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.78,
@@ -69,18 +111,56 @@ describe("Vault Replay Service (Unit Tests)", () => {
       };
 
       expect(replayResult.signalId).toBe("test-signal-001");
-      expect(replayResult.stored.uwrScore).toBe(0.75);
-      expect(replayResult.recomputed.uwrScore).toBe(0.7521);
+      expect(replayResult.stored.analystScore?.uwrScore).toBe(0.75);
+      expect(replayResult.recomputed.analystScore?.uwrScore).toBe(0.7521);
       expect(replayResult.comparison.uwrScoreDelta).toBe(0.0021);
       expect(replayResult.comparison.decisionChanged).toBe(false);
       expect(replayResult.replayMeta.notes).toBe("Read-only replay; no DB writes performed");
     });
 
     it("should support replay result with decision change", () => {
+      const mockAnalystScore3 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "ETH",
+        quoteAsset: "USDT",
+        signalTimeframe: "4h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.68,
+        uwrAxes: { structure: 0.65, execution: 0.65, risk: 0.65, insight: 0.65 },
+        uwrScore: 0.65,
+      };
+
+      const mockAnalystScore4 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "ETH",
+        quoteAsset: "USDT",
+        signalTimeframe: "4h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "low" as const,
+        conviction: 0.60,
+        uwrAxes: { structure: 0.58, execution: 0.58, risk: 0.58, insight: 0.58 },
+        uwrScore: 0.58,
+      };
+
       const replayResult: ReplayResult = {
         signalId: "test-signal-002",
         stored: {
-          uwrScore: 0.65,
+          analystScore: mockAnalystScore3,
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.68,
@@ -99,7 +179,11 @@ describe("Vault Replay Service (Unit Tests)", () => {
           },
         },
         recomputed: {
-          uwrScore: 0.58,
+          analystScore: mockAnalystScore4,
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "reject",
             uwrConfidence: 0.60,
@@ -132,10 +216,31 @@ describe("Vault Replay Service (Unit Tests)", () => {
     });
 
     it("should support replay result with receipt provenance", () => {
+      const mockAnalystScore5 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "high" as const,
+        conviction: 0.95,
+        uwrAxes: { structure: 0.92, execution: 0.92, risk: 0.92, insight: 0.92 },
+        uwrScore: 0.92,
+      };
+
       const replayResult: ReplayResult = {
         signalId: "test-signal-003",
         stored: {
-          uwrScore: 0.92,
+          analystScore: mockAnalystScore5,
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.95,
@@ -161,7 +266,11 @@ describe("Vault Replay Service (Unit Tests)", () => {
           },
         },
         recomputed: {
-          uwrScore: 0.92,
+          analystScore: mockAnalystScore5,
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.95,
@@ -261,6 +370,23 @@ describe("Vault Replay Service (Unit Tests)", () => {
 
   describe("Pipeline Input Reconstruction", () => {
     it("should reconstruct pipeline input from TSSD document with rawPayload", () => {
+      const mockAnalystScore6 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.78,
+        uwrAxes: { structure: 0.75, execution: 0.75, risk: 0.75, insight: 0.75 },
+        uwrScore: 0.75,
+      };
+
       const tssdDoc: TssdSignalDocument = {
         signalId: "test-signal-004",
         createdAt: new Date(),
@@ -271,7 +397,7 @@ describe("Vault Replay Service (Unit Tests)", () => {
           market: "spot",
         },
         pipeline: {
-          uwrScore: 0.75,
+          analystScore: mockAnalystScore6,
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.78,
@@ -304,6 +430,23 @@ describe("Vault Replay Service (Unit Tests)", () => {
     });
 
     it("should reconstruct pipeline input from TSSD document without rawPayload", () => {
+      const mockAnalystScore7 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "ETH",
+        quoteAsset: "USDT",
+        signalTimeframe: "4h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.85,
+        uwrAxes: { structure: 0.82, execution: 0.82, risk: 0.82, insight: 0.82 },
+        uwrScore: 0.82,
+      };
+
       const tssdDoc: TssdSignalDocument = {
         signalId: "test-signal-005",
         createdAt: new Date(),
@@ -314,7 +457,7 @@ describe("Vault Replay Service (Unit Tests)", () => {
           market: "spot",
         },
         pipeline: {
-          uwrScore: 0.82,
+          analystScore: mockAnalystScore7,
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.85,

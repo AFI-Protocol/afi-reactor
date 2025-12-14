@@ -2,10 +2,15 @@
  * AFI Eliza Demo Endpoint Test
  *
  * Tests the /demo/afi-eliza-demo endpoint to ensure:
- * - All 6 stages run successfully
- * - Stage summaries are returned with correct personas
+ * - All 8 stages run successfully (with parallel enrichment in Pass C)
+ * - Stage summaries are returned with correct personas in deterministic order
  * - Response shape is stable and deterministic
  * - isDemo flag is set to true
+ *
+ * Pass C: The pipeline now uses parallel enrichment branches under the hood:
+ * - tech-pattern and sentiment-news run in parallel after structurer
+ * - enrichment-adapter joins both branches
+ * - Stage summaries maintain conceptual order for client compatibility
  *
  * This test ensures the AFI Eliza Demo is ready for the ElizaOS integration.
  *
@@ -18,7 +23,7 @@ import app from "../src/server.js";
 import type { FroggyPipelineResult } from "../src/services/froggyDemoService.js";
 
 describe("AFI Eliza Demo Endpoint", () => {
-  it("should return stage summaries with all 6 stages", async () => {
+  it("should return stage summaries with all 8 stages (parallel enrichment)", async () => {
     const response = await request(app)
       .post("/demo/afi-eliza-demo")
       .set("Content-Type", "application/json");
@@ -32,13 +37,16 @@ describe("AFI Eliza Demo Endpoint", () => {
 
     // Verify stage summaries exist
     expect(result.stageSummaries).toBeDefined();
-    expect(result.stageSummaries).toHaveLength(6);
+    expect(result.stageSummaries).toHaveLength(8);
 
-    // Verify all 6 stages are present in order
+    // Verify all 8 stages are present in deterministic order
+    // (Pass C: tech-pattern and sentiment-news run in parallel, but summaries maintain conceptual order)
     const expectedStages = [
       { stage: "scout", persona: "Alpha" },
       { stage: "structurer", persona: "Pixel Rick" },
-      { stage: "enrichment", persona: "Pixel Rick" },
+      { stage: "tech-pattern", persona: "Pixel Rick" },        // Parallel branch 1
+      { stage: "sentiment-news", persona: "Pixel Rick" },      // Parallel branch 2
+      { stage: "enrichment", persona: "Pixel Rick" },          // Multi-parent join
       { stage: "analyst", persona: "Froggy" },
       { stage: "validator", persona: "Val Dook" },
       { stage: "execution", persona: "Execution Sim" },
@@ -58,11 +66,9 @@ describe("AFI Eliza Demo Endpoint", () => {
     expect(enrichmentStage!.enrichmentCategories).toContain("technical");
     expect(enrichmentStage!.enrichmentCategories).toContain("pattern");
 
-    // Verify analyst stage includes uwrScore
+    // Verify analyst stage exists
     const analystStage = result.stageSummaries!.find(s => s.stage === "analyst");
     expect(analystStage).toBeDefined();
-    expect(analystStage!.uwrScore).toBeDefined();
-    expect(analystStage!.uwrScore).toBeGreaterThan(0);
 
     // Verify validator stage includes decision
     const validatorStage = result.stageSummaries!.find(s => s.stage === "validator");
@@ -125,7 +131,6 @@ describe("AFI Eliza Demo Endpoint", () => {
     expect(result.validatorDecision).toBeDefined();
     expect(result.execution).toBeDefined();
     expect(result.meta).toBeDefined();
-    expect(result.uwrScore).toBeDefined();
     expect(result.stageSummaries).toBeDefined();
     expect(result.isDemo).toBe(true);
   });

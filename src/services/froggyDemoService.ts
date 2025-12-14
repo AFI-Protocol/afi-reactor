@@ -26,6 +26,7 @@ import { getTssdVaultService } from "./tssdVaultService.js";
 import type { TssdSignalDocument } from "../types/TssdSignalDocument.js";
 import { FROGGY_TREND_PULLBACK_PIPELINE } from "../config/froggyPipeline.js";
 import { runPipelineDag, type PipelineContext } from "./pipelineRunner.js";
+import { pickDecayParamsForAnalystScore } from "afi-core/decay";
 
 // Import plugins directly (for now - will be replaced by dynamic loading in future DAG engine)
 import alphaScoutIngest from "../../plugins/alpha-scout-ingest.plugin.js";
@@ -84,8 +85,6 @@ export interface PipelineStageSummary {
   summary: string;
   /** Optional: enrichment categories applied (for Pixel Rick stage) */
   enrichmentCategories?: string[];
-  /** Optional: UWR score (for Froggy stage) */
-  uwrScore?: number;
   /** Optional: decision (for Val Dook stage) */
   decision?: "approve" | "reject" | "flag" | "abstain";
 }
@@ -97,6 +96,15 @@ export interface PipelineStageSummary {
 export interface FroggyPipelineResult {
   /** Signal ID (generated or provided) */
   signalId: string;
+  /** Canonical analyst score (if available) */
+  analystScore?: any;
+  /** ISO timestamp when scoring was completed */
+  scoredAt?: string;
+  /** Decay parameters (if available) */
+  decayParams?: {
+    halfLifeMinutes: number;
+    greeksTemplateId: string;
+  } | null;
   /** Validator decision */
   validatorDecision: {
     decision: "approve" | "reject" | "flag" | "abstain";
@@ -121,8 +129,6 @@ export interface FroggyPipelineResult {
     direction: string;
     source: string;
   };
-  /** UWR score from Froggy analyst */
-  uwrScore: number;
   /** DEMO-ONLY: Stage-by-stage summaries for AFI Eliza Demo */
   stageSummaries?: PipelineStageSummary[];
   /** DEMO-ONLY: Marker to indicate this is a demo run */
@@ -320,7 +326,6 @@ export async function runFroggyTrendPullbackDagFromTradingView(
         persona: "Froggy",
         status: "complete",
         summary: `Analyzed trend-pullback setup, UWR score: ${analyzedSignal.analysis.analystScore.uwrScore.toFixed(2)}`,
-        uwrScore: analyzedSignal.analysis.analystScore.uwrScore,
       });
     }
 
@@ -342,10 +347,26 @@ export async function runFroggyTrendPullbackDagFromTradingView(
     });
   }
 
+  // Compute decay parameters once (reused in result and TSSD doc)
+  const decayParams = analyzedSignal?.analysis?.analystScore
+    ? pickDecayParamsForAnalystScore(analyzedSignal.analysis.analystScore)
+    : null;
+
+  // Compute scoredAt once (canonical timestamp when analystScore was produced)
+  const scoredAt = analyzedSignal?.analysis?.analystScore ? new Date().toISOString() : undefined;
+
   // Build final result
   // Note: executionResult contains the full chain of data from all stages
   const result: FroggyPipelineResult = {
     signalId: rawSignal?.signalId || executionResult.signalId,
+    analystScore: analyzedSignal?.analysis?.analystScore,
+    scoredAt,
+    decayParams: decayParams
+      ? {
+          halfLifeMinutes: decayParams.halfLifeMinutes,
+          greeksTemplateId: decayParams.greeksTemplateId,
+        }
+      : null,
     validatorDecision: {
       decision: executionResult.validatorDecision.decision,
       uwrConfidence: executionResult.validatorDecision.uwrConfidence,
@@ -367,7 +388,6 @@ export async function runFroggyTrendPullbackDagFromTradingView(
       direction: payload.direction,
       source: "tradingview-webhook",
     },
-    uwrScore: analyzedSignal?.analysis?.analystScore?.uwrScore || executionResult.uwrScore,
     stageSummaries: options?.includeStageSummaries ? stageSummaries : undefined,
     isDemo: options?.isDemo,
   };
@@ -422,7 +442,17 @@ export async function runFroggyTrendPullbackDagFromTradingView(
         patternSignals,
       },
       pipeline: {
-        uwrScore: analyzedSignal?.analysis?.analystScore?.uwrScore || executionResult.uwrScore,
+        // Canonical analyst score (Phase 3+)
+        analystScore: analyzedSignal?.analysis?.analystScore,
+        // Timestamp when scoring was completed (canonical: when analystScore was produced)
+        scoredAt,
+        // Decay parameters (Greeks-style time decay, computed once above)
+        decayParams: decayParams
+          ? {
+              halfLifeMinutes: decayParams.halfLifeMinutes,
+              greeksTemplateId: decayParams.greeksTemplateId,
+            }
+          : null,
         validatorDecision: {
           decision: executionResult.validatorDecision.decision,
           uwrConfidence: executionResult.validatorDecision.uwrConfidence,

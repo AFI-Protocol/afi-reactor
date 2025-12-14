@@ -2,20 +2,25 @@
  * Froggy DAG Pipeline Integration Test
  *
  * Tests the complete Froggy trend_pullback_v1 pipeline using the DAG-aware runner.
- * This validates that runFroggyTrendPullbackDagFromTradingView produces the same
- * results as the linear version while respecting stage dependencies.
+ * This validates that runFroggyTrendPullbackDagFromTradingView produces correct
+ * results while respecting stage dependencies.
  *
- * Currently, FROGGY_TREND_PULLBACK_PIPELINE is linear (each stage depends on the
- * previous one), so this test verifies:
- * 1. DAG execution produces correct results
- * 2. Stage metadata includes dependsOn information
- * 3. All stages execute in the correct order
+ * Pass C: FROGGY_TREND_PULLBACK_PIPELINE now uses parallel enrichment branches:
+ * - tech-pattern and sentiment-news both depend on signal-structurer (parallel execution)
+ * - enrichment-adapter depends on both (multi-parent join)
+ *
+ * This test verifies:
+ * 1. DAG execution produces correct results with parallel enrichment
+ * 2. Stage metadata includes correct dependsOn information
+ * 3. All stages execute in the correct order (conceptual order for summaries)
  * 4. Final result matches expected shape
+ * 5. Parallel dependency graph is correctly configured
  */
 
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
 import { runFroggyTrendPullbackDagFromTradingView } from "../src/services/froggyDemoService.js";
 import type { TradingViewAlertPayload } from "../src/services/froggyDemoService.js";
+import { FROGGY_TREND_PULLBACK_PIPELINE } from "../src/config/froggyPipeline.js";
 import type { CoinalyzePerpMetrics } from "../src/adapters/coinalyze/coinalyzeClient.js";
 import { fetchCoinalyzePerpMetrics } from "../src/adapters/coinalyze/coinalyzeClient.js";
 
@@ -75,10 +80,6 @@ describe("Froggy DAG Pipeline Integration", () => {
     expect(result.execution.status).toMatch(/^(simulated|skipped)$/);
     expect(result.execution.timestamp).toBeDefined();
 
-    // Verify UWR score
-    expect(result.uwrScore).toBeGreaterThanOrEqual(0);
-    expect(result.uwrScore).toBeLessThanOrEqual(1);
-
     // Verify metadata
     expect(result.meta).toBeDefined();
     expect(result.meta.symbol).toBe("BTC/USDT");
@@ -86,13 +87,15 @@ describe("Froggy DAG Pipeline Integration", () => {
     expect(result.meta.strategy).toBe("froggy_trend_pullback_v1");
     expect(result.meta.direction).toBe("long");
 
-    // Verify stage summaries
+    // Verify stage summaries (now 8 stages with tech+pattern + sentiment+news split)
     expect(result.stageSummaries).toBeDefined();
-    expect(result.stageSummaries?.length).toBe(6);
+    expect(result.stageSummaries?.length).toBe(8);
 
     const stageNames = result.stageSummaries!.map(s => s.stage);
     expect(stageNames).toContain("scout");
     expect(stageNames).toContain("structurer");
+    expect(stageNames).toContain("tech-pattern");
+    expect(stageNames).toContain("sentiment-news");
     expect(stageNames).toContain("enrichment");
     expect(stageNames).toContain("analyst");
     expect(stageNames).toContain("validator");
@@ -105,6 +108,23 @@ describe("Froggy DAG Pipeline Integration", () => {
 
     // Verify demo marker
     expect(result.isDemo).toBe(true);
+  });
+
+  it("should have correct parallel enrichment DAG structure", () => {
+    // Verify the pipeline configuration has parallel enrichment branches
+    const techPatternStage = FROGGY_TREND_PULLBACK_PIPELINE.find(s => s.id === "froggy-enrichment-tech-pattern");
+    const sentimentNewsStage = FROGGY_TREND_PULLBACK_PIPELINE.find(s => s.id === "froggy-enrichment-sentiment-news");
+    const adapterStage = FROGGY_TREND_PULLBACK_PIPELINE.find(s => s.id === "froggy-enrichment-adapter");
+
+    // Both enrichment stages should depend only on signal-structurer (parallel branches)
+    expect(techPatternStage?.dependsOn).toEqual(["signal-structurer"]);
+    expect(sentimentNewsStage?.dependsOn).toEqual(["signal-structurer"]);
+
+    // Adapter should depend on both enrichment stages (multi-parent join)
+    expect(adapterStage?.dependsOn).toEqual([
+      "froggy-enrichment-tech-pattern",
+      "froggy-enrichment-sentiment-news"
+    ]);
   });
 
   it("should work without stage summaries", async () => {
@@ -126,7 +146,6 @@ describe("Froggy DAG Pipeline Integration", () => {
     expect(result.signalId).toBeDefined();
     expect(result.validatorDecision).toBeDefined();
     expect(result.execution).toBeDefined();
-    expect(result.uwrScore).toBeGreaterThanOrEqual(0);
     expect(result.stageSummaries).toBeUndefined();
   });
 });

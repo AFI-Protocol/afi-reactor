@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "build:smoke": "npm run build && node ./dist/scripts/smoke/esm-imports.js",
     "start:demo": "node dist/src/server.js",
     "simulate-signal": "node dist/ops/runner/simulate-full-pipeline.js",
     "simulate-from-vault": "node dist/ops/runner/simulate-full-pipeline.js --from-vault",

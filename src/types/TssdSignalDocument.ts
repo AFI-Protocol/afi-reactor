@@ -10,11 +10,13 @@
  * Phase 1: Basic persistence only (no replay, no complex querying)
  * Phase 1.5: Receipt provenance tracking (off-chain only, no on-chain minting)
  * Phase 2: USS lenses for enrichment data (technical, pattern, sentiment, etc.)
+ * Phase 3: Analyst score template integration (canonical scoring structure)
  *
  * @module TssdSignalDocument
  */
 
 import type { SupportedLens } from "./UssLenses.js";
+import type { AnalystScoreTemplate } from "afi-core/analyst";
 
 /**
  * T.S.S.D. Vault Document
@@ -55,8 +57,26 @@ export interface TssdSignalDocument {
 
   /** Pipeline execution results */
   pipeline: {
-    /** UWR (Universal Weighting Rule) score from Froggy analyst */
-    uwrScore: number;
+    /**
+     * Canonical analyst score for this signal, matching AnalystScoreTemplate from afi-core.
+     * All UWR scoring data should come from this object.
+     */
+    analystScore?: AnalystScoreTemplate;
+
+    /**
+     * ISO timestamp when scoring was completed (aligns with afi-infra ScoreSnapshot.scoredAt)
+     * Used as the reference point for time decay calculations.
+     */
+    scoredAt?: string;
+
+    /**
+     * Decay parameters derived from analyst score (Greeks-style time decay)
+     * Computed via pickDecayParamsForAnalystScore() from afi-core/decay
+     */
+    decayParams?: {
+      halfLifeMinutes: number;
+      greeksTemplateId: string;
+    } | null;
 
     /** Validator decision from Val Dook */
     validatorDecision: {
@@ -220,7 +240,15 @@ export interface ReplayResult {
 
   /** Stored values from TSSD vault document */
   stored: {
-    uwrScore: number;
+    /** Canonical analyst score (if available) */
+    analystScore?: AnalystScoreTemplate;
+    /** ISO timestamp when scoring was completed */
+    scoredAt?: string;
+    /** Decay parameters (if available) */
+    decayParams?: {
+      halfLifeMinutes: number;
+      greeksTemplateId: string;
+    } | null;
     validatorDecision: {
       decision: "approve" | "reject" | "flag" | "abstain";
       uwrConfidence: number;
@@ -249,7 +277,15 @@ export interface ReplayResult {
 
   /** Recomputed values from re-running the pipeline */
   recomputed: {
-    uwrScore: number;
+    /** Canonical analyst score (if available) */
+    analystScore?: AnalystScoreTemplate;
+    /** ISO timestamp when scoring was completed */
+    scoredAt?: string;
+    /** Decay parameters (if available) */
+    decayParams?: {
+      halfLifeMinutes: number;
+      greeksTemplateId: string;
+    } | null;
     validatorDecision: {
       decision: "approve" | "reject" | "flag" | "abstain";
       uwrConfidence: number;

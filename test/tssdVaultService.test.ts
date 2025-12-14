@@ -24,7 +24,32 @@ describe("TSSD Vault Service (Unit Tests)", () => {
           market: "spot",
         },
         pipeline: {
-          uwrScore: 0.75,
+          analystScore: {
+            analystId: "froggy",
+            strategyId: "trend_pullback_v1",
+            marketType: "spot",
+            assetClass: "crypto",
+            instrumentType: "spot",
+            baseAsset: "BTC",
+            quoteAsset: "USDT",
+            signalTimeframe: "1h",
+            holdingHorizon: "swing",
+            direction: "long",
+            riskBucket: "medium",
+            conviction: 0.78,
+            uwrAxes: {
+              structure: 0.75,
+              execution: 0.75,
+              risk: 0.75,
+              insight: 0.75,
+            },
+            uwrScore: 0.75,
+          },
+          scoredAt: "2025-01-01T00:00:00.000Z",
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.78,
@@ -51,7 +76,7 @@ describe("TSSD Vault Service (Unit Tests)", () => {
       expect(doc.signalId).toBe("test-signal-001");
       expect(doc.source).toBe("afi-eliza-demo");
       expect(doc.market.symbol).toBe("BTC/USDT");
-      expect(doc.pipeline.uwrScore).toBe(0.75);
+      expect(doc.pipeline.analystScore?.uwrScore).toBe(0.75);
       expect(doc.pipeline.validatorDecision.decision).toBe("approve");
       expect(doc.version).toBe("v0.1");
     });
@@ -67,7 +92,7 @@ describe("TSSD Vault Service (Unit Tests)", () => {
 
   describe("Document Mapping", () => {
     it("should correctly map FroggyPipelineResult to TssdSignalDocument", () => {
-      // Simulate a FroggyPipelineResult
+      // Simulate a FroggyPipelineResult (no longer has uwrScore at top level)
       const pipelineResult = {
         signalId: "alpha-1733515200000",
         validatorDecision: {
@@ -91,8 +116,30 @@ describe("TSSD Vault Service (Unit Tests)", () => {
           direction: "long",
           source: "afi-eliza-demo",
         },
-        uwrScore: 0.75,
         isDemo: true,
+      };
+
+      // Mock analystScore (would come from Froggy analyst in real pipeline)
+      const mockAnalystScore = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.78,
+        uwrAxes: {
+          structure: 0.75,
+          execution: 0.75,
+          risk: 0.75,
+          insight: 0.75,
+        },
+        uwrScore: 0.75,
       };
 
       // Map to TssdSignalDocument
@@ -105,7 +152,7 @@ describe("TSSD Vault Service (Unit Tests)", () => {
           timeframe: pipelineResult.meta.timeframe,
         },
         pipeline: {
-          uwrScore: pipelineResult.uwrScore,
+          analystScore: mockAnalystScore,
           validatorDecision: pipelineResult.validatorDecision,
           execution: pipelineResult.execution,
         },
@@ -120,7 +167,7 @@ describe("TSSD Vault Service (Unit Tests)", () => {
       expect(tssdDoc.signalId).toBe(pipelineResult.signalId);
       expect(tssdDoc.source).toBe("afi-eliza-demo");
       expect(tssdDoc.market.symbol).toBe(pipelineResult.meta.symbol);
-      expect(tssdDoc.pipeline.uwrScore).toBe(pipelineResult.uwrScore);
+      expect(tssdDoc.pipeline.analystScore?.uwrScore).toBe(0.75);
       expect(tssdDoc.pipeline.validatorDecision.decision).toBe("approve");
       expect(tssdDoc.version).toBe("v0.1");
     });

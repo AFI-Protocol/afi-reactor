@@ -127,7 +127,9 @@ function buildReplayResult(
 ): ReplayResult {
   // Extract stored values
   const stored = {
-    uwrScore: storedDoc.pipeline.uwrScore,
+    analystScore: storedDoc.pipeline.analystScore,
+    scoredAt: storedDoc.pipeline.scoredAt,
+    decayParams: storedDoc.pipeline.decayParams,
     validatorDecision: storedDoc.pipeline.validatorDecision,
     execution: {
       status: storedDoc.pipeline.execution.status,
@@ -153,8 +155,12 @@ function buildReplayResult(
   };
 
   // Extract recomputed values
+  // NOTE: Use stored.scoredAt for apples-to-apples decay comparison
+  // (recomputedResult.scoredAt would be a fresh timestamp from replay)
   const recomputed = {
-    uwrScore: recomputedResult.uwrScore,
+    analystScore: recomputedResult.analystScore,
+    scoredAt: stored.scoredAt,
+    decayParams: recomputedResult.decayParams,
     validatorDecision: recomputedResult.validatorDecision,
     execution: {
       status: recomputedResult.execution.status,
@@ -164,7 +170,9 @@ function buildReplayResult(
   };
 
   // Build comparison
-  const uwrScoreDelta = recomputed.uwrScore - stored.uwrScore;
+  const storedUwrScore = stored.analystScore?.uwrScore ?? 0;
+  const recomputedUwrScore = recomputed.analystScore?.uwrScore ?? 0;
+  const uwrScoreDelta = recomputedUwrScore - storedUwrScore;
   const decisionChanged = recomputed.validatorDecision.decision !== stored.validatorDecision.decision;
 
   const changes: string[] = [];
@@ -172,9 +180,9 @@ function buildReplayResult(
   // UWR score change
   if (Math.abs(uwrScoreDelta) > 0.0001) {
     const sign = uwrScoreDelta > 0 ? "+" : "";
-    changes.push(`uwrScore changed by ${sign}${uwrScoreDelta.toFixed(4)} (${stored.uwrScore.toFixed(4)} → ${recomputed.uwrScore.toFixed(4)})`);
+    changes.push(`uwrScore changed by ${sign}${uwrScoreDelta.toFixed(4)} (${storedUwrScore.toFixed(4)} → ${recomputedUwrScore.toFixed(4)})`);
   } else {
-    changes.push(`uwrScore unchanged (${stored.uwrScore.toFixed(4)})`);
+    changes.push(`uwrScore unchanged (${storedUwrScore.toFixed(4)})`);
   }
 
   // Decision change

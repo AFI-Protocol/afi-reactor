@@ -1,15 +1,21 @@
 /**
  * Froggy Enrichment Adapter Plugin - Dev/Demo Only
- * 
+ *
  * Purpose: Bridge reactor structured signal → Froggy enrichment input shape.
- * 
+ *
  * This plugin imports and uses afi-core's FroggyEnrichedView type to ensure
  * compatibility with Froggy's analyst logic.
- * 
+ *
  * For demo purposes, we generate plausible technical indicators (RSI, MA, etc.)
  * that Froggy can consume. In production, these would come from real market data.
- * 
+ *
  * Part of: froggy-trend-pullback-v1 pipeline (Alpha → Pixel Rick → Froggy → Val Dook → Execution Sim)
+ *
+ * DAG Mode (Pass C): This adapter acts as a multi-parent join node:
+ * - Consumes _techPatternEnrichment from froggy-enrichment-tech-pattern (parallel branch 1)
+ * - Consumes _sentimentNewsEnrichment from froggy-enrichment-sentiment-news (parallel branch 2)
+ * - Merges both enrichment outputs and adds AI/ML predictions
+ * - Handles partial failures gracefully (either branch may be missing/incomplete)
  */
 
 import { z } from "zod";
@@ -33,8 +39,14 @@ import { computeNewsFeatures, type NewsFeatures } from "../src/news/newsFeatures
 import { fetchAiMlForFroggy, type TinyBrainsFroggyInput, type TinyBrainsAiMl } from "../src/aiMl/tinyBrainsClient.js";
 
 /**
- * Input schema: structured signal from signal-structurer.
- * Now includes optional enrichmentProfile in meta.
+ * Input schema: structured signal from signal-structurer OR enriched signal from previous stages.
+ *
+ * In DAG mode (Pass C), this adapter receives inputs from two parallel enrichment branches:
+ * - _techPatternEnrichment: from froggy-enrichment-tech-pattern (may be missing if that stage failed)
+ * - _sentimentNewsEnrichment: from froggy-enrichment-sentiment-news (may be missing if that stage failed)
+ *
+ * The adapter merges whatever enrichment is available and falls back to inline computation
+ * for any missing categories (backward compatibility + fail-soft behavior).
  */
 const inputSchema = z.object({
   signalId: z.string(),
@@ -49,6 +61,21 @@ const inputSchema = z.object({
     direction: z.enum(["long", "short", "neutral"]),
     enrichmentProfile: z.any().optional(), // EnrichmentProfile from afi-core
   }),
+  // Optional: tech+pattern enrichment from previous stage (DAG mode)
+  _techPatternEnrichment: z.object({
+    technical: z.any().optional(),
+    pattern: z.any().optional(),
+    priceSource: z.string(),
+    enrichedAt: z.string(),
+  }).optional(),
+  // Optional: sentiment+news enrichment from previous stage (DAG mode, Pass B)
+  _sentimentNewsEnrichment: z.object({
+    sentiment: z.any().optional(),
+    news: z.any().optional(),
+    newsFeatures: z.any().optional(),
+    enrichedAt: z.string(),
+    sources: z.array(z.string()),
+  }).optional(),
 });
 
 type StructuredSignal = z.infer<typeof inputSchema>;
@@ -145,15 +172,44 @@ function toAfiCandles(candles: OHLCVCandle[]): AfiCandle[] {
  * @param signal - Structured signal from Pixel Rick
  * @returns FroggyEnrichedView ready for Froggy analyst
  */
-async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
+async function run(signal: StructuredSignal | any): Promise<FroggyEnrichedView> {
   const debugNews = process.env.AFI_DEBUG_NEWS === "1";
 
-  if (debugNews) {
-    process.stderr.write(`[FroggyEnrichment] ⚡ Starting enrichment for signal ${signal.signalId}\n`);
+  // Handle multi-parent input from DAG runner (Pass C)
+  // When this stage has multiple dependencies, the DAG runner provides:
+  // { parents: string[], inputs: Record<string, any> }
+  let actualSignal: StructuredSignal;
+
+  if (signal && typeof signal === "object" && "parents" in signal && "inputs" in signal) {
+    // Multi-parent input: merge outputs from both enrichment branches
+    const { inputs } = signal as { parents: string[]; inputs: Record<string, any> };
+
+    // Get outputs from both parent stages
+    const techPatternOutput = inputs["froggy-enrichment-tech-pattern"];
+    const sentimentNewsOutput = inputs["froggy-enrichment-sentiment-news"];
+
+    // Merge: start with one parent's output and overlay the other's enrichment fields
+    // Both parents should have the same base signal fields (signalId, score, etc.)
+    actualSignal = {
+      ...techPatternOutput,
+      _techPatternEnrichment: techPatternOutput?._techPatternEnrichment,
+      _sentimentNewsEnrichment: sentimentNewsOutput?._sentimentNewsEnrichment,
+    };
+
+    if (debugNews) {
+      process.stderr.write(`[FroggyEnrichment] ⚡ Multi-parent input detected, merged enrichments\n`);
+    }
+  } else {
+    // Single-parent or no-parent input: use as-is
+    actualSignal = signal as StructuredSignal;
+
+    if (debugNews) {
+      process.stderr.write(`[FroggyEnrichment] ⚡ Starting enrichment for signal ${actualSignal.signalId}\n`);
+    }
   }
 
   // Validate input
-  const validatedInput = inputSchema.parse(signal);
+  const validatedInput = inputSchema.parse(actualSignal);
 
   // Read enrichment profile from signal meta (or use default)
   const profile = validatedInput.meta.enrichmentProfile as EnrichmentProfile | undefined;
@@ -179,7 +235,56 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
   let technicalLensPayload: TechnicalLensV1["payload"] | null = null;
   let patternLensPayload: PatternLensV1["payload"] | null = null;
 
-  if (isCategoryEnabled(effectiveProfile, "technical") || isCategoryEnabled(effectiveProfile, "pattern")) {
+  // Check if tech+pattern enrichment already present (DAG mode)
+  const hasTechPatternEnrichment = !!validatedInput._techPatternEnrichment;
+
+  if (hasTechPatternEnrichment) {
+    // DAG mode: consume tech+pattern enrichment from previous stage
+    const techPattern = validatedInput._techPatternEnrichment!;
+    technicalLensPayload = techPattern.technical || null;
+    patternLensPayload = techPattern.pattern || null;
+    actualPriceSource = techPattern.priceSource;
+
+    // Build legacy format for afi-core compatibility
+    if (technicalLensPayload) {
+      technical = {
+        emaDistancePct: technicalLensPayload.emaDistancePct,
+        isInValueSweetSpot: technicalLensPayload.isInValueSweetSpot,
+        brokeEmaWithBody: false,
+        indicators: {
+          rsi: technicalLensPayload.rsi14,
+          ema_20: technicalLensPayload.ema20,
+          ema_50: technicalLensPayload.ema50,
+          volume_ratio: technicalLensPayload.volumeRatio,
+        },
+      };
+      lenses.push({
+        type: "technical",
+        version: "v1",
+        payload: technicalLensPayload,
+      });
+      enrichedCategories.push("technical");
+    }
+
+    if (patternLensPayload) {
+      pattern = {
+        patternName: patternLensPayload.patternName,
+        patternConfidence: patternLensPayload.patternConfidence,
+      };
+      if (patternLensPayload.regime) {
+        (pattern as any).regime = patternLensPayload.regime;
+      }
+      lenses.push({
+        type: "pattern",
+        version: "v1",
+        payload: patternLensPayload,
+      });
+      enrichedCategories.push("pattern");
+    }
+
+    console.log(`✅ Enrichment: Using tech+pattern data from previous stage (${actualPriceSource})`);
+  } else if (isCategoryEnabled(effectiveProfile, "technical") || isCategoryEnabled(effectiveProfile, "pattern")) {
+    // Linear mode: fetch OHLCV and compute tech+pattern inline
     try {
       // Fetch OHLCV data from exchange (or demo adapter)
       const adapter = getPriceFeedAdapter(actualPriceSource);
@@ -271,118 +376,163 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
   }
 
   // Sentiment lens (Coinalyze perp sentiment)
+  // In DAG mode (Pass B), consume from _sentimentNewsEnrichment if available
   let sentiment: any = undefined;
   if (isCategoryEnabled(effectiveProfile, "sentiment")) {
-    // Fetch real perp sentiment from Coinalyze
-    // Default to BTC perp, but could be parameterized per signal in the future
-    const sentimentPayload = await computeFroggySentiment("BTCUSDT_PERP.A", "1h");
+    // Check if sentiment was already computed by sentiment-news plugin
+    if (validatedInput._sentimentNewsEnrichment?.sentiment) {
+      // Use pre-computed sentiment from previous stage
+      sentiment = validatedInput._sentimentNewsEnrichment.sentiment;
 
-    if (sentimentPayload) {
-      // Add USS lens
-      lenses.push({
-        type: "sentiment",
-        version: "v1",
-        payload: sentimentPayload,
-      });
+      // Add USS lens if we have the full payload
+      if (sentiment.perpSentimentScore !== undefined) {
+        lenses.push({
+          type: "sentiment",
+          version: "v1",
+          payload: {
+            perpSentimentScore: sentiment.perpSentimentScore,
+            positioningBias: sentiment.positioningBias,
+            fundingRegime: sentiment.fundingRegime,
+          },
+        });
+      }
 
-      // Keep legacy format for afi-core compatibility
-      // Map perpSentimentScore (0-100) to legacy score (0.0-1.0)
-      const legacyScore = sentimentPayload.perpSentimentScore
-        ? sentimentPayload.perpSentimentScore / 100
-        : 0.5;
-
-      sentiment = {
-        score: legacyScore,
-        tags: [
-          sentimentPayload.positioningBias || "balanced",
-          sentimentPayload.fundingRegime || "normal",
-        ],
-      };
       enrichedCategories.push("sentiment");
     } else {
-      // Fallback to null if Coinalyze is unavailable
-      console.warn("⚠️  Sentiment enrichment: Coinalyze data unavailable, skipping sentiment lens");
+      // Fallback: compute sentiment in-adapter (backward compatibility)
+      // This path is used when sentiment-news plugin is not in the pipeline
+      const sentimentPayload = await computeFroggySentiment("BTCUSDT_PERP.A", "1h");
+
+      if (sentimentPayload) {
+        // Add USS lens
+        lenses.push({
+          type: "sentiment",
+          version: "v1",
+          payload: sentimentPayload,
+        });
+
+        // Keep legacy format for afi-core compatibility
+        // Map perpSentimentScore (0-100) to legacy score (0.0-1.0)
+        const legacyScore = sentimentPayload.perpSentimentScore
+          ? sentimentPayload.perpSentimentScore / 100
+          : 0.5;
+
+        sentiment = {
+          score: legacyScore,
+          tags: [
+            sentimentPayload.positioningBias || "balanced",
+            sentimentPayload.fundingRegime || "normal",
+          ],
+        };
+        enrichedCategories.push("sentiment");
+      } else {
+        // Fallback to null if Coinalyze is unavailable
+        console.warn("⚠️  Sentiment enrichment: Coinalyze data unavailable, skipping sentiment lens");
+      }
     }
   }
 
   // News lens - pluggable provider (NewsData.io, etc.)
+  // In DAG mode (Pass B), consume from _sentimentNewsEnrichment if available
   let news: any = undefined;
   let newsFeatures: NewsFeatures | null | undefined = undefined;  // Declare outside block for FroggyEnrichedView
   if (isCategoryEnabled(effectiveProfile, "news")) {
     const debugNews = process.env.AFI_DEBUG_NEWS === "1";
 
-    // Create provider (cached singleton would be better for production)
-    const newsProvider = createNewsProvider();
+    // Check if news was already computed by sentiment-news plugin
+    if (validatedInput._sentimentNewsEnrichment?.news) {
+      // Use pre-computed news from previous stage
+      news = validatedInput._sentimentNewsEnrichment.news;
+      newsFeatures = validatedInput._sentimentNewsEnrichment.newsFeatures;
 
-    if (debugNews) {
-      console.log(`[NewsEnrichment] Provider created: ${newsProvider ? newsProvider.constructor.name : "null"}`);
-    }
+      // Add USS lens
+      lenses.push({
+        type: "news",
+        version: "v1",
+        payload: {
+          hasShockEvent: news.hasShockEvent,
+          shockDirection: news.shockDirection,
+          headlines: news.headlines,
+          items: news.items,
+        },
+      });
 
-    let newsSummary: NewsShockSummary | null = null;
+      enrichedCategories.push("news");
+    } else {
+      // Fallback: compute news in-adapter (backward compatibility)
+      // This path is used when sentiment-news plugin is not in the pipeline
+      const newsProvider = createNewsProvider();
 
-    if (newsProvider) {
-      try {
-        const windowHours = process.env.NEWS_WINDOW_HOURS
-          ? parseInt(process.env.NEWS_WINDOW_HOURS, 10)
-          : 4;
-
-        if (debugNews) {
-          console.log(`[NewsEnrichment] DEBUG: Calling fetchRecentNews for symbol="${validatedInput.meta.symbol}", windowHours=${windowHours}`);
-        }
-
-        newsSummary = await newsProvider.fetchRecentNews({
-          symbol: validatedInput.meta.symbol ?? "BTCUSDT",
-          windowHours,
-        });
-
-        if (debugNews) {
-          console.log(`[NewsEnrichment] DEBUG: fetchRecentNews returned:`, JSON.stringify(newsSummary, null, 2));
-        }
-      } catch (err) {
-        console.warn(`[NewsEnrichment] Error fetching news for ${validatedInput.meta.symbol}:`, err);
-        newsSummary = null;
+      if (debugNews) {
+        console.log(`[NewsEnrichment] Provider created: ${newsProvider ? newsProvider.constructor.name : "null"}`);
       }
+
+      let newsSummary: NewsShockSummary | null = null;
+
+      if (newsProvider) {
+        try {
+          const windowHours = process.env.NEWS_WINDOW_HOURS
+            ? parseInt(process.env.NEWS_WINDOW_HOURS, 10)
+            : 4;
+
+          if (debugNews) {
+            console.log(`[NewsEnrichment] DEBUG: Calling fetchRecentNews for symbol="${validatedInput.meta.symbol}", windowHours=${windowHours}`);
+          }
+
+          newsSummary = await newsProvider.fetchRecentNews({
+            symbol: validatedInput.meta.symbol ?? "BTCUSDT",
+            windowHours,
+          });
+
+          if (debugNews) {
+            console.log(`[NewsEnrichment] DEBUG: fetchRecentNews returned:`, JSON.stringify(newsSummary, null, 2));
+          }
+        } catch (err) {
+          console.warn(`[NewsEnrichment] Error fetching news for ${validatedInput.meta.symbol}:`, err);
+          newsSummary = null;
+        }
+      }
+
+      // Use provider data if available, otherwise fall back to default
+      const effectiveNews = newsSummary ?? DEFAULT_NEWS_SUMMARY;
+
+      if (debugNews) {
+        console.log(`[NewsEnrichment] DEBUG: effectiveNews (after fallback):`, JSON.stringify(effectiveNews, null, 2));
+      }
+
+      // Map to NewsLensV1 payload format (with structured items)
+      const newsPayload: NewsLensV1["payload"] = {
+        hasShockEvent: effectiveNews.hasShockEvent,
+        shockDirection: effectiveNews.shockDirection,
+        headlines: effectiveNews.headlines, // Already string[] from provider
+        items: effectiveNews.items?.map((item) => ({
+          title: item.title,
+          source: item.source,
+          url: item.url,
+          publishedAt: item.publishedAt.toISOString(),
+        })),
+      };
+
+      lenses.push({
+        type: "news",
+        version: "v1",
+        payload: newsPayload,
+      });
+
+      // Mirror to top-level news object (for afi-core compatibility)
+      news = {
+        hasShockEvent: newsPayload.hasShockEvent,
+        shockDirection: newsPayload.shockDirection,
+        headlines: newsPayload.headlines,
+        items: newsPayload.items,
+      };
+
+      // Compute NewsFeatures from news enrichment (UWR-ready, not wired yet)
+      // This is an additive layer that doesn't affect current UWR scoring
+      newsFeatures = computeNewsFeatures(newsSummary);
+
+      enrichedCategories.push("news");
     }
-
-    // Use provider data if available, otherwise fall back to default
-    const effectiveNews = newsSummary ?? DEFAULT_NEWS_SUMMARY;
-
-    if (debugNews) {
-      console.log(`[NewsEnrichment] DEBUG: effectiveNews (after fallback):`, JSON.stringify(effectiveNews, null, 2));
-    }
-
-    // Map to NewsLensV1 payload format (with structured items)
-    const newsPayload: NewsLensV1["payload"] = {
-      hasShockEvent: effectiveNews.hasShockEvent,
-      shockDirection: effectiveNews.shockDirection,
-      headlines: effectiveNews.headlines, // Already string[] from provider
-      items: effectiveNews.items?.map((item) => ({
-        title: item.title,
-        source: item.source,
-        url: item.url,
-        publishedAt: item.publishedAt.toISOString(),
-      })),
-    };
-
-    lenses.push({
-      type: "news",
-      version: "v1",
-      payload: newsPayload,
-    });
-
-    // Mirror to top-level news object (for afi-core compatibility)
-    news = {
-      hasShockEvent: newsPayload.hasShockEvent,
-      shockDirection: newsPayload.shockDirection,
-      headlines: newsPayload.headlines,
-      items: newsPayload.items,
-    };
-
-    // Compute NewsFeatures from news enrichment (UWR-ready, not wired yet)
-    // This is an additive layer that doesn't affect current UWR scoring
-    newsFeatures = computeNewsFeatures(newsSummary);
-
-    enrichedCategories.push("news");
   }
 
   // AI/ML enrichment - Tiny Brains integration

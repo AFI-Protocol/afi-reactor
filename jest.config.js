@@ -1,13 +1,24 @@
 export default {
   preset: 'ts-jest/presets/default-esm',
   extensionsToTreatAsEsm: ['.ts'],
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        useESM: true,
+        tsconfig: {
+          module: 'esnext',
+          moduleResolution: 'bundler',
+        },
+      },
+    ],
   },
   moduleNameMapper: {
-    // Map afi-core package exports to their TypeScript source files (for Jest to transform)
+    // REQUIRED: Jest cannot transform ESM .js files from afi-core/dist, so we map
+    // package exports to their TypeScript source files for ts-jest to transform.
+    // Runtime uses package.json exports to resolve to dist/src/*/index.js correctly.
+    '^afi-core/analyst$': '<rootDir>/node_modules/afi-core/src/analyst/index.ts',
+    '^afi-core/decay$': '<rootDir>/node_modules/afi-core/src/decay/index.ts',
     '^afi-core/analysts/(.*)\.js$': '<rootDir>/node_modules/afi-core/analysts/$1.ts',
     '^afi-core/validators/(.*)\.js$': '<rootDir>/node_modules/afi-core/validators/$1.ts',
     '^afi-core/schemas/(.*)\.js$': '<rootDir>/node_modules/afi-core/schemas/$1.ts',

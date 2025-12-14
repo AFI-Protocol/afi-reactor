@@ -58,7 +58,7 @@ function prettyPrintReplayResult(result: any): void {
   console.log("");
 
   console.log("📈 STORED VALUES (from TSSD vault)");
-  console.log(`   UWR Score:    ${result.stored.uwrScore.toFixed(4)}`);
+  console.log(`   UWR Score:    ${(result.stored.analystScore?.uwrScore ?? 0).toFixed(4)}`);
   console.log(`   Decision:     ${result.stored.validatorDecision.decision}`);
   console.log(`   Confidence:   ${result.stored.validatorDecision.uwrConfidence.toFixed(4)}`);
   if (result.stored.validatorDecision.reasonCodes && result.stored.validatorDecision.reasonCodes.length > 0) {

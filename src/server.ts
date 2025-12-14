@@ -168,7 +168,7 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
       direction: payload.direction,
     });
 
-    // Run the Froggy pipeline
+    // Run the Froggy pipeline (now DAG-only)
     const result = await runFroggyTrendPullbackFromTradingView(payload);
 
     console.log(`✅ Froggy pipeline complete:`, {
@@ -349,7 +349,7 @@ app.post("/demo/afi-eliza-demo", async (req: Request, res: Response) => {
       },
     };
 
-    // Run the Froggy pipeline with stage summaries enabled
+    // Run the Froggy pipeline with stage summaries enabled (now DAG-only)
     const result = await runFroggyTrendPullbackFromTradingView(demoPayload, {
       includeStageSummaries: true,
       isDemo: true,

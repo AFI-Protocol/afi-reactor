@@ -1,13 +1,14 @@
 /**
  * Froggy Pipeline Configuration
- * 
+ *
  * Single source of truth for Froggy's trend-pullback pipeline stages.
- * This config defines the linear sequence of stages that process a signal
+ * This config defines the DAG (Directed Acyclic Graph) of stages that process a signal
  * from TradingView webhook → TSSD vault persistence.
- * 
- * Future: This config will support DAG features (parallel groups, branching)
- * without changing the current linear execution model.
- * 
+ *
+ * The pipeline uses parallel enrichment branches:
+ * - Tech+Pattern enrichment and Sentiment+News enrichment run in parallel after structuring
+ * - Both branches join at the enrichment adapter, which merges their outputs
+ *
  * @module froggyPipeline
  */
 
@@ -65,23 +66,29 @@ export interface PipelineStage {
 
 /**
  * Froggy Trend-Pullback Pipeline (v1)
- * 
- * Linear pipeline for processing TradingView signals through the full
- * Froggy analyst workflow: scout → structure → enrich → analyze → validate → execute → persist.
- * 
+ *
+ * DAG pipeline for processing TradingView signals through the full
+ * Froggy analyst workflow: scout → structure → parallel enrichment → analyze → validate → execute → persist.
+ *
  * This is the canonical stage order used by:
  * - src/services/froggyDemoService.ts
  * - test/froggyPipeline.test.ts
  * - scripts/pipeline-smoke.ts
- * 
- * Stage sequence:
+ *
+ * Stage sequence (with parallel enrichment branches):
  * 1. alpha-scout-ingest: Convert TradingView payload to reactor signal envelope
  * 2. signal-structurer: Normalize to USS (Universal Signal Schema)
- * 3. froggy-enrichment-adapter: Add technical/pattern/sentiment/news/aiMl enrichment
- * 4. froggy-analyst: Run trend_pullback_v1 strategy, compute UWR score
- * 5. validator-decision: Evaluate UWR score → approve/reject/flag/abstain
- * 6. execution-sim: Simulate trade execution based on validator decision
- * 7. tssd-vault-write: Persist final result to MongoDB (internal stage)
+ * 3. froggy-enrichment-tech-pattern: Add technical + pattern enrichment (OHLCV-based) [parallel branch 1]
+ * 4. froggy-enrichment-sentiment-news: Add sentiment + news enrichment (external APIs) [parallel branch 2]
+ * 5. froggy-enrichment-adapter: Merge enrichment legos + add AI/ML [joins both branches]
+ * 6. froggy-analyst: Run trend_pullback_v1 strategy, compute UWR score
+ * 7. validator-decision: Evaluate UWR score → approve/reject/flag/abstain
+ * 8. execution-sim: Simulate trade execution based on validator decision
+ * 9. tssd-vault-write: Persist final result to MongoDB (internal stage)
+ *
+ * Dependency graph:
+ * - tech-pattern and sentiment-news both depend on signal-structurer (parallel execution)
+ * - enrichment-adapter depends on both tech-pattern and sentiment-news (multi-parent join)
  */
 export const FROGGY_TREND_PULLBACK_PIPELINE: PipelineStage[] = [
   {
@@ -105,15 +112,37 @@ export const FROGGY_TREND_PULLBACK_PIPELINE: PipelineStage[] = [
     dependsOn: ["alpha-scout-ingest"],
   },
   {
-    id: "froggy-enrichment-adapter",
-    label: "Froggy Enrichment Adapter",
+    id: "froggy-enrichment-tech-pattern",
+    label: "Froggy Enrichment (Tech + Pattern)",
     kind: "plugin",
-    pluginPath: "plugins/froggy-enrichment-adapter.plugin",
-    description: "Add technical/pattern/sentiment/news/aiMl enrichment legos",
+    pluginPath: "plugins/froggy-enrichment-tech-pattern.plugin",
+    description: "Add technical indicators and pattern recognition (OHLCV-based enrichment)",
     persona: "Pixel Rick",
     category: "enrichment",
-    tags: ["froggy", "enrichment", "external-api"],
-    dependsOn: ["signal-structurer"],
+    tags: ["froggy", "enrichment", "technical", "pattern"],
+    dependsOn: ["signal-structurer"], // Parallel branch 1: runs in parallel with sentiment-news
+  },
+  {
+    id: "froggy-enrichment-sentiment-news",
+    label: "Froggy Enrichment (Sentiment + News)",
+    kind: "plugin",
+    pluginPath: "plugins/froggy-enrichment-sentiment-news.plugin",
+    description: "Add sentiment and news enrichment (Coinalyze, NewsData.io)",
+    persona: "Pixel Rick",
+    category: "enrichment",
+    tags: ["froggy", "enrichment", "external-api", "sentiment", "news"],
+    dependsOn: ["signal-structurer"], // Parallel branch 2: runs in parallel with tech-pattern
+  },
+  {
+    id: "froggy-enrichment-adapter",
+    label: "Froggy Enrichment Adapter (Merger + AI/ML)",
+    kind: "plugin",
+    pluginPath: "plugins/froggy-enrichment-adapter.plugin",
+    description: "Merge enrichment legos and add AI/ML predictions (Tiny Brains)",
+    persona: "Pixel Rick",
+    category: "enrichment",
+    tags: ["froggy", "enrichment", "external-api", "aiMl"],
+    dependsOn: ["froggy-enrichment-tech-pattern", "froggy-enrichment-sentiment-news"], // Multi-parent join
   },
   {
     id: "froggy-analyst",

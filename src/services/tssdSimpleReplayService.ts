@@ -84,7 +84,7 @@ function mapTssdDocumentToSimpleView(doc: TssdSignalDocument): SimpleReplayView 
     },
 
     pipeline: {
-      uwrScore: doc.pipeline.uwrScore,
+      uwrScore: doc.pipeline.analystScore?.uwrScore ?? 0,
       decision: doc.pipeline.validatorDecision.decision,
       confidence: doc.pipeline.validatorDecision.uwrConfidence,
       validatorDecision: doc.pipeline.validatorDecision,

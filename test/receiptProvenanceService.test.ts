@@ -14,6 +14,23 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
 
   describe("TssdSignalDocument with receiptProvenance", () => {
     it("should allow documents without receiptProvenance (backward compatibility)", () => {
+      const mockAnalystScore1 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.78,
+        uwrAxes: { structure: 0.75, execution: 0.75, risk: 0.75, insight: 0.75 },
+        uwrScore: 0.75,
+      };
+
       const doc: TssdSignalDocument = {
         signalId: "test-signal-001",
         createdAt: new Date(),
@@ -23,7 +40,11 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
           timeframe: "1h",
         },
         pipeline: {
-          uwrScore: 0.75,
+          analystScore: mockAnalystScore1,
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.78,
@@ -46,6 +67,23 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
     });
 
     it("should support receiptProvenance block with pending status", () => {
+      const mockAnalystScore2 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "ETH",
+        quoteAsset: "USDT",
+        signalTimeframe: "4h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.85,
+        uwrAxes: { structure: 0.82, execution: 0.82, risk: 0.82, insight: 0.82 },
+        uwrScore: 0.82,
+      };
+
       const doc: TssdSignalDocument = {
         signalId: "test-signal-002",
         createdAt: new Date(),
@@ -55,7 +93,11 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
           timeframe: "4h",
         },
         pipeline: {
-          uwrScore: 0.82,
+          analystScore: mockAnalystScore2,
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.85,
@@ -79,6 +121,23 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
     });
 
     it("should support receiptProvenance block with eligible status", () => {
+      const mockAnalystScore3 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "SOL",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "high" as const,
+        conviction: 0.90,
+        uwrAxes: { structure: 0.88, execution: 0.88, risk: 0.88, insight: 0.88 },
+        uwrScore: 0.88,
+      };
+
       const doc: TssdSignalDocument = {
         signalId: "test-signal-003",
         createdAt: new Date(),
@@ -88,7 +147,11 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
           timeframe: "1h",
         },
         pipeline: {
-          uwrScore: 0.88,
+          analystScore: mockAnalystScore3,
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.90,
@@ -117,6 +180,23 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
     });
 
     it("should support receiptProvenance block with minted status and full metadata", () => {
+      const mockAnalystScore4 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "high" as const,
+        conviction: 0.95,
+        uwrAxes: { structure: 0.92, execution: 0.92, risk: 0.92, insight: 0.92 },
+        uwrScore: 0.92,
+      };
+
       const doc: TssdSignalDocument = {
         signalId: "test-signal-004",
         createdAt: new Date(),
@@ -126,7 +206,11 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
           timeframe: "1h",
         },
         pipeline: {
-          uwrScore: 0.92,
+          analystScore: mockAnalystScore4,
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.95,
@@ -168,6 +252,23 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
     });
 
     it("should support receiptProvenance block with failed status", () => {
+      const mockAnalystScore5 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.72,
+        uwrAxes: { structure: 0.70, execution: 0.70, risk: 0.70, insight: 0.70 },
+        uwrScore: 0.70,
+      };
+
       const doc: TssdSignalDocument = {
         signalId: "test-signal-005",
         createdAt: new Date(),
@@ -177,7 +278,11 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
           timeframe: "1h",
         },
         pipeline: {
-          uwrScore: 0.70,
+          analystScore: mockAnalystScore5,
+          decayParams: {
+            halfLifeMinutes: 720,
+            greeksTemplateId: "decay-swing-v1",
+          },
           validatorDecision: {
             decision: "approve",
             uwrConfidence: 0.72,
@@ -206,6 +311,23 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
     });
 
     it("should support all mintStatus values", () => {
+      const mockAnalystScore6 = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.78,
+        uwrAxes: { structure: 0.75, execution: 0.75, risk: 0.75, insight: 0.75 },
+        uwrScore: 0.75,
+      };
+
       const statuses: Array<"pending" | "eligible" | "minted" | "failed" | "ineligible"> = [
         "pending",
         "eligible",
@@ -221,7 +343,11 @@ describe("Receipt Provenance Service (Unit Tests)", () => {
           source: "afi-eliza-demo",
           market: { symbol: "BTC/USDT", timeframe: "1h" },
           pipeline: {
-            uwrScore: 0.75,
+            analystScore: mockAnalystScore6,
+            decayParams: {
+              halfLifeMinutes: 720,
+              greeksTemplateId: "decay-swing-v1",
+            },
             validatorDecision: { decision: "approve", uwrConfidence: 0.78 },
             execution: { status: "simulated", timestamp: new Date().toISOString() },
           },
