@@ -146,13 +146,14 @@ router.post("/analysis", async (req, res) => {
     }
     
     const analyzed = await froggyAnalyst.run(enrichedSignal);
-    
+
     res.json({
       stage: "analysis",
       input: enrichedSignal,
       output: analyzed,
-      uwrScore: analyzed.analysis.uwrScore,
-      uwrAxes: analyzed.analysis.uwrAxes,
+      // Expose UWR score from analystScore (canonical source)
+      uwrScore: analyzed.analysis.analystScore.uwrScore,
+      uwrAxes: analyzed.analysis.analystScore.uwrAxes,
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
@@ -166,20 +167,24 @@ router.post("/analysis", async (req, res) => {
 
 /**
  * Test Validator Stage Only
- * 
+ *
  * Accepts an analyzed signal and returns validator decision.
  * Bypasses all upstream stages.
- * 
- * Example payload:
+ *
+ * Example payload (updated to use analystScore):
  * {
  *   "signalId": "test-001",
  *   "analysis": {
- *     "uwrScore": 0.78,
- *     "uwrAxes": {
- *       "structureAxis": 0.8,
- *       "executionAxis": 0.7,
- *       "riskAxis": 0.6,
- *       "insightAxis": 0.9
+ *     "analystScore": {
+ *       "analystId": "froggy",
+ *       "strategyId": "trend_pullback_v1",
+ *       "uwrScore": 0.78,
+ *       "uwrAxes": {
+ *         "structure": 0.8,
+ *         "execution": 0.7,
+ *         "risk": 0.6,
+ *         "insight": 0.9
+ *       }
  *     },
  *     "notes": []
  *   }
@@ -193,8 +198,8 @@ router.post("/validator", async (req, res) => {
       return res.status(400).json({ error: "Missing signalId" });
     }
 
-    if (!analyzedSignal.analysis || typeof analyzedSignal.analysis.uwrScore !== "number") {
-      return res.status(400).json({ error: "Missing or invalid analysis data" });
+    if (!analyzedSignal.analysis?.analystScore || typeof analyzedSignal.analysis.analystScore.uwrScore !== "number") {
+      return res.status(400).json({ error: "Missing or invalid analysis data (expected analystScore)" });
     }
 
     const decision = await validatorDecisionEvaluator.run(analyzedSignal);

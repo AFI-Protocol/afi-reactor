@@ -20,18 +20,22 @@ import type { FroggyTrendPullbackScore } from "afi-core/analysts/froggy.trend_pu
 
 /**
  * Input schema: analyzed signal with Froggy score + ensemble score.
+ *
+ * Updated to use AnalystScoreTemplate as canonical source for scoring data.
  */
 const inputSchema = z.object({
   signalId: z.string(),
   analysis: z.object({
-    analystId: z.literal("froggy"),
-    strategyId: z.literal("trend_pullback_v1"),
-    uwrScore: z.number(),
-    uwrAxes: z.object({
-      structureAxis: z.number(),
-      executionAxis: z.number(),
-      riskAxis: z.number(),
-      insightAxis: z.number(),
+    analystScore: z.object({
+      analystId: z.string(),
+      strategyId: z.string(),
+      uwrScore: z.number(),
+      uwrAxes: z.object({
+        structure: z.number(),
+        execution: z.number(),
+        risk: z.number(),
+        insight: z.number(),
+      }),
     }),
     notes: z.array(z.string()).optional(),
   }),
@@ -68,8 +72,8 @@ async function run(
   // Validate input
   const validatedInput = inputSchema.parse(signal);
 
-  // Use UWR score as primary decision input
-  const uwrScore = validatedInput.analysis.uwrScore;
+  // Use UWR score from analystScore (canonical source)
+  const uwrScore = validatedInput.analysis.analystScore.uwrScore;
   const uwrConfidence = Math.min(1, Math.max(0, uwrScore));
 
   // Determine decision based on thresholds
@@ -87,18 +91,18 @@ async function run(
     reasonCodes.push("score-medium", "needs-review", "froggy-demo");
   }
 
-  // Add axis-specific reason codes
-  const axes = validatedInput.analysis.uwrAxes;
-  if (axes.structureAxis < 0.4) {
+  // Add axis-specific reason codes (read from analystScore.uwrAxes)
+  const axes = validatedInput.analysis.analystScore.uwrAxes;
+  if (axes.structure < 0.4) {
     reasonCodes.push("weak-structure");
   }
-  if (axes.executionAxis < 0.4) {
+  if (axes.execution < 0.4) {
     reasonCodes.push("weak-execution");
   }
-  if (axes.riskAxis < 0.4) {
+  if (axes.risk < 0.4) {
     reasonCodes.push("weak-risk-profile");
   }
-  if (axes.insightAxis < 0.4) {
+  if (axes.insight < 0.4) {
     reasonCodes.push("weak-insight");
   }
 
