@@ -7,7 +7,9 @@ export default {
     }
   },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1'
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+    // Map afi-core .js imports to .ts source files
+    '^afi-core/(.*)\\.js$': '<rootDir>/node_modules/afi-core/$1.ts'
   },
   testEnvironment: 'node',
   testMatch: ['**/test/**/*.test.ts'],

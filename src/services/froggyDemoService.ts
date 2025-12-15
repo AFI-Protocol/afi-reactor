@@ -195,16 +195,16 @@ export async function runFroggyTrendPullbackFromTradingView(
       stage: "analyst",
       persona: "Froggy",
       status: "complete",
-      summary: `Analyzed trend-pullback setup, UWR score: ${analyzedSignal.analysis.uwrScore.toFixed(2)}`,
-      uwrScore: analyzedSignal.analysis.uwrScore,
+      summary: `Analyzed trend-pullback setup, UWR score: ${analyzedSignal.analysis.analystScore.uwrScore.toFixed(2)}`,
+      uwrScore: analyzedSignal.analysis.analystScore.uwrScore,
     });
   }
 
   // Step 5: Validator Decision Evaluator (Val Dook) - approve/reject/abstain
-  // Pass the analyzed signal with UWR score to validator
+  // Pass the analyzed signal with canonical analystScore to validator
   const validatorDecision = await validatorDecisionEvaluator.run({
     signalId: enrichedSignal.signalId,
-    analysis: analyzedSignal.analysis,
+    analystScore: analyzedSignal.analysis.analystScore,
   });
 
   if (options?.includeStageSummaries) {
@@ -253,7 +253,7 @@ export async function runFroggyTrendPullbackFromTradingView(
       direction: payload.direction,
       source: "tradingview-webhook",
     },
-    uwrScore: analyzedSignal.analysis.uwrScore,
+    uwrScore: analyzedSignal.analysis.analystScore.uwrScore,
     stageSummaries: options?.includeStageSummaries ? stageSummaries : undefined,
     isDemo: options?.isDemo,
   };
