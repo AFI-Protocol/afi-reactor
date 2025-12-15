@@ -14,37 +14,54 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout repository
+      - name: Checkout afi-reactor
         uses: actions/checkout@v4
+        with:
+          path: afi-reactor
+
+      - name: Checkout afi-core (sibling dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: AFI-Protocol/afi-core
+          path: afi-core
 
       - name: Setup Node.js 22.x
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
           cache: 'npm'
+          cache-dependency-path: afi-reactor/package-lock.json
 
       - name: Create required directories
+        working-directory: afi-reactor
         run: |
           mkdir -p tmp
           mkdir -p codex
           echo "✅ Created tmp/ and codex/ directories"
 
       - name: Install dependencies
+        working-directory: afi-reactor
         run: npm ci
 
-      - name: Run tests (build skipped - requires private afi-core dependency)
-        id: validation
-        continue-on-error: true
+      - name: Build
+        id: build
+        working-directory: afi-reactor
         run: |
-          echo "🚀 Running AFI Reactor tests..."
-          echo "ℹ️  Note: Full validation (build + codex-lint + simulate-signal + mentor-eval) skipped in CI"
-          echo "ℹ️  Reason: Requires afi-core (file:../afi-core) which is a private repo"
-          echo "ℹ️  Tests run with jest moduleNameMapper to resolve afi-core imports"
+          echo "🔨 Building AFI Reactor..."
+          npm run build
+          echo "✅ Build completed"
+
+      - name: Run tests
+        id: test
+        working-directory: afi-reactor
+        run: |
+          echo "🧪 Running AFI Reactor tests..."
           npm test
           echo "✅ Tests completed"
 
       - name: Ensure all log files exist
         if: always()
+        working-directory: afi-reactor
         run: |
           echo "📝 Ensuring required logs exist..."
 
@@ -69,17 +86,7 @@ jobs:
         with:
           name: afi-reactor-validation-artifacts
           path: |
-            codex/codex.replay.log.json
-            tmp/dag-simulation.log.json
-            tmp/mentor-evaluation.json
+            afi-reactor/codex/codex.replay.log.json
+            afi-reactor/tmp/dag-simulation.log.json
+            afi-reactor/tmp/mentor-evaluation.json
           retention-days: 30
-
-      - name: Final validation status check
-        if: always()
-        run: |
-          if [ "${{ steps.validation.outcome }}" != "success" ]; then
-            echo "❌ Validation failed. Check uploaded artifacts."
-            exit 1
-          else
-            echo "✅ Validation passed successfully!"
-          fi

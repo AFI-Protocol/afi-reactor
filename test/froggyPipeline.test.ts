@@ -15,7 +15,7 @@ import froggyEnrichmentAdapter from "../plugins/froggy-enrichment-adapter.plugin
 import froggyAnalyst from "../plugins/froggy.trend_pullback_v1.plugin.js";
 import validatorDecisionEvaluator from "../plugins/validator-decision-evaluator.plugin.js";
 import executionAgentSim from "../plugins/execution-agent-sim.plugin.js";
-import type { EnrichmentProfile } from "./afi-core-types.stub.js";
+import type { EnrichmentProfile } from "afi-core/analysts/froggy.enrichment_adapter.js";
 
 describe("Froggy Pipeline Integration", () => {
   it("should process a signal through the complete pipeline", async () => {
