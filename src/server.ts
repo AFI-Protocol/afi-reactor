@@ -36,6 +36,8 @@ import { getSimpleReplayViewBySignalId } from "./services/tssdSimpleReplayServic
 import testEndpointsRouter from "./routes/testEndpoints.js";
 import blofinTestEndpointsRouter from "./routes/blofinTestEndpoints.js";
 import coinbaseTestEndpointsRouter from "./routes/coinbaseTestEndpoints.js";
+import { validateUsignalV11 } from "./uss/ussValidator.js";
+import { mapTradingViewToUssV11 } from "./uss/tradingViewMapper.js";
 
 const app = express();
 
@@ -124,31 +126,32 @@ app.get("/debug/env", (req: Request, res: Response) => {
  */
 app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
   try {
-    const payload = req.body as TradingViewAlertPayload;
+    const rawPayload = req.body as TradingViewAlertPayload;
 
-    // Validate required fields
-    if (!payload || typeof payload !== "object") {
+    // Basic payload validation
+    if (!rawPayload || typeof rawPayload !== "object") {
       return res.status(400).json({ error: "Invalid JSON payload" });
     }
 
-    if (!payload.symbol) {
+    // Validate required TradingView fields
+    if (!rawPayload.symbol) {
       return res.status(400).json({ error: "Missing required field: symbol" });
     }
 
-    if (!payload.timeframe) {
+    if (!rawPayload.timeframe) {
       return res.status(400).json({ error: "Missing required field: timeframe" });
     }
 
-    if (!payload.strategy) {
+    if (!rawPayload.strategy) {
       return res.status(400).json({ error: "Missing required field: strategy" });
     }
 
-    if (!payload.direction) {
+    if (!rawPayload.direction) {
       return res.status(400).json({ error: "Missing required field: direction" });
     }
 
     // Validate direction
-    if (!["long", "short", "neutral"].includes(payload.direction)) {
+    if (!["long", "short", "neutral"].includes(rawPayload.direction)) {
       return res.status(400).json({
         error: 'Invalid direction. Must be "long", "short", or "neutral"',
       });
@@ -156,20 +159,42 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
 
     // Optional: Validate shared secret
     const expectedSecret = process.env.WEBHOOK_SHARED_SECRET;
-    if (expectedSecret && payload.secret !== expectedSecret) {
+    if (expectedSecret && rawPayload.secret !== expectedSecret) {
       console.warn(`⚠️ Webhook authentication failed: invalid secret`);
       return res.status(401).json({ error: "Unauthorized: invalid secret" });
     }
 
     console.log(`📨 TradingView webhook received:`, {
-      symbol: payload.symbol,
-      timeframe: payload.timeframe,
-      strategy: payload.strategy,
-      direction: payload.direction,
+      symbol: rawPayload.symbol,
+      timeframe: rawPayload.timeframe,
+      strategy: rawPayload.strategy,
+      direction: rawPayload.direction,
     });
 
-    // Run the Froggy pipeline (now DAG-only)
-    const result = await runFroggyTrendPullbackFromTradingView(payload);
+    // ✅ CANONICAL USS v1.1 INGESTION
+    // Map TradingView payload to canonical USS v1.1
+    const canonicalUss = mapTradingViewToUssV11(rawPayload);
+
+    // Validate canonical USS against schema
+    const validation = validateUsignalV11(canonicalUss);
+    if (!validation.ok) {
+      console.error(`❌ USS v1.1 validation failed:`, validation.errors);
+      return res.status(400).json({
+        error: "invalid_uss",
+        message: "Payload does not conform to USS v1.1 schema",
+        details: validation.errors,
+      });
+    }
+
+    console.log(`✅ Canonical USS v1.1 validated:`, {
+      signalId: canonicalUss.provenance.signalId,
+      providerId: canonicalUss.provenance.providerId,
+      source: canonicalUss.provenance.source,
+    });
+
+    // Run the Froggy pipeline with canonical USS
+    // TODO: Update froggyDemoService to accept canonical USS instead of raw TradingView payload
+    const result = await runFroggyTrendPullbackFromTradingView(rawPayload);
 
     console.log(`✅ Froggy pipeline complete:`, {
       signalId: result.signalId,
