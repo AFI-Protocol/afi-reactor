@@ -5,3 +5,62 @@
 declare var describe: any;
 declare var it: any;
 declare var test: any;
+
+/**
+ * Type declarations for afi-core modules
+ *
+ * These provide type definitions when afi-core is not available (e.g., in CI).
+ * When afi-core IS available (local dev), the real types from node_modules/afi-core take precedence.
+ */
+
+declare module "afi-core/analysts/froggy.enrichment_adapter.js" {
+  export interface EnrichmentProfile {
+    technical?: {
+      enabled: boolean;
+      preset?: string;
+      params?: Record<string, unknown>;
+    };
+    pattern?: {
+      enabled: boolean;
+      preset?: string;
+      params?: Record<string, unknown>;
+    };
+    sentiment?: {
+      enabled: boolean;
+      preset?: string;
+      params?: Record<string, unknown>;
+    };
+    news?: {
+      enabled: boolean;
+      preset?: string;
+      params?: Record<string, unknown>;
+    };
+    aiMl?: {
+      enabled: boolean;
+      preset?: string;
+      params?: Record<string, unknown>;
+    };
+  }
+
+  export interface FroggyEnrichedView {
+    [key: string]: unknown;
+  }
+
+  export interface FroggyAiMlV1 {
+    convictionScore: number;
+    direction: "long" | "short" | "neutral";
+  }
+}
+
+declare module "afi-core/src/analyst/AnalystScoreTemplate.js" {
+  export interface AnalystScoreTemplate {
+    analystId: string;
+    uwrScore: number;
+    uwrAxes: {
+      structure: number;
+      execution: number;
+      risk: number;
+      insight: number;
+    };
+  }
+}
