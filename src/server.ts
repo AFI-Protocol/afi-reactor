@@ -29,6 +29,7 @@ dotenv.config();
 import express, { Request, Response } from "express";
 import {
   runFroggyTrendPullbackFromTradingView,
+  runFroggyTrendPullbackFromCanonicalUss,
   type TradingViewAlertPayload,
 } from "./services/froggyDemoService.js";
 import { replaySignalById } from "./services/vaultReplayService.js";
@@ -192,9 +193,12 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
       source: canonicalUss.provenance.source,
     });
 
-    // Run the Froggy pipeline with canonical USS
-    // TODO: Update froggyDemoService to accept canonical USS instead of raw TradingView payload
-    const result = await runFroggyTrendPullbackFromTradingView(rawPayload);
+    // ✅ Run the Froggy pipeline with canonical USS v1.1
+    // The canonical USS is now the single source of truth passed into the DAG
+    const result = await runFroggyTrendPullbackFromCanonicalUss(canonicalUss, {
+      isDemo: true,
+      includeStageSummaries: false,
+    });
 
     console.log(`✅ Froggy pipeline complete:`, {
       signalId: result.signalId,

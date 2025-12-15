@@ -27,18 +27,15 @@ describe("TradingView to USS v1.1 Mapper", () => {
 
     // Verify provenance fields
     expect(uss.provenance.source).toBe("tradingview-webhook");
-    expect(uss.provenance.providerId).toBe("froggy-scout-tv"); // Derived from strategy
+    expect(uss.provenance.providerId).toBe("tradingview-default"); // Fallback (no strategy derivation)
     expect(uss.provenance.signalId).toMatch(/^btcusdt-15m-froggy-trend-pullback-v1-long-\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
     expect(uss.provenance.ingestedAt).toBeDefined();
     expect(uss.provenance.ingestHash).toBeDefined();
     expect(uss.provenance.providerType).toBe("tradingview");
     expect(uss.provenance.providerRef).toBe("froggy_trend_pullback_v1");
 
-    // Verify core telemetry
-    expect(uss.core).toBeDefined();
-    expect(uss.core.cashProxy).toBe("pnl");
-    expect(uss.core.telemetry.decay.halfLifeDays).toBe(0.25); // 15m -> intraday
-    expect(uss.core.telemetry.decay.function).toBe("exp");
+    // Verify NO decay mapping at ingest
+    expect(uss.core).toBeUndefined();
   });
 
   it("should use explicit providerId when provided", () => {
@@ -97,18 +94,10 @@ describe("TradingView to USS v1.1 Mapper", () => {
     expect(uss.provenance.providerId).toBe("tradingview-default");
   });
 
-  it("should map timeframes to correct decay half-lives", () => {
-    const testCases = [
-      { timeframe: "1m", expectedHalfLife: 0.1 },
-      { timeframe: "5m", expectedHalfLife: 0.1 },
-      { timeframe: "15m", expectedHalfLife: 0.25 },
-      { timeframe: "30m", expectedHalfLife: 0.25 },
-      { timeframe: "1h", expectedHalfLife: 1 },
-      { timeframe: "4h", expectedHalfLife: 1 },
-      { timeframe: "1d", expectedHalfLife: 7 },
-    ];
+  it("should NOT map timeframes to decay (no ingest-time decay)", () => {
+    const testCases = ["1m", "5m", "15m", "30m", "1h", "4h", "1d"];
 
-    testCases.forEach(({ timeframe, expectedHalfLife }) => {
+    testCases.forEach((timeframe) => {
       const tvPayload: TradingViewAlertPayload = {
         symbol: "BTC/USDT",
         timeframe,
@@ -118,7 +107,8 @@ describe("TradingView to USS v1.1 Mapper", () => {
 
       const uss = mapTradingViewToUssV11(tvPayload);
 
-      expect(uss.core.telemetry.decay.halfLifeDays).toBe(expectedHalfLife);
+      // NO decay at ingest - handled by analyst/scoring stages
+      expect(uss.core).toBeUndefined();
     });
   });
 

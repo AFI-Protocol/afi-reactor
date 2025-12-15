@@ -66,23 +66,26 @@ let indexSchema: any;
 let validateUsignal: ValidateFunction | null = null;
 
 try {
-  // Try to load from afi-config package in node_modules
-  const configRoot = join(__dirname, "../../node_modules/afi-config");
-  
+  // Load from afi-config package
+  // When running from dist/, __dirname is dist/src/uss, so go up to project root
+  // then into node_modules/afi-config
+  const projectRoot = join(__dirname, "../../../");
+  const configRoot = join(projectRoot, "node_modules/afi-config");
+
   coreSchema = JSON.parse(
     readFileSync(join(configRoot, "schemas/usignal/v1_1/core.schema.json"), "utf-8")
   );
-  
+
   indexSchema = JSON.parse(
     readFileSync(join(configRoot, "schemas/usignal/v1_1/index.schema.json"), "utf-8")
   );
-  
+
   // Register core schema first (for $ref resolution)
   ajv.addSchema(coreSchema);
-  
+
   // Compile index schema
   validateUsignal = ajv.compile(indexSchema);
-  
+
   console.log("✅ USS v1.1 validator initialized successfully");
 } catch (error: any) {
   console.error("❌ Failed to initialize USS v1.1 validator:", error.message);

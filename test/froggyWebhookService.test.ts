@@ -28,9 +28,12 @@ describe("Froggy Webhook Service - USS v1.1 Integration", () => {
 
     // Verify structure (validation tested at runtime)
     expect(uss.schema).toBe("afi.usignal.v1.1");
-    expect(uss.provenance.providerId).toBe("froggy-scout-tv");
+    expect(uss.provenance.providerId).toBe("tradingview-default"); // Fallback (no strategy derivation)
     expect(uss.provenance.signalId).toBeDefined();
     expect(uss.provenance.source).toBe("tradingview-webhook");
+
+    // Verify NO decay at ingest
+    expect(uss.core).toBeUndefined();
   });
 
   it.skip("should reject USS missing providerId", () => {

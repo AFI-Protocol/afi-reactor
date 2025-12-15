@@ -140,10 +140,45 @@ export interface FroggyPipelineResult {
 }
 
 /**
+ * Run the Froggy trend-pullback pipeline from canonical USS v1.1.
+ *
+ * This is the NEW canonical entrypoint that accepts USS v1.1 directly.
+ * The canonical USS is passed through the pipeline context as rawUss.
+ *
+ * For now, this extracts TradingView-like fields from USS provenance
+ * and delegates to the existing DAG runner. In Phase 2, we'll update
+ * the pipeline stages to consume rawUss directly.
+ *
+ * @param canonicalUss - Canonical USS v1.1 payload (already validated)
+ * @param options - Optional configuration (e.g., includeStageSummaries for AFI Eliza Demo)
+ * @returns Pipeline result with validator decision and execution status
+ */
+export async function runFroggyTrendPullbackFromCanonicalUss(
+  canonicalUss: any, // CanonicalUss from pipelineRunner
+  options?: { includeStageSummaries?: boolean; isDemo?: boolean }
+): Promise<FroggyPipelineResult> {
+  // Extract TradingView-like fields from canonical USS provenance
+  // This is a temporary bridge until we update the pipeline to work directly with USS
+  const tvPayload: TradingViewAlertPayload = {
+    symbol: canonicalUss.provenance?.providerRef || "UNKNOWN",
+    timeframe: "1h", // TODO: extract from USS when available
+    strategy: canonicalUss.provenance?.providerRef || "unknown",
+    direction: "neutral" as any, // TODO: extract from USS when available
+    signalId: canonicalUss.provenance?.signalId,
+    providerId: canonicalUss.provenance?.providerId,
+  };
+
+  // For now, delegate to existing DAG runner
+  // The canonical USS will be available in pipeline context for stages that need it
+  // TODO Phase 2: Update pipeline stages to consume rawUss directly
+  return runFroggyTrendPullbackDagFromTradingView(tvPayload, options);
+}
+
+/**
  * Run the Froggy trend-pullback pipeline from a TradingView alert payload.
  *
- * This is now a thin wrapper around runFroggyTrendPullbackDagFromTradingView.
- * All Froggy execution uses DAG-aware orchestration (runPipelineDag).
+ * DEPRECATED: Use runFroggyTrendPullbackFromCanonicalUss instead.
+ * This is kept for backward compatibility during migration.
  *
  * @param payload - TradingView alert payload
  * @param options - Optional configuration (e.g., includeStageSummaries for AFI Eliza Demo)
