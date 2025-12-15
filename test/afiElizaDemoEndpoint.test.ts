@@ -23,7 +23,7 @@ import app from "../src/server.js";
 import type { FroggyPipelineResult } from "../src/services/froggyDemoService.js";
 
 describe("AFI Eliza Demo Endpoint", () => {
-  it("should return stage summaries with all 8 stages (parallel enrichment)", async () => {
+  it("should return stage summaries with all 7 stages (canonical USS v1.1 flow)", async () => {
     const response = await request(app)
       .post("/demo/afi-eliza-demo")
       .set("Content-Type", "application/json");
@@ -37,13 +37,12 @@ describe("AFI Eliza Demo Endpoint", () => {
 
     // Verify stage summaries exist
     expect(result.stageSummaries).toBeDefined();
-    expect(result.stageSummaries).toHaveLength(8);
+    expect(result.stageSummaries).toHaveLength(7);
 
-    // Verify all 8 stages are present in deterministic order
-    // (Pass C: tech-pattern and sentiment-news run in parallel, but summaries maintain conceptual order)
+    // Verify all 7 stages are present in deterministic order (canonical USS v1.1 flow)
+    // No scout stage - USS telemetry deriver replaces scout + structurer
     const expectedStages = [
-      { stage: "scout", persona: "Alpha" },
-      { stage: "structurer", persona: "Pixel Rick" },
+      { stage: "structurer", persona: "Pixel Rick" },          // USS telemetry deriver
       { stage: "tech-pattern", persona: "Pixel Rick" },        // Parallel branch 1
       { stage: "sentiment-news", persona: "Pixel Rick" },      // Parallel branch 2
       { stage: "enrichment", persona: "Pixel Rick" },          // Multi-parent join

@@ -29,6 +29,7 @@ import type { TssdSignalDocument } from "../types/TssdSignalDocument.js";
 import { FROGGY_TREND_PULLBACK_PIPELINE } from "../config/froggyPipeline.js";
 import { runPipelineDag, type PipelineContext } from "./pipelineRunner.js";
 import { pickDecayParamsForAnalystScore } from "afi-core/decay";
+import { mapTradingViewToUssV11 } from "../uss/tradingViewMapper.js";
 
 // Import plugins directly (for now - will be replaced by dynamic loading in future DAG engine)
 // NOTE: alpha-scout-ingest and signal-structurer removed (replaced by uss-telemetry-deriver internal stage)
@@ -193,8 +194,8 @@ export async function runFroggyTrendPullbackFromTradingView(
 /**
  * Run the Froggy trend-pullback pipeline using DAG-aware execution.
  *
- * DEPRECATED: Use runFroggyTrendPullbackFromCanonicalUss instead.
- * This is kept for backward compatibility during migration.
+ * This function now creates canonical USS v1.1 from TradingView payload
+ * and delegates to the canonical USS flow.
  *
  * @param payload - TradingView alert payload
  * @param options - Optional configuration (e.g., includeStageSummaries for AFI Eliza Demo)
@@ -204,36 +205,24 @@ export async function runFroggyTrendPullbackDagFromTradingView(
   payload: TradingViewAlertPayload,
   options?: { includeStageSummaries?: boolean; isDemo?: boolean }
 ): Promise<FroggyPipelineResult> {
-  // Generate signalId if not provided (for demo/test compatibility)
-  const signalId = payload.signalId || `${payload.symbol.toLowerCase().replace(/\//g, "")}-${payload.timeframe}-${payload.strategy}-${payload.direction}-${new Date().toISOString()}`;
+  // Map TradingView payload to canonical USS v1.1
+  const canonicalUss = mapTradingViewToUssV11(payload);
 
-  // Build initial payload for pipeline (old envelope format)
-  const alphaDraft = {
-    signalId,
-    score: 0, // Initial score; will be computed downstream
-    confidence: 0.5, // Default confidence; will be refined by Froggy
-    timestamp: new Date().toISOString(),
-    meta: {
-      symbol: payload.symbol,
-      market: payload.market || "spot",
-      timeframe: payload.timeframe,
-      strategy: payload.strategy,
-      direction: payload.direction,
-      enrichmentProfile: payload.enrichmentProfile,
-    },
-    setupSummary: payload.setupSummary,
-    notes: payload.notes,
-  };
-
-  // Build pipeline context (no rawUss for backward compat)
+  // Build pipeline context WITH canonical USS and original TradingView payload
+  // The original payload is stored in context for telemetry derivation until USS v1.1 has a core field
   const context: PipelineContext = {
+    rawUss: canonicalUss,
+    tradingViewPayload: payload, // Store original payload for telemetry derivation
     logger: (message: string) => console.log(message),
     isDemo: options?.isDemo,
     includeStageSummaries: options?.includeStageSummaries,
   };
 
+  // Initial payload is empty - uss-telemetry-deriver will extract fields from context
+  const initialPayload = {};
+
   // Delegate to shared DAG execution logic
-  return runFroggyTrendPullbackDagInternal(alphaDraft, context, options);
+  return runFroggyTrendPullbackDagInternal(initialPayload, context, options);
 }
 
 /**
@@ -272,33 +261,32 @@ async function runFroggyTrendPullbackDagInternal(
   internalHandlers.set("uss-telemetry-deriver", async (payload: any, ctx: PipelineContext) => {
     const rawUss = ctx.rawUss;
 
-    // BACKWARD COMPAT: If rawUss is missing, pass through the legacy alphaDraft payload
-    // This allows the demo endpoint and legacy TradingView flows to work without USS v1.1
+    // Hard requirement: rawUss must be present (canonical USS v1.1 flow)
     if (!rawUss) {
-      console.log("⚠️  uss-telemetry-deriver: context.rawUss is missing (backward compat mode - using legacy payload)");
-
-      // Attach context to payload for downstream plugins (e.g., validator novelty scoring)
-      (payload as any)._context = ctx;
-
-      return payload;
+      throw new Error("uss-telemetry-deriver: context.rawUss is missing (canonical USS v1.1 flow required)");
     }
 
     // Extract fields from canonical USS provenance
-    // For now, we derive TradingView-like fields from provenance
-    // TODO Phase 3: Update enrichment plugins to read directly from context.rawUss
+    // If TradingView payload is available in context, use it for market data (until USS v1.1 has core field)
+    // Otherwise, derive from provenance (limited information)
+    const tvPayload = (ctx as any).tradingViewPayload;
+
     const derivedSignal = {
       signalId: rawUss.provenance.signalId,
       score: 0, // Initial score; will be computed downstream
       confidence: 0.5, // Default confidence; will be refined by Froggy
       timestamp: rawUss.provenance.ingestedAt || new Date().toISOString(),
       meta: {
-        symbol: rawUss.provenance.providerRef || "UNKNOWN", // TODO: extract from USS core when available
-        market: "spot", // TODO: extract from USS core when available
-        timeframe: "1h", // TODO: extract from USS core when available
-        strategy: rawUss.provenance.providerRef || "unknown", // TODO: extract from USS core when available
-        direction: "neutral" as const, // TODO: extract from USS core when available
+        symbol: tvPayload?.symbol || rawUss.provenance.providerRef || "UNKNOWN",
+        market: tvPayload?.market || "spot",
+        timeframe: tvPayload?.timeframe || "1h",
+        strategy: tvPayload?.strategy || rawUss.provenance.providerRef || "unknown",
+        direction: tvPayload?.direction || ("neutral" as const),
         source: rawUss.provenance.source,
+        enrichmentProfile: tvPayload?.enrichmentProfile,
       },
+      setupSummary: tvPayload?.setupSummary,
+      notes: tvPayload?.notes,
     };
 
     // Store derived telemetry in context for debugging/logging
@@ -345,27 +333,13 @@ async function runFroggyTrendPullbackDagInternal(
 
   // Build stage summaries if requested
   if (options?.includeStageSummaries) {
-    // USS Telemetry Deriver stage (replaces scout + structurer in USS v1.1 flow)
+    // USS Telemetry Deriver stage (canonical USS v1.1 flow)
     if (derivedTelemetry && context.rawUss) {
       stageSummaries.push({
         stage: "structurer",
         persona: "Pixel Rick",
         status: "complete",
         summary: `Derived telemetry from canonical USS v1.1 (signalId: ${context.rawUss.provenance.signalId})`,
-      });
-    } else if (derivedTelemetry) {
-      // Backward-compat mode: add scout + structurer stages for legacy TradingView flow
-      stageSummaries.push({
-        stage: "scout",
-        persona: "Alpha",
-        status: "complete",
-        summary: `Submitted signal draft (${derivedTelemetry.meta.symbol} ${derivedTelemetry.meta.direction})`,
-      });
-      stageSummaries.push({
-        stage: "structurer",
-        persona: "Pixel Rick",
-        status: "complete",
-        summary: `Structured signal for enrichment (signalId: ${derivedTelemetry.signalId})`,
       });
     }
 
