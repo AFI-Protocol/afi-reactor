@@ -10,6 +10,8 @@ jobs:
   validate:
     name: Validate AFI Reactor
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -22,6 +24,7 @@ jobs:
         with:
           repository: AFI-Protocol/afi-core
           path: afi-core
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js 22.x
         uses: actions/setup-node@v4
