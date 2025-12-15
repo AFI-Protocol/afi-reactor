@@ -168,8 +168,8 @@ async function run(signal: StructuredSignal): Promise<FroggyEnrichedView> {
 
   const aiMl = isCategoryEnabled(effectiveProfile, "aiMl")
     ? {
-        ensembleScore: 0.6 + Math.random() * 0.2, // 0.6-0.8 range
-        modelTags: ["trend-following", "pullback"],
+        convictionScore: 0.6 + Math.random() * 0.2, // 0.6-0.8 range
+        direction: "long" as const, // Demo: deterministic direction
       }
     : undefined;
   if (aiMl) enrichedCategories.push("aiMl");

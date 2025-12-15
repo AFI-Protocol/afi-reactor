@@ -16,24 +16,23 @@
 
 import { z } from "zod";
 import type { ValidatorDecisionBase } from "afi-core/validators/ValidatorDecision.js";
-import type { FroggyTrendPullbackScore } from "afi-core/analysts/froggy.trend_pullback_v1.js";
+import type { AnalystScoreTemplate } from "afi-core/src/analyst/AnalystScoreTemplate.js";
 
 /**
- * Input schema: analyzed signal with Froggy score + ensemble score.
+ * Input schema: analyzed signal with canonical AnalystScoreTemplate.
  */
 const inputSchema = z.object({
   signalId: z.string(),
-  analysis: z.object({
-    analystId: z.literal("froggy"),
-    strategyId: z.literal("trend_pullback_v1"),
+  analystScore: z.object({
+    analystId: z.string(),
+    strategyId: z.string(),
     uwrScore: z.number(),
     uwrAxes: z.object({
-      structureAxis: z.number(),
-      executionAxis: z.number(),
-      riskAxis: z.number(),
-      insightAxis: z.number(),
+      structure: z.number(),
+      execution: z.number(),
+      risk: z.number(),
+      insight: z.number(),
     }),
-    notes: z.array(z.string()).optional(),
   }),
   score: z.number().optional(), // From ensemble scorer
   confidence: z.number().optional(),
@@ -69,7 +68,7 @@ async function run(
   const validatedInput = inputSchema.parse(signal);
 
   // Use UWR score as primary decision input
-  const uwrScore = validatedInput.analysis.uwrScore;
+  const uwrScore = validatedInput.analystScore.uwrScore;
   const uwrConfidence = Math.min(1, Math.max(0, uwrScore));
 
   // Determine decision based on thresholds
@@ -88,17 +87,17 @@ async function run(
   }
 
   // Add axis-specific reason codes
-  const axes = validatedInput.analysis.uwrAxes;
-  if (axes.structureAxis < 0.4) {
+  const axes = validatedInput.analystScore.uwrAxes;
+  if (axes.structure < 0.4) {
     reasonCodes.push("weak-structure");
   }
-  if (axes.executionAxis < 0.4) {
+  if (axes.execution < 0.4) {
     reasonCodes.push("weak-execution");
   }
-  if (axes.riskAxis < 0.4) {
+  if (axes.risk < 0.4) {
     reasonCodes.push("weak-risk-profile");
   }
-  if (axes.insightAxis < 0.4) {
+  if (axes.insight < 0.4) {
     reasonCodes.push("weak-insight");
   }
 
@@ -109,7 +108,6 @@ async function run(
     decision,
     uwrConfidence,
     reasonCodes,
-    notes: validatedInput.analysis.notes?.join("; "),
     createdAt: new Date().toISOString(),
   };
 
