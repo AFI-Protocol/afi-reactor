@@ -94,3 +94,26 @@ declare module "afi-core/src/analyst/AnalystScoreTemplate.js" {
     };
   }
 }
+
+declare module "afi-core/analysts/froggy.trend_pullback_v1.js" {
+  export interface FroggyTrendPullbackInput {
+    [key: string]: unknown;
+  }
+
+  export interface FroggyTrendPullbackScore {
+    analystScore: {
+      analystId: string;
+      uwrScore: number;
+      uwrAxes: {
+        structure: number;
+        execution: number;
+        risk: number;
+        insight: number;
+      };
+    };
+    [key: string]: unknown;
+  }
+
+  export function scoreFroggyTrendPullback(input: FroggyTrendPullbackInput): FroggyTrendPullbackScore;
+  export function scoreFroggyTrendPullbackFromEnriched(enriched: any): FroggyTrendPullbackScore;
+}
