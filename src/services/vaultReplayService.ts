@@ -206,6 +206,39 @@ function buildReplayResult(
     changes.push(`reasonCodes changed: [${storedReasons.join(", ")}] → [${recomputedReasons.join(", ")}]`);
   }
 
+  // Validator config ID change (audit/replay metadata)
+  const storedConfigId = stored.validatorDecision.validatorConfigId;
+  const recomputedConfigId = recomputed.validatorDecision.validatorConfigId;
+  if (storedConfigId && recomputedConfigId && storedConfigId !== recomputedConfigId) {
+    changes.push(`validatorConfigId changed: ${storedConfigId} → ${recomputedConfigId}`);
+  } else if (storedConfigId && !recomputedConfigId) {
+    changes.push(`validatorConfigId removed (was: ${storedConfigId})`);
+  } else if (!storedConfigId && recomputedConfigId) {
+    changes.push(`validatorConfigId added: ${recomputedConfigId}`);
+  }
+
+  // Validator version change (audit/replay metadata)
+  const storedVersion = stored.validatorDecision.validatorVersion;
+  const recomputedVersion = recomputed.validatorDecision.validatorVersion;
+  if (storedVersion && recomputedVersion && storedVersion !== recomputedVersion) {
+    changes.push(`validatorVersion changed: ${storedVersion} → ${recomputedVersion}`);
+  } else if (storedVersion && !recomputedVersion) {
+    changes.push(`validatorVersion removed (was: ${storedVersion})`);
+  } else if (!storedVersion && recomputedVersion) {
+    changes.push(`validatorVersion added: ${recomputedVersion}`);
+  }
+
+  // Novelty change (audit/replay metadata)
+  const storedNovelty = stored.validatorDecision.novelty;
+  const recomputedNovelty = recomputed.validatorDecision.novelty;
+  if (storedNovelty || recomputedNovelty) {
+    const storedNoveltyStr = storedNovelty ? JSON.stringify(storedNovelty) : "undefined";
+    const recomputedNoveltyStr = recomputedNovelty ? JSON.stringify(recomputedNovelty) : "undefined";
+    if (storedNoveltyStr !== recomputedNoveltyStr) {
+      changes.push(`novelty changed: ${storedNoveltyStr} → ${recomputedNoveltyStr}`);
+    }
+  }
+
   // Build final replay result
   const replayResult: ReplayResult = {
     signalId: storedDoc.signalId,

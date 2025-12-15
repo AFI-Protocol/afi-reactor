@@ -84,6 +84,15 @@ export interface TssdSignalDocument {
       decision: "approve" | "reject" | "flag" | "abstain";
       uwrConfidence: number;
       reasonCodes?: string[];
+
+      /** Audit/replay metadata (Phase: Validator v0 → Holy) */
+      validatorConfigId?: string;
+      validatorVersion?: string;
+      novelty?: {
+        score?: number;
+        flag?: boolean;
+        method?: string;
+      };
     };
 
     /** Execution result (simulated) */
@@ -277,6 +286,13 @@ export interface ReplayResult {
       decision: "approve" | "reject" | "flag" | "abstain";
       uwrConfidence: number;
       reasonCodes?: string[];
+      validatorConfigId?: string;
+      validatorVersion?: string;
+      novelty?: {
+        score?: number;
+        flag?: boolean;
+        method?: string;
+      };
     };
     execution: {
       status: "simulated" | "skipped";
@@ -314,6 +330,13 @@ export interface ReplayResult {
       decision: "approve" | "reject" | "flag" | "abstain";
       uwrConfidence: number;
       reasonCodes?: string[];
+      validatorConfigId?: string;
+      validatorVersion?: string;
+      novelty?: {
+        score?: number;
+        flag?: boolean;
+        method?: string;
+      };
     };
     execution: {
       status: "simulated" | "skipped";

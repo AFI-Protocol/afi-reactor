@@ -368,6 +368,336 @@ describe("Vault Replay Service (Unit Tests)", () => {
     });
   });
 
+  describe("Validator Audit/Replay Metadata (Phase: Validator v0 → Holy)", () => {
+    it("should include validatorConfigId and validatorVersion in stored decision", () => {
+      const mockAnalystScore = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.78,
+        uwrAxes: { structure: 0.75, execution: 0.75, risk: 0.75, insight: 0.75 },
+        uwrScore: 0.75,
+      };
+
+      const replayResult: ReplayResult = {
+        signalId: "test-signal-audit-001",
+        stored: {
+          analystScore: mockAnalystScore,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.78,
+            reasonCodes: ["score-high"],
+            validatorConfigId: "val-config-abc123def456",
+            validatorVersion: "validator-decision-evaluator@v0.1",
+          },
+          execution: {
+            status: "simulated",
+            type: "buy",
+            timestamp: "2025-12-15T10:00:00.000Z",
+          },
+          meta: {
+            symbol: "BTC/USDT",
+            timeframe: "1h",
+            strategy: "froggy_trend_pullback_v1",
+            direction: "long",
+            source: "afi-eliza-demo",
+            createdAt: new Date("2025-12-15T10:00:00.000Z"),
+          },
+        },
+        recomputed: {
+          analystScore: mockAnalystScore,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.78,
+            reasonCodes: ["score-high"],
+            validatorConfigId: "val-config-abc123def456",
+            validatorVersion: "validator-decision-evaluator@v0.1",
+          },
+          execution: {
+            status: "simulated",
+            type: "buy",
+            timestamp: "2025-12-15T12:00:00.000Z",
+          },
+        },
+        comparison: {
+          uwrScoreDelta: 0.0,
+          decisionChanged: false,
+          changes: [
+            "uwrScore unchanged (0.7500)",
+            "validatorDecision unchanged: approve",
+          ],
+        },
+        replayMeta: {
+          ranAt: new Date("2025-12-15T12:00:00.000Z"),
+          pipelineVersion: "froggy_trend_pullback_v1",
+          notes: "Read-only replay; no DB writes performed",
+        },
+      };
+
+      expect(replayResult.stored.validatorDecision.validatorConfigId).toBe("val-config-abc123def456");
+      expect(replayResult.stored.validatorDecision.validatorVersion).toBe("validator-decision-evaluator@v0.1");
+      expect(replayResult.recomputed.validatorDecision.validatorConfigId).toBe("val-config-abc123def456");
+      expect(replayResult.recomputed.validatorDecision.validatorVersion).toBe("validator-decision-evaluator@v0.1");
+    });
+
+    it("should detect validatorConfigId mismatch in replay comparison", () => {
+      const mockAnalystScore = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.78,
+        uwrAxes: { structure: 0.75, execution: 0.75, risk: 0.75, insight: 0.75 },
+        uwrScore: 0.75,
+      };
+
+      const replayResult: ReplayResult = {
+        signalId: "test-signal-audit-002",
+        stored: {
+          analystScore: mockAnalystScore,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.78,
+            reasonCodes: ["score-high"],
+            validatorConfigId: "val-config-old123",
+            validatorVersion: "validator-decision-evaluator@v0.1",
+          },
+          execution: {
+            status: "simulated",
+            type: "buy",
+            timestamp: "2025-12-15T10:00:00.000Z",
+          },
+          meta: {
+            symbol: "BTC/USDT",
+            timeframe: "1h",
+            strategy: "froggy_trend_pullback_v1",
+            direction: "long",
+            source: "afi-eliza-demo",
+            createdAt: new Date("2025-12-15T10:00:00.000Z"),
+          },
+        },
+        recomputed: {
+          analystScore: mockAnalystScore,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.78,
+            reasonCodes: ["score-high"],
+            validatorConfigId: "val-config-new456",
+            validatorVersion: "validator-decision-evaluator@v0.1",
+          },
+          execution: {
+            status: "simulated",
+            type: "buy",
+            timestamp: "2025-12-15T12:00:00.000Z",
+          },
+        },
+        comparison: {
+          uwrScoreDelta: 0.0,
+          decisionChanged: false,
+          changes: [
+            "uwrScore unchanged (0.7500)",
+            "validatorDecision unchanged: approve",
+            "validatorConfigId changed: val-config-old123 → val-config-new456",
+          ],
+        },
+        replayMeta: {
+          ranAt: new Date("2025-12-15T12:00:00.000Z"),
+          pipelineVersion: "froggy_trend_pullback_v1",
+          notes: "Read-only replay; no DB writes performed",
+        },
+      };
+
+      expect(replayResult.comparison.changes).toContain("validatorConfigId changed: val-config-old123 → val-config-new456");
+      expect(replayResult.stored.validatorDecision.validatorConfigId).not.toBe(
+        replayResult.recomputed.validatorDecision.validatorConfigId
+      );
+    });
+
+    it("should detect validatorVersion mismatch in replay comparison", () => {
+      const mockAnalystScore = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.78,
+        uwrAxes: { structure: 0.75, execution: 0.75, risk: 0.75, insight: 0.75 },
+        uwrScore: 0.75,
+      };
+
+      const replayResult: ReplayResult = {
+        signalId: "test-signal-audit-003",
+        stored: {
+          analystScore: mockAnalystScore,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.78,
+            reasonCodes: ["score-high"],
+            validatorConfigId: "val-config-abc123",
+            validatorVersion: "validator-decision-evaluator@v0.1",
+          },
+          execution: {
+            status: "simulated",
+            type: "buy",
+            timestamp: "2025-12-15T10:00:00.000Z",
+          },
+          meta: {
+            symbol: "BTC/USDT",
+            timeframe: "1h",
+            strategy: "froggy_trend_pullback_v1",
+            direction: "long",
+            source: "afi-eliza-demo",
+            createdAt: new Date("2025-12-15T10:00:00.000Z"),
+          },
+        },
+        recomputed: {
+          analystScore: mockAnalystScore,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.78,
+            reasonCodes: ["score-high"],
+            validatorConfigId: "val-config-abc123",
+            validatorVersion: "validator-decision-evaluator@v0.2",
+          },
+          execution: {
+            status: "simulated",
+            type: "buy",
+            timestamp: "2025-12-15T12:00:00.000Z",
+          },
+        },
+        comparison: {
+          uwrScoreDelta: 0.0,
+          decisionChanged: false,
+          changes: [
+            "uwrScore unchanged (0.7500)",
+            "validatorDecision unchanged: approve",
+            "validatorVersion changed: validator-decision-evaluator@v0.1 → validator-decision-evaluator@v0.2",
+          ],
+        },
+        replayMeta: {
+          ranAt: new Date("2025-12-15T12:00:00.000Z"),
+          pipelineVersion: "froggy_trend_pullback_v1",
+          notes: "Read-only replay; no DB writes performed",
+        },
+      };
+
+      expect(replayResult.comparison.changes).toContain("validatorVersion changed: validator-decision-evaluator@v0.1 → validator-decision-evaluator@v0.2");
+      expect(replayResult.stored.validatorDecision.validatorVersion).not.toBe(
+        replayResult.recomputed.validatorDecision.validatorVersion
+      );
+    });
+
+    it("should support novelty field in validator decision (stub)", () => {
+      const mockAnalystScore = {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        marketType: "spot" as const,
+        assetClass: "crypto" as const,
+        instrumentType: "spot" as const,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        signalTimeframe: "1h",
+        holdingHorizon: "swing" as const,
+        direction: "long" as const,
+        riskBucket: "medium" as const,
+        conviction: 0.78,
+        uwrAxes: { structure: 0.75, execution: 0.75, risk: 0.75, insight: 0.75 },
+        uwrScore: 0.75,
+      };
+
+      const replayResult: ReplayResult = {
+        signalId: "test-signal-audit-004",
+        stored: {
+          analystScore: mockAnalystScore,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.78,
+            reasonCodes: ["score-high"],
+            validatorConfigId: "val-config-abc123",
+            validatorVersion: "validator-decision-evaluator@v0.1",
+            novelty: {
+              score: 0.85,
+              flag: false,
+              method: "stub-v0",
+            },
+          },
+          execution: {
+            status: "simulated",
+            type: "buy",
+            timestamp: "2025-12-15T10:00:00.000Z",
+          },
+          meta: {
+            symbol: "BTC/USDT",
+            timeframe: "1h",
+            strategy: "froggy_trend_pullback_v1",
+            direction: "long",
+            source: "afi-eliza-demo",
+            createdAt: new Date("2025-12-15T10:00:00.000Z"),
+          },
+        },
+        recomputed: {
+          analystScore: mockAnalystScore,
+          validatorDecision: {
+            decision: "approve",
+            uwrConfidence: 0.78,
+            reasonCodes: ["score-high"],
+            validatorConfigId: "val-config-abc123",
+            validatorVersion: "validator-decision-evaluator@v0.1",
+            novelty: {
+              score: 0.85,
+              flag: false,
+              method: "stub-v0",
+            },
+          },
+          execution: {
+            status: "simulated",
+            type: "buy",
+            timestamp: "2025-12-15T12:00:00.000Z",
+          },
+        },
+        comparison: {
+          uwrScoreDelta: 0.0,
+          decisionChanged: false,
+          changes: [
+            "uwrScore unchanged (0.7500)",
+            "validatorDecision unchanged: approve",
+          ],
+        },
+        replayMeta: {
+          ranAt: new Date("2025-12-15T12:00:00.000Z"),
+          pipelineVersion: "froggy_trend_pullback_v1",
+          notes: "Read-only replay; no DB writes performed",
+        },
+      };
+
+      expect(replayResult.stored.validatorDecision.novelty).toBeDefined();
+      expect(replayResult.stored.validatorDecision.novelty?.score).toBe(0.85);
+      expect(replayResult.stored.validatorDecision.novelty?.flag).toBe(false);
+      expect(replayResult.stored.validatorDecision.novelty?.method).toBe("stub-v0");
+    });
+  });
+
   describe("Pipeline Input Reconstruction", () => {
     it("should reconstruct pipeline input from TSSD document with rawPayload", () => {
       const mockAnalystScore6 = {
