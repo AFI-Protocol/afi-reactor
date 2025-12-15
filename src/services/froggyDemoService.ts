@@ -1,24 +1,26 @@
 /**
  * 🐸 FROGGY DEMO SERVICE
- * 
+ *
  * This service runs the Froggy trend-pullback pipeline in a reusable, testable way.
  * It is designed for dev/demo purposes and is NOT part of the canonical orchestrator
  * or production emissions logic.
- * 
+ *
  * ⚠️ DEV/DEMO ONLY:
  * - Execution is simulated (no real trades)
  * - No AFI token minting or emissions occur here
  * - No real exchange API calls
  * - Uses demo enrichment data
- * 
- * Pipeline sequence (matches test/froggyPipeline.test.ts):
- * 1. Alpha Scout Ingest → converts TradingView payload to reactor signal envelope
- * 2. Signal Structurer (Pixel Rick) → normalizes and validates signal
- * 3. Froggy Enrichment Adapter → adds technical/pattern/sentiment enrichment
- * 4. Froggy Analyst → runs trend_pullback_v1 strategy from afi-core
- * 5. Validator Decision Evaluator (Val Dook) → approve/reject/abstain (uses UWR score)
- * 6. Execution Agent Sim → simulates trade execution
- * 
+ *
+ * Pipeline sequence (canonical USS v1.1 flow):
+ * 1. USS Telemetry Deriver (internal) → extracts routing/debug fields from context.rawUss
+ * 2. Froggy Enrichment (Tech+Pattern) → adds technical indicators and pattern recognition
+ * 3. Froggy Enrichment (Sentiment+News) → adds sentiment and news enrichment (parallel)
+ * 4. Froggy Enrichment Adapter → merges enrichment legos + adds AI/ML
+ * 5. Froggy Analyst → runs trend_pullback_v1 strategy from afi-core
+ * 6. Validator Decision Evaluator (Val Dook) → approve/reject/abstain (uses UWR score)
+ * 7. Execution Agent Sim → simulates trade execution
+ * 8. TSSD Vault Write (internal) → persists canonical USS + results to MongoDB
+ *
  * @module froggyDemoService
  */
 
@@ -29,8 +31,7 @@ import { runPipelineDag, type PipelineContext } from "./pipelineRunner.js";
 import { pickDecayParamsForAnalystScore } from "afi-core/decay";
 
 // Import plugins directly (for now - will be replaced by dynamic loading in future DAG engine)
-import alphaScoutIngest from "../../plugins/alpha-scout-ingest.plugin.js";
-import signalStructurer from "../../plugins/signal-structurer.plugin.js";
+// NOTE: alpha-scout-ingest and signal-structurer removed (replaced by uss-telemetry-deriver internal stage)
 import froggyEnrichmentTechPattern from "../../plugins/froggy-enrichment-tech-pattern.plugin.js";
 import froggyEnrichmentSentimentNews from "../../plugins/froggy-enrichment-sentiment-news.plugin.js";
 import froggyEnrichmentAdapter from "../../plugins/froggy-enrichment-adapter.plugin.js";
@@ -145,9 +146,8 @@ export interface FroggyPipelineResult {
  * This is the NEW canonical entrypoint that accepts USS v1.1 directly.
  * The canonical USS is passed through the pipeline context as rawUss.
  *
- * For now, this extracts TradingView-like fields from USS provenance
- * and delegates to the existing DAG runner. In Phase 2, we'll update
- * the pipeline stages to consume rawUss directly.
+ * The pipeline now starts with uss-telemetry-deriver (internal stage) which
+ * extracts routing/debug fields from context.rawUss into a minimal structured signal.
  *
  * @param canonicalUss - Canonical USS v1.1 payload (already validated)
  * @param options - Optional configuration (e.g., includeStageSummaries for AFI Eliza Demo)
@@ -157,21 +157,19 @@ export async function runFroggyTrendPullbackFromCanonicalUss(
   canonicalUss: any, // CanonicalUss from pipelineRunner
   options?: { includeStageSummaries?: boolean; isDemo?: boolean }
 ): Promise<FroggyPipelineResult> {
-  // Extract TradingView-like fields from canonical USS provenance
-  // This is a temporary bridge until we update the pipeline to work directly with USS
-  const tvPayload: TradingViewAlertPayload = {
-    symbol: canonicalUss.provenance?.providerRef || "UNKNOWN",
-    timeframe: "1h", // TODO: extract from USS when available
-    strategy: canonicalUss.provenance?.providerRef || "unknown",
-    direction: "neutral" as any, // TODO: extract from USS when available
-    signalId: canonicalUss.provenance?.signalId,
-    providerId: canonicalUss.provenance?.providerId,
+  // Build pipeline context WITH canonical USS
+  const context: PipelineContext = {
+    rawUss: canonicalUss, // ✅ CANONICAL USS v1.1 in context
+    logger: (message: string) => console.log(message),
+    isDemo: options?.isDemo,
+    includeStageSummaries: options?.includeStageSummaries,
   };
 
-  // For now, delegate to existing DAG runner
-  // The canonical USS will be available in pipeline context for stages that need it
-  // TODO Phase 2: Update pipeline stages to consume rawUss directly
-  return runFroggyTrendPullbackDagFromTradingView(tvPayload, options);
+  // Initial payload is empty - uss-telemetry-deriver will extract fields from context.rawUss
+  const initialPayload = {};
+
+  // Delegate to shared DAG execution logic
+  return runFroggyTrendPullbackDagInternal(initialPayload, context, options);
 }
 
 /**
@@ -195,14 +193,8 @@ export async function runFroggyTrendPullbackFromTradingView(
 /**
  * Run the Froggy trend-pullback pipeline using DAG-aware execution.
  *
- * This function is identical to runFroggyTrendPullbackFromTradingView but uses
- * runPipelineDag instead of runPipeline, enabling parallel execution of stages
- * based on their dependsOn metadata.
- *
- * Currently, FROGGY_TREND_PULLBACK_PIPELINE is still linear (each stage depends
- * on the previous one), so this function produces identical results to the linear
- * version. However, it validates the DAG execution path and prepares for future
- * parallel enrichment or multi-branch strategies.
+ * DEPRECATED: Use runFroggyTrendPullbackFromCanonicalUss instead.
+ * This is kept for backward compatibility during migration.
  *
  * @param payload - TradingView alert payload
  * @param options - Optional configuration (e.g., includeStageSummaries for AFI Eliza Demo)
@@ -212,9 +204,7 @@ export async function runFroggyTrendPullbackDagFromTradingView(
   payload: TradingViewAlertPayload,
   options?: { includeStageSummaries?: boolean; isDemo?: boolean }
 ): Promise<FroggyPipelineResult> {
-  const stageSummaries: PipelineStageSummary[] = [];
-
-  // Build initial payload for pipeline
+  // Build initial payload for pipeline (old envelope format)
   const alphaDraft = {
     symbol: payload.symbol,
     market: payload.market || "spot",
@@ -227,18 +217,37 @@ export async function runFroggyTrendPullbackDagFromTradingView(
     signalId: payload.signalId,
   };
 
-  // Build pipeline context
+  // Build pipeline context (no rawUss for backward compat)
   const context: PipelineContext = {
     logger: (message: string) => console.log(message),
     isDemo: options?.isDemo,
     includeStageSummaries: options?.includeStageSummaries,
   };
 
+  // Delegate to shared DAG execution logic
+  return runFroggyTrendPullbackDagInternal(alphaDraft, context, options);
+}
+
+/**
+ * Shared internal DAG execution logic.
+ * Used by both canonical USS and legacy TradingView entrypoints.
+ *
+ * @param initialPayload - Initial payload for pipeline (empty for canonical USS, alphaDraft for legacy)
+ * @param context - Pipeline context (with or without rawUss)
+ * @param options - Optional configuration
+ * @returns Pipeline result with validator decision and execution status
+ */
+async function runFroggyTrendPullbackDagInternal(
+  initialPayload: any,
+  context: PipelineContext,
+  options?: { includeStageSummaries?: boolean; isDemo?: boolean }
+): Promise<FroggyPipelineResult> {
+  const stageSummaries: PipelineStageSummary[] = [];
+
   // Build plugin registry (maps stage ID to plugin instance)
   // This avoids dynamic imports and works in both Jest and production
+  // NOTE: alpha-scout-ingest and signal-structurer removed (replaced by uss-telemetry-deriver)
   const pluginRegistry = new Map<string, any>();
-  pluginRegistry.set("alpha-scout-ingest", alphaScoutIngest);
-  pluginRegistry.set("signal-structurer", signalStructurer);
   pluginRegistry.set("froggy-enrichment-tech-pattern", froggyEnrichmentTechPattern);
   pluginRegistry.set("froggy-enrichment-sentiment-news", froggyEnrichmentSentimentNews);
   pluginRegistry.set("froggy-enrichment-adapter", froggyEnrichmentAdapter);
@@ -248,6 +257,39 @@ export async function runFroggyTrendPullbackDagFromTradingView(
 
   // Register internal stage handlers
   const internalHandlers = new Map<string, (payload: any, ctx: PipelineContext) => Promise<any>>();
+
+  // USS Telemetry Deriver (internal stage)
+  // Extracts routing/debug fields from context.rawUss into a minimal structured signal
+  // This does NOT mutate rawUss - it creates a derived payload for downstream stages
+  internalHandlers.set("uss-telemetry-deriver", async (payload: any, ctx: PipelineContext) => {
+    const rawUss = ctx.rawUss;
+    if (!rawUss) {
+      throw new Error("uss-telemetry-deriver: context.rawUss is missing");
+    }
+
+    // Extract fields from canonical USS provenance
+    // For now, we derive TradingView-like fields from provenance
+    // TODO Phase 3: Update enrichment plugins to read directly from context.rawUss
+    const derivedSignal = {
+      signalId: rawUss.provenance.signalId,
+      score: 0, // Initial score; will be computed downstream
+      confidence: 0.5, // Default confidence; will be refined by Froggy
+      timestamp: rawUss.provenance.ingestedAt || new Date().toISOString(),
+      meta: {
+        symbol: rawUss.provenance.providerRef || "UNKNOWN", // TODO: extract from USS core when available
+        market: "spot", // TODO: extract from USS core when available
+        timeframe: "1h", // TODO: extract from USS core when available
+        strategy: rawUss.provenance.providerRef || "unknown", // TODO: extract from USS core when available
+        direction: "neutral" as const, // TODO: extract from USS core when available
+        source: rawUss.provenance.source,
+      },
+    };
+
+    // Store derived telemetry in context for debugging/logging
+    ctx.telemetry = derivedSignal;
+
+    return derivedSignal;
+  });
 
   // TSSD vault write handler (internal stage)
   internalHandlers.set("tssd-vault-write", async (payload: any, ctx: PipelineContext) => {
@@ -263,7 +305,7 @@ export async function runFroggyTrendPullbackDagFromTradingView(
   // Execute pipeline through all stages using DAG runner
   const pipelineResult = await runPipelineDag(
     FROGGY_TREND_PULLBACK_PIPELINE,
-    alphaDraft,
+    initialPayload,
     context,
     internalHandlers,
     pluginRegistry
@@ -274,8 +316,7 @@ export async function runFroggyTrendPullbackDagFromTradingView(
 
   // Extract intermediate payloads for stage summaries
   const intermediates = pipelineResult.intermediatePayloads || new Map();
-  const rawSignal = intermediates.get("alpha-scout-ingest");
-  const structuredSignal = intermediates.get("signal-structurer");
+  const derivedTelemetry = intermediates.get("uss-telemetry-deriver");
   const techPatternSignal = intermediates.get("froggy-enrichment-tech-pattern");
   const sentimentNewsSignal = intermediates.get("froggy-enrichment-sentiment-news");
   const enrichedSignal = intermediates.get("froggy-enrichment-adapter");
@@ -284,19 +325,15 @@ export async function runFroggyTrendPullbackDagFromTradingView(
 
   // Build stage summaries if requested
   if (options?.includeStageSummaries) {
-    stageSummaries.push({
-      stage: "scout",
-      persona: "Alpha",
-      status: "complete",
-      summary: `Ingested ${payload.symbol} ${payload.direction} signal on ${payload.timeframe} timeframe`,
-    });
-
-    stageSummaries.push({
-      stage: "structurer",
-      persona: "Pixel Rick",
-      status: "complete",
-      summary: `Normalized signal to USS (Universal Signal Schema) format`,
-    });
+    // USS Telemetry Deriver stage (replaces scout + structurer)
+    if (derivedTelemetry && context.rawUss) {
+      stageSummaries.push({
+        stage: "structurer",
+        persona: "Pixel Rick",
+        status: "complete",
+        summary: `Derived telemetry from canonical USS v1.1 (signalId: ${context.rawUss.provenance.signalId})`,
+      });
+    }
 
     // Tech+Pattern enrichment stage (Pass A)
     if (techPatternSignal) {
@@ -390,10 +427,18 @@ export async function runFroggyTrendPullbackDagFromTradingView(
   // Compute scoredAt once (canonical timestamp when analystScore was produced)
   const scoredAt = analyzedSignal?.analysis?.analystScore ? new Date().toISOString() : undefined;
 
+  // Extract metadata from canonical USS or derived telemetry
+  const signalId = context.rawUss?.provenance?.signalId || derivedTelemetry?.signalId || executionResult.signalId;
+  const symbol = derivedTelemetry?.meta?.symbol || context.rawUss?.provenance?.providerRef || "UNKNOWN";
+  const timeframe = derivedTelemetry?.meta?.timeframe || "1h";
+  const strategy = derivedTelemetry?.meta?.strategy || context.rawUss?.provenance?.providerRef || "unknown";
+  const direction = derivedTelemetry?.meta?.direction || "neutral";
+  const source = context.rawUss?.provenance?.source || "tradingview-webhook";
+
   // Build final result
   // Note: executionResult contains the full chain of data from all stages
   const result: FroggyPipelineResult = {
-    signalId: rawSignal?.signalId || executionResult.signalId,
+    signalId,
     analystScore: analyzedSignal?.analysis?.analystScore,
     scoredAt,
     decayParams: decayParams
@@ -417,11 +462,11 @@ export async function runFroggyTrendPullbackDagFromTradingView(
       notes: executionResult.execution.notes,
     },
     meta: {
-      symbol: payload.symbol,
-      timeframe: payload.timeframe,
-      strategy: payload.strategy,
-      direction: payload.direction,
-      source: "tradingview-webhook",
+      symbol,
+      timeframe,
+      strategy,
+      direction,
+      source,
     },
     stageSummaries: options?.includeStageSummaries ? stageSummaries : undefined,
     isDemo: options?.isDemo,
@@ -446,7 +491,6 @@ export async function runFroggyTrendPullbackDagFromTradingView(
     // PROVENANCE GUARDRAIL: Enforce priceSource and venueType for all TSSD writes
     // These fields are required for audit trail and data provenance tracking
     if (!priceSource || !venueType) {
-      const signalId = rawSignal?.signalId || executionResult.signalId;
       const errorMsg = `❌ TSSD Vault Write BLOCKED: Missing provenance metadata for signal ${signalId}. ` +
         `priceSource=${priceSource}, venueType=${venueType}. ` +
         `All price-based pipelines MUST attach _priceFeedMetadata in enrichment stage.`;
@@ -461,13 +505,13 @@ export async function runFroggyTrendPullbackDagFromTradingView(
     }
 
     const tssdDoc: TssdSignalDocument = {
-      signalId: rawSignal?.signalId || executionResult.signalId,
+      signalId,
       createdAt: new Date(),
-      source: options?.isDemo ? "afi-eliza-demo" : "tradingview-webhook",
+      source: options?.isDemo ? "afi-eliza-demo" : source,
       market: {
-        symbol: payload.symbol,
-        timeframe: payload.timeframe,
-        market: marketType || payload.market,  // Use normalized marketType from enrichment
+        symbol,
+        timeframe,
+        market: marketType || "spot",  // Use normalized marketType from enrichment
         priceSource,  // Now guaranteed to be non-empty
         venueType,    // Now guaranteed to be non-empty
       },
@@ -505,10 +549,10 @@ export async function runFroggyTrendPullbackDagFromTradingView(
         stageSummaries: options?.includeStageSummaries ? stageSummaries : undefined,
       },
       strategy: {
-        name: payload.strategy,
-        direction: payload.direction,
+        name: strategy,
+        direction,
       },
-      rawPayload: payload,
+      rawPayload: context.rawUss || derivedTelemetry, // Store canonical USS or derived telemetry
       version: "v0.1",
     };
 

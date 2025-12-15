@@ -67,8 +67,8 @@ export interface PipelineStage {
 /**
  * Froggy Trend-Pullback Pipeline (v1)
  *
- * DAG pipeline for processing TradingView signals through the full
- * Froggy analyst workflow: scout → structure → parallel enrichment → analyze → validate → execute → persist.
+ * DAG pipeline for processing canonical USS v1.1 signals through the full
+ * Froggy analyst workflow: derive telemetry → parallel enrichment → analyze → validate → execute → persist.
  *
  * This is the canonical stage order used by:
  * - src/services/froggyDemoService.ts
@@ -76,40 +76,32 @@ export interface PipelineStage {
  * - scripts/pipeline-smoke.ts
  *
  * Stage sequence (with parallel enrichment branches):
- * 1. alpha-scout-ingest: Convert TradingView payload to reactor signal envelope
- * 2. signal-structurer: Normalize to USS (Universal Signal Schema)
- * 3. froggy-enrichment-tech-pattern: Add technical + pattern enrichment (OHLCV-based) [parallel branch 1]
- * 4. froggy-enrichment-sentiment-news: Add sentiment + news enrichment (external APIs) [parallel branch 2]
- * 5. froggy-enrichment-adapter: Merge enrichment legos + add AI/ML [joins both branches]
- * 6. froggy-analyst: Run trend_pullback_v1 strategy, compute UWR score
- * 7. validator-decision: Evaluate UWR score → approve/reject/flag/abstain
- * 8. execution-sim: Simulate trade execution based on validator decision
- * 9. tssd-vault-write: Persist final result to MongoDB (internal stage)
+ * 1. uss-telemetry-deriver: Extract routing/debug fields from context.rawUss into context.telemetry
+ * 2. froggy-enrichment-tech-pattern: Add technical + pattern enrichment (OHLCV-based) [parallel branch 1]
+ * 3. froggy-enrichment-sentiment-news: Add sentiment + news enrichment (external APIs) [parallel branch 2]
+ * 4. froggy-enrichment-adapter: Merge enrichment legos + add AI/ML [joins both branches]
+ * 5. froggy-analyst: Run trend_pullback_v1 strategy, compute UWR score
+ * 6. validator-decision: Evaluate UWR score → approve/reject/flag/abstain
+ * 7. execution-sim: Simulate trade execution based on validator decision
+ * 8. tssd-vault-write: Persist final result to MongoDB (internal stage)
  *
  * Dependency graph:
- * - tech-pattern and sentiment-news both depend on signal-structurer (parallel execution)
+ * - tech-pattern and sentiment-news both depend on uss-telemetry-deriver (parallel execution)
  * - enrichment-adapter depends on both tech-pattern and sentiment-news (multi-parent join)
+ *
+ * REMOVED STAGES (replaced by canonical USS v1.1 ingestion):
+ * - alpha-scout-ingest: Replaced by webhook-level USS validation
+ * - signal-structurer: Replaced by canonical USS v1.1 schema enforcement
  */
 export const FROGGY_TREND_PULLBACK_PIPELINE: PipelineStage[] = [
   {
-    id: "alpha-scout-ingest",
-    label: "Alpha Scout Ingest",
-    kind: "plugin",
-    pluginPath: "plugins/alpha-scout-ingest.plugin",
-    description: "Convert TradingView alert payload to reactor signal envelope",
-    persona: "Alpha",
-    category: "scout",
-    // No dependsOn: root stage
-  },
-  {
-    id: "signal-structurer",
-    label: "Signal Structurer",
-    kind: "plugin",
-    pluginPath: "plugins/signal-structurer.plugin",
-    description: "Normalize signal to USS (Universal Signal Schema) format",
+    id: "uss-telemetry-deriver",
+    label: "USS Telemetry Deriver",
+    kind: "internal",
+    description: "Extract routing/debug fields from context.rawUss into context.telemetry (does not mutate rawUss)",
     persona: "Pixel Rick",
     category: "structurer",
-    dependsOn: ["alpha-scout-ingest"],
+    // No dependsOn: root stage (reads from context.rawUss)
   },
   {
     id: "froggy-enrichment-tech-pattern",
@@ -120,7 +112,7 @@ export const FROGGY_TREND_PULLBACK_PIPELINE: PipelineStage[] = [
     persona: "Pixel Rick",
     category: "enrichment",
     tags: ["froggy", "enrichment", "technical", "pattern"],
-    dependsOn: ["signal-structurer"], // Parallel branch 1: runs in parallel with sentiment-news
+    dependsOn: ["uss-telemetry-deriver"], // Parallel branch 1: runs in parallel with sentiment-news
   },
   {
     id: "froggy-enrichment-sentiment-news",
@@ -131,7 +123,7 @@ export const FROGGY_TREND_PULLBACK_PIPELINE: PipelineStage[] = [
     persona: "Pixel Rick",
     category: "enrichment",
     tags: ["froggy", "enrichment", "external-api", "sentiment", "news"],
-    dependsOn: ["signal-structurer"], // Parallel branch 2: runs in parallel with tech-pattern
+    dependsOn: ["uss-telemetry-deriver"], // Parallel branch 2: runs in parallel with tech-pattern
   },
   {
     id: "froggy-enrichment-adapter",
