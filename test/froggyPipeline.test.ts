@@ -15,7 +15,14 @@ import froggyEnrichmentAdapter from "../plugins/froggy-enrichment-adapter.plugin
 import froggyAnalyst from "../plugins/froggy.trend_pullback_v1.plugin.js";
 import validatorDecisionEvaluator from "../plugins/validator-decision-evaluator.plugin.js";
 import executionAgentSim from "../plugins/execution-agent-sim.plugin.js";
-import type { EnrichmentProfile } from "afi-core/analysts/froggy.enrichment_adapter.js";
+
+// Local type definition for CI (afi-core not available in GitHub Actions)
+interface EnrichmentProfile {
+  technical?: { enabled: boolean; preset?: string; params?: Record<string, unknown> };
+  pattern?: { enabled: boolean; preset?: string; params?: Record<string, unknown> };
+  sentiment?: { enabled: boolean; preset?: string; params?: Record<string, unknown> };
+  news?: { enabled: boolean; preset?: string; params?: Record<string, unknown> };
+}
 
 describe("Froggy Pipeline Integration", () => {
   it("should process a signal through the complete pipeline", async () => {
