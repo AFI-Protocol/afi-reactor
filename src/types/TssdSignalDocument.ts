@@ -17,6 +17,7 @@
 
 import type { SupportedLens } from "./UssLenses.js";
 import type { AnalystScoreTemplate } from "afi-core/analyst";
+import type { CanonicalUss } from "../services/pipelineRunner.js";
 
 /**
  * T.S.S.D. Vault Document
@@ -158,7 +159,30 @@ export interface TssdSignalDocument {
     };
   };
 
-  /** Original inbound payload (for replay/audit) */
+  /**
+   * Canonical USS v1.1 Raw Signal (Phase 3)
+   *
+   * The canonical, AJV-validated USS v1.1 payload that entered the pipeline.
+   * This is the single source of truth for replay/audit and contains all
+   * provenance metadata required for deterministic replay.
+   *
+   * Required fields in provenance:
+   * - source: Where the signal came from (e.g., "tradingview-webhook")
+   * - providerId: Stable provider identifier (e.g., "tradingview-default")
+   * - signalId: Unique signal identifier
+   * - ingestedAt: ISO timestamp when signal was ingested
+   * - ingestHash: SHA-256 hash of the raw inbound payload
+   *
+   * This field is queryable and indexed for audit/replay workflows.
+   */
+  rawUss?: CanonicalUss;
+
+  /**
+   * Original inbound payload (DEPRECATED - use rawUss instead)
+   *
+   * Legacy field for backward compatibility. New pipelines should store
+   * the canonical USS v1.1 payload in rawUss instead.
+   */
   rawPayload?: unknown;
 
   /**

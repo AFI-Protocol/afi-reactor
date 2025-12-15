@@ -9,8 +9,10 @@
  * 3. Proper error responses for invalid payloads
  */
 
-import { describe, it, expect } from "@jest/globals";
+import { describe, it, expect, jest } from "@jest/globals";
 import { mapTradingViewToUssV11 } from "../src/uss/tradingViewMapper";
+import { runFroggyTrendPullbackFromCanonicalUss } from "../src/services/froggyDemoService";
+import type { TssdSignalDocument } from "../src/types/TssdSignalDocument";
 // Note: validateUsignalV11 import skipped due to Jest ESM/CJS interop issues with AJV
 // Validation is tested via runtime integration tests
 
@@ -96,6 +98,63 @@ describe("Froggy Webhook Service - USS v1.1 Integration", () => {
     //
     // Expected: 400 Bad Request with error message
     expect(true).toBe(true);
+  });
+
+  it("should persist canonical USS v1.1 in TSSD vault document", async () => {
+    // Mock the TSSD vault service to capture the document
+    let capturedDoc: TssdSignalDocument | null = null;
+
+    // Mock getTssdVaultService to return a mock service
+    const mockVaultService = {
+      insertSignalDocument: jest.fn(async (doc: TssdSignalDocument) => {
+        capturedDoc = doc;
+        return "success" as const;
+      }),
+    };
+
+    // Temporarily replace the vault service
+    const { getTssdVaultService } = await import("../src/services/tssdVaultService.js");
+    const originalGetVault = getTssdVaultService;
+    jest.spyOn(await import("../src/services/tssdVaultService.js"), "getTssdVaultService")
+      .mockReturnValue(mockVaultService as any);
+
+    try {
+      // Create a canonical USS v1.1 payload
+      const tvPayload = {
+        symbol: "BTC/USDT",
+        timeframe: "1h",
+        strategy: "froggy_trend_pullback_v1",
+        direction: "long" as const,
+      };
+
+      const canonicalUss = mapTradingViewToUssV11(tvPayload);
+
+      // Run the pipeline with canonical USS
+      await runFroggyTrendPullbackFromCanonicalUss(canonicalUss, {
+        isDemo: true,
+        includeStageSummaries: false,
+      });
+
+      // Verify the document was captured
+      expect(capturedDoc).not.toBeNull();
+      expect(capturedDoc?.rawUss).toBeDefined();
+
+      // Verify canonical USS v1.1 structure
+      expect(capturedDoc?.rawUss?.schema).toBe("afi.usignal.v1.1");
+
+      // Verify required provenance fields
+      expect(capturedDoc?.rawUss?.provenance?.providerId).toBeDefined();
+      expect(capturedDoc?.rawUss?.provenance?.signalId).toBeDefined();
+      expect(capturedDoc?.rawUss?.provenance?.source).toBe("tradingview-webhook");
+      expect(capturedDoc?.rawUss?.provenance?.ingestedAt).toBeDefined();
+      expect(capturedDoc?.rawUss?.provenance?.ingestHash).toBeDefined();
+
+      // Verify the signalId matches between document and USS
+      expect(capturedDoc?.signalId).toBe(capturedDoc?.rawUss?.provenance?.signalId);
+    } finally {
+      // Restore original vault service
+      jest.restoreAllMocks();
+    }
   });
 });
 

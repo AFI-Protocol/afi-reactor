@@ -552,7 +552,10 @@ async function runFroggyTrendPullbackDagInternal(
         name: strategy,
         direction,
       },
-      rawPayload: context.rawUss || derivedTelemetry, // Store canonical USS or derived telemetry
+      // Phase 3: Persist canonical USS v1.1 as dedicated queryable field
+      rawUss: context.rawUss,
+      // Legacy field (kept for backward compatibility)
+      rawPayload: context.rawUss || derivedTelemetry,
       version: "v0.1",
     };
 
