@@ -43,6 +43,36 @@ declare module "afi-core/analysts/froggy.enrichment_adapter.js" {
   }
 
   export interface FroggyEnrichedView {
+    signalId: string;
+    symbol: string;
+    market: string;
+    timeframe: string;
+    technical?: {
+      emaDistancePct?: number | null;
+      isInValueSweetSpot?: boolean | null;
+      brokeEmaWithBody?: boolean | null;
+      indicators?: Record<string, number | null> | null;
+    };
+    pattern?: {
+      patternName?: string | null;
+      patternConfidence?: number | null;
+      [key: string]: unknown;
+    };
+    sentiment?: {
+      [key: string]: unknown;
+    };
+    news?: {
+      [key: string]: unknown;
+    };
+    aiMl?: {
+      convictionScore?: number;
+      direction?: "long" | "short" | "neutral";
+      [key: string]: unknown;
+    };
+    enrichmentMeta?: {
+      enrichedBy?: string;
+      [key: string]: unknown;
+    };
     [key: string]: unknown;
   }
 
