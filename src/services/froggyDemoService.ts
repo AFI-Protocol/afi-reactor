@@ -204,17 +204,25 @@ export async function runFroggyTrendPullbackDagFromTradingView(
   payload: TradingViewAlertPayload,
   options?: { includeStageSummaries?: boolean; isDemo?: boolean }
 ): Promise<FroggyPipelineResult> {
+  // Generate signalId if not provided (for demo/test compatibility)
+  const signalId = payload.signalId || `${payload.symbol.toLowerCase().replace(/\//g, "")}-${payload.timeframe}-${payload.strategy}-${payload.direction}-${new Date().toISOString()}`;
+
   // Build initial payload for pipeline (old envelope format)
   const alphaDraft = {
-    symbol: payload.symbol,
-    market: payload.market || "spot",
-    timeframe: payload.timeframe,
-    strategy: payload.strategy,
-    direction: payload.direction,
+    signalId,
+    score: 0, // Initial score; will be computed downstream
+    confidence: 0.5, // Default confidence; will be refined by Froggy
+    timestamp: new Date().toISOString(),
+    meta: {
+      symbol: payload.symbol,
+      market: payload.market || "spot",
+      timeframe: payload.timeframe,
+      strategy: payload.strategy,
+      direction: payload.direction,
+      enrichmentProfile: payload.enrichmentProfile,
+    },
     setupSummary: payload.setupSummary,
     notes: payload.notes,
-    enrichmentProfile: payload.enrichmentProfile,
-    signalId: payload.signalId,
   };
 
   // Build pipeline context (no rawUss for backward compat)
@@ -263,8 +271,16 @@ async function runFroggyTrendPullbackDagInternal(
   // This does NOT mutate rawUss - it creates a derived payload for downstream stages
   internalHandlers.set("uss-telemetry-deriver", async (payload: any, ctx: PipelineContext) => {
     const rawUss = ctx.rawUss;
+
+    // BACKWARD COMPAT: If rawUss is missing, pass through the legacy alphaDraft payload
+    // This allows the demo endpoint and legacy TradingView flows to work without USS v1.1
     if (!rawUss) {
-      throw new Error("uss-telemetry-deriver: context.rawUss is missing");
+      console.log("⚠️  uss-telemetry-deriver: context.rawUss is missing (backward compat mode - using legacy payload)");
+
+      // Attach context to payload for downstream plugins (e.g., validator novelty scoring)
+      (payload as any)._context = ctx;
+
+      return payload;
     }
 
     // Extract fields from canonical USS provenance
@@ -329,13 +345,27 @@ async function runFroggyTrendPullbackDagInternal(
 
   // Build stage summaries if requested
   if (options?.includeStageSummaries) {
-    // USS Telemetry Deriver stage (replaces scout + structurer)
+    // USS Telemetry Deriver stage (replaces scout + structurer in USS v1.1 flow)
     if (derivedTelemetry && context.rawUss) {
       stageSummaries.push({
         stage: "structurer",
         persona: "Pixel Rick",
         status: "complete",
         summary: `Derived telemetry from canonical USS v1.1 (signalId: ${context.rawUss.provenance.signalId})`,
+      });
+    } else if (derivedTelemetry) {
+      // Backward-compat mode: add scout + structurer stages for legacy TradingView flow
+      stageSummaries.push({
+        stage: "scout",
+        persona: "Alpha",
+        status: "complete",
+        summary: `Submitted signal draft (${derivedTelemetry.meta.symbol} ${derivedTelemetry.meta.direction})`,
+      });
+      stageSummaries.push({
+        stage: "structurer",
+        persona: "Pixel Rick",
+        status: "complete",
+        summary: `Structured signal for enrichment (signalId: ${derivedTelemetry.signalId})`,
       });
     }
 

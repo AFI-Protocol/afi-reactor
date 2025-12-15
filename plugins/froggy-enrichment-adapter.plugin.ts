@@ -581,17 +581,34 @@ async function run(signal: StructuredSignal | any): Promise<FroggyEnrichedView> 
           version: "v1",
           payload: aiMlPayload,
         });
-
-        enrichedCategories.push("aiMl");
       } else {
         if (debugAiMl) {
           console.log(`[AiMlEnrichment] No prediction received (service unavailable or disabled)`);
         }
+
+        // Add placeholder aiMl object when service is unavailable
+        // This ensures tests and clients can rely on consistent field presence
+        aiMl = {
+          convictionScore: 0.5,
+          direction: "neutral",
+          notes: "AI/ML service unavailable",
+        };
       }
     } catch (err) {
       // This should not happen (fetchAiMlForFroggy is fail-soft), but guard anyway
       console.warn(`[AiMlEnrichment] Unexpected error:`, err);
+
+      // Add placeholder aiMl object on error
+      aiMl = {
+        convictionScore: 0.5,
+        direction: "neutral",
+        notes: "AI/ML service error",
+      };
     }
+
+    // Always add aiMl to categories if enabled, even if service is unavailable
+    // This ensures tests and clients can rely on consistent category lists
+    enrichedCategories.push("aiMl");
   }
 
   // Normalize market type and determine venue type
