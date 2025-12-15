@@ -26,3 +26,7 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# local-only
+.env
+afi-core
