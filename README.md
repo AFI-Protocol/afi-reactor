@@ -16,6 +16,19 @@ It orchestrates a multi-agent DAG-based pipeline capable of generating, analyzin
 > **Note**: If AGENTS.md conflicts with this README, AGENTS.md wins.
 > **Critical**: Read `AFI_ORCHESTRATOR_DOCTRINE.md` before modifying DAG logic.
 
+## 🔒 Security
+
+**IMPORTANT**: This repository uses environment variables for sensitive configuration. See [SECURITY.md](./SECURITY.md) for:
+- Secure credential management practices
+- Secret scanning setup (GitHub Actions + pre-commit hooks)
+- Security incident history and response procedures
+
+**Quick setup**:
+```bash
+cp .env.example .env
+# Edit .env with your credentials (NEVER commit this file)
+```
+
 ---
 
 ## 🚀 The 15-Node DAG
