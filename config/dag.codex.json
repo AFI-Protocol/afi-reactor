@@ -119,12 +119,14 @@
     "plugin": "alpha-scout-ingest",
     "input": [],
     "output": "froggy_raw_signal",
-    "description": "Alpha Scout ingestion node: converts Alpha-style signal drafts into reactor signal envelopes for Froggy pipeline.",
-    "tags": ["froggy", "scout", "alpha", "demo"],
+    "description": "⚠️ DEPRECATED: Legacy Alpha Scout ingestion node. Use USS v1.1 webhook ingestion instead.",
+    "tags": ["froggy", "scout", "alpha", "demo", "deprecated"],
     "codexVersion": "1.0.0",
-    "agentReady": true,
+    "agentReady": false,
     "maintainedBy": ["augmentcode"],
-    "schemaRef": "reactor-signal-envelope.schema.json"
+    "schemaRef": "reactor-signal-envelope.schema.json",
+    "deprecated": true,
+    "deprecationReason": "Replaced by USS v1.1 webhook ingestion with AJV validation"
   },
   {
     "id": "pixelrick-structurer",
@@ -132,12 +134,14 @@
     "plugin": "signal-structurer",
     "input": ["froggy_raw_signal"],
     "output": "froggy_structured_signal",
-    "description": "Pixel Rick structuring node: ensures signal meets afi-core base signal shape requirements.",
-    "tags": ["froggy", "engineer", "pixelrick", "demo"],
+    "description": "⚠️ DEPRECATED: Legacy Pixel Rick structuring node. Use uss-telemetry-deriver instead.",
+    "tags": ["froggy", "engineer", "pixelrick", "demo", "deprecated"],
     "codexVersion": "1.0.0",
-    "agentReady": true,
+    "agentReady": false,
     "maintainedBy": ["augmentcode"],
-    "schemaRef": "base-signal.schema.json"
+    "schemaRef": "base-signal.schema.json",
+    "deprecated": true,
+    "deprecationReason": "Replaced by uss-telemetry-deriver in USS v1.1 pipeline"
   },
   {
     "id": "froggy-enrichment-adapter",

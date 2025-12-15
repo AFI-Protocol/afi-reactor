@@ -19,7 +19,7 @@ import { createNewsDataProvider } from "../src/news/newsdataNewsProvider.js";
 import { computeNewsFeatures, type NewsFeatures } from "../src/news/newsFeatures.js";
 
 /**
- * Input schema: structured signal from signal-structurer or tech-pattern stage
+ * Input schema: USS v1.1 signal from context.rawUss (via uss-telemetry-deriver) or tech-pattern stage
  */
 const inputSchema = z.object({
   signalId: z.string(),

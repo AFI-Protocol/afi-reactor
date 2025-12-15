@@ -138,10 +138,10 @@ npm run mentor-eval
 - All relative imports within afi-reactor (e.g., from `src/` to `plugins/`) **must** include `.js` extensions:
   ```typescript
   // ✅ CORRECT
-  import alphaScoutIngest from "../../plugins/alpha-scout-ingest.plugin.js";
+  import froggyAnalyst from "../../plugins/froggy.trend_pullback_v1.plugin.js";
 
   // ❌ WRONG
-  import alphaScoutIngest from "../../plugins/alpha-scout-ingest.plugin";
+  import froggyAnalyst from "../../plugins/froggy.trend_pullback_v1.plugin";
   ```
 - External package imports (e.g., `from "express"`) do **not** need `.js` extensions.
 - No imports may reference `.ts` files at runtime.

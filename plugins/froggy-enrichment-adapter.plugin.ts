@@ -39,7 +39,7 @@ import { computeNewsFeatures, type NewsFeatures } from "../src/news/newsFeatures
 import { fetchAiMlForFroggy, type TinyBrainsFroggyInput, type TinyBrainsAiMl } from "../src/aiMl/tinyBrainsClient.js";
 
 /**
- * Input schema: structured signal from signal-structurer OR enriched signal from previous stages.
+ * Input schema: USS v1.1 signal from context.rawUss (via uss-telemetry-deriver) OR enriched signal from previous stages.
  *
  * In DAG mode (Pass C), this adapter receives inputs from two parallel enrichment branches:
  * - _techPatternEnrichment: from froggy-enrichment-tech-pattern (may be missing if that stage failed)

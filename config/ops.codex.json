@@ -18,9 +18,10 @@
     },
     {
       "name": "froggy-trend-pullback-v1",
-      "entry": "alpha-scout-ingest",
+      "entry": "uss-telemetry-deriver",
       "flow": [
-        "pixelrick-structurer",
+        "froggy-enrichment-tech-pattern",
+        "froggy-enrichment-sentiment-news",
         "froggy-enrichment-adapter",
         "froggy-analyst-node",
         "froggy-ensemble-scorer",
@@ -30,9 +31,9 @@
       ],
       "exit": "froggy-vault-echo",
       "dagRef": "dag.codex.json",
-      "description": "Demo pipeline: Alpha Scout → Pixel Rick → Froggy Analyst → Val Dook → Execution Sim → Vault. Implements the canonical agent chain for ElizaOS live demos.",
+      "description": "Canonical USS v1.1 pipeline: Webhook → AJV validate → context.rawUss → uss-telemetry-deriver → parallel enrichment → Froggy Analyst → Val Dook → Execution Sim → Vault. Implements the canonical agent chain for ElizaOS live demos.",
       "status": "active",
-      "tags": ["demo", "froggy", "agent-chain"]
+      "tags": ["demo", "froggy", "agent-chain", "uss-v1.1"]
     }
   ],
   "tools": [

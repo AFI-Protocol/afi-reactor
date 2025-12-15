@@ -1,15 +1,15 @@
 /**
  * Froggy Enrichment: Technical + Pattern Plugin
- * 
+ *
  * Purpose: First stage of Froggy enrichment - computes technical indicators and pattern recognition.
- * 
+ *
  * This plugin is part of the modular enrichment pipeline where enrichment is split into:
  * 1. Tech + Pattern (this plugin) - OHLCV-based analysis
  * 2. Sentiment + News + AI/ML (froggy-enrichment-adapter) - External API enrichment
- * 
- * Input: Structured signal from signal-structurer
+ *
+ * Input: USS v1.1 signal from context.rawUss (via uss-telemetry-deriver)
  * Output: Signal with technical and pattern enrichment attached
- * 
+ *
  * Part of: froggy-trend-pullback-v1 pipeline (DAG-aware)
  */
 
@@ -23,7 +23,7 @@ import type { AfiCandle } from "../src/types/AfiCandle.js";
 import type { TechnicalLensV1, PatternLensV1 } from "../src/types/UssLenses.js";
 
 /**
- * Input schema: structured signal from signal-structurer.
+ * Input schema: USS v1.1 signal from context.rawUss (via uss-telemetry-deriver).
  */
 const inputSchema = z.object({
   signalId: z.string(),
@@ -78,7 +78,7 @@ function toAfiCandles(candles: OHLCVCandle[]): AfiCandle[] {
  * 
  * Fail-soft: Returns signal with empty enrichment if price data unavailable.
  * 
- * @param signal - Structured signal from signal-structurer
+ * @param signal - USS v1.1 signal from context.rawUss (via uss-telemetry-deriver)
  * @returns Signal with technical and pattern enrichment attached
  */
 async function run(signal: StructuredSignal): Promise<TechPatternEnrichedSignal> {

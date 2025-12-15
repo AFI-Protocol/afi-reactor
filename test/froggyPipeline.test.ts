@@ -1,16 +1,22 @@
 /**
- * Froggy Pipeline Integration Test
+ * Froggy Pipeline Integration Test (LEGACY)
+ *
+ * ⚠️ NOTE: This test uses DEPRECATED legacy ingest plugins for backward compatibility.
  *
  * Tests the complete Froggy trend_pullback_v1 pipeline:
  * Alpha Scout → Pixel Rick → Froggy Enrichment → Froggy Analyst → Validator → Execution Sim
  *
  * This test does NOT run the full DAG engine; it tests each plugin in sequence
  * to ensure the data flows correctly through the pipeline.
+ *
+ * TODO: Migrate this test to use the canonical USS v1.1 pipeline flow:
+ *   Webhook → AJV validate → context.rawUss → uss-telemetry-deriver → enrichment → analyst → validator → vault
  */
 
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
-import alphaScoutIngest from "../plugins/alpha-scout-ingest.plugin.js";
-import signalStructurer from "../plugins/signal-structurer.plugin.js";
+// LEGACY: Using deprecated plugins from _deprecated_ingest for backward compatibility
+import alphaScoutIngest from "../plugins/_deprecated_ingest/alpha-scout-ingest.plugin.js";
+import signalStructurer from "../plugins/_deprecated_ingest/signal-structurer.plugin.js";
 import froggyEnrichmentAdapter from "../plugins/froggy-enrichment-adapter.plugin.js";
 import froggyAnalyst from "../plugins/froggy.trend_pullback_v1.plugin.js";
 import validatorDecisionEvaluator from "../plugins/validator-decision-evaluator.plugin.js";

@@ -6,7 +6,7 @@
  * results while respecting stage dependencies.
  *
  * Pass C: FROGGY_TREND_PULLBACK_PIPELINE now uses parallel enrichment branches:
- * - tech-pattern and sentiment-news both depend on signal-structurer (parallel execution)
+ * - tech-pattern and sentiment-news both depend on uss-telemetry-deriver (parallel execution)
  * - enrichment-adapter depends on both (multi-parent join)
  *
  * This test verifies:
@@ -116,9 +116,9 @@ describe("Froggy DAG Pipeline Integration", () => {
     const sentimentNewsStage = FROGGY_TREND_PULLBACK_PIPELINE.find(s => s.id === "froggy-enrichment-sentiment-news");
     const adapterStage = FROGGY_TREND_PULLBACK_PIPELINE.find(s => s.id === "froggy-enrichment-adapter");
 
-    // Both enrichment stages should depend only on signal-structurer (parallel branches)
-    expect(techPatternStage?.dependsOn).toEqual(["signal-structurer"]);
-    expect(sentimentNewsStage?.dependsOn).toEqual(["signal-structurer"]);
+    // Both enrichment stages should depend only on uss-telemetry-deriver (parallel branches)
+    expect(techPatternStage?.dependsOn).toEqual(["uss-telemetry-deriver"]);
+    expect(sentimentNewsStage?.dependsOn).toEqual(["uss-telemetry-deriver"]);
 
     // Adapter should depend on both enrichment stages (multi-parent join)
     expect(adapterStage?.dependsOn).toEqual([
