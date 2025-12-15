@@ -652,6 +652,11 @@ async function run(signal: StructuredSignal | any): Promise<FroggyEnrichedView> 
   // Attach enrichment summary for stage summaries
   (enriched as any)._enrichmentSummary = enrichmentSummary;
 
+  // Pass through context for downstream plugins (e.g., validator novelty scoring)
+  if ((signal as any)._context) {
+    (enriched as any)._context = (signal as any)._context;
+  }
+
   return enriched;
 }
 

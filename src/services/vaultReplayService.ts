@@ -228,15 +228,43 @@ function buildReplayResult(
     changes.push(`validatorVersion added: ${recomputedVersion}`);
   }
 
-  // Novelty change (audit/replay metadata)
-  const storedNovelty = stored.validatorDecision.novelty;
-  const recomputedNovelty = recomputed.validatorDecision.novelty;
-  if (storedNovelty || recomputedNovelty) {
-    const storedNoveltyStr = storedNovelty ? JSON.stringify(storedNovelty) : "undefined";
-    const recomputedNoveltyStr = recomputedNovelty ? JSON.stringify(recomputedNovelty) : "undefined";
-    if (storedNoveltyStr !== recomputedNoveltyStr) {
-      changes.push(`novelty changed: ${storedNoveltyStr} → ${recomputedNoveltyStr}`);
+  // Canonical Novelty change (audit/replay metadata)
+  // Compare ONLY canonicalNovelty fields (excludes computedAt for determinism)
+  const storedCanonical = stored.validatorDecision.canonicalNovelty;
+  const recomputedCanonical = recomputed.validatorDecision.canonicalNovelty;
+
+  if (storedCanonical && recomputedCanonical) {
+    // Compare noveltyClass
+    if (storedCanonical.noveltyClass !== recomputedCanonical.noveltyClass) {
+      changes.push(`noveltyClass changed: ${storedCanonical.noveltyClass} → ${recomputedCanonical.noveltyClass}`);
     }
+
+    // Compare noveltyScore (with tolerance for floating point)
+    const scoreDelta = Math.abs(storedCanonical.noveltyScore - recomputedCanonical.noveltyScore);
+    if (scoreDelta > 0.001) {
+      changes.push(`noveltyScore changed: ${storedCanonical.noveltyScore.toFixed(3)} → ${recomputedCanonical.noveltyScore.toFixed(3)}`);
+    }
+
+    // Compare cohortId
+    if (storedCanonical.cohortId !== recomputedCanonical.cohortId) {
+      changes.push(`cohortId changed: ${storedCanonical.cohortId} → ${recomputedCanonical.cohortId}`);
+    }
+
+    // Compare referenceSignalIds (sorted arrays)
+    const storedRefs = JSON.stringify(storedCanonical.referenceSignalIds || []);
+    const recomputedRefs = JSON.stringify(recomputedCanonical.referenceSignalIds || []);
+    if (storedRefs !== recomputedRefs) {
+      changes.push(`referenceSignalIds changed (count: ${storedCanonical.referenceSignalIds?.length || 0} → ${recomputedCanonical.referenceSignalIds?.length || 0})`);
+    }
+
+    // Compare baselineId (if present)
+    if (storedCanonical.baselineId !== recomputedCanonical.baselineId) {
+      changes.push(`baselineId changed: ${storedCanonical.baselineId || "none"} → ${recomputedCanonical.baselineId || "none"}`);
+    }
+  } else if (storedCanonical && !recomputedCanonical) {
+    changes.push(`canonicalNovelty removed (was: ${storedCanonical.noveltyClass})`);
+  } else if (!storedCanonical && recomputedCanonical) {
+    changes.push(`canonicalNovelty added: ${recomputedCanonical.noveltyClass}`);
   }
 
   // Build final replay result

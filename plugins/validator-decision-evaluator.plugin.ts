@@ -19,6 +19,11 @@ import { createHash } from "crypto";
 import type { ValidatorDecisionBase } from "afi-core/validators/ValidatorDecision.js";
 import type { NoveltyResult } from "afi-core/validators/NoveltyTypes.js";
 import type { FroggyTrendPullbackScore } from "afi-core/analysts/froggy.trend_pullback_v1.js";
+import { computeNoveltyScore, type NoveltySignalInput } from "afi-core/validators/NoveltyScorer.js";
+import type { CanonicalNovelty } from "../src/novelty/canonicalNovelty.js";
+import { canonicalizeNovelty, deriveCohortId, extractCohortAttributesFromUss } from "../src/novelty/canonicalNovelty.js";
+import { fetchBaselineSignals } from "../src/novelty/baselineFetch.js";
+import type { PipelineContext } from "../src/services/pipelineRunner.js";
 
 /**
  * Extended validator decision with audit/replay metadata.
@@ -26,6 +31,7 @@ import type { FroggyTrendPullbackScore } from "afi-core/analysts/froggy.trend_pu
  * Extends ValidatorDecisionBase with:
  * - validatorConfigId: Deterministic hash of validator config (for replay comparison)
  * - validatorVersion: Validator plugin version (for logic drift detection)
+ * - canonicalNovelty: Replay-stable novelty fields (for deterministic comparison)
  *
  * These fields enable "holy" audit/replay by detecting config and logic changes.
  */
@@ -34,6 +40,8 @@ export interface ValidatorDecisionWithAudit extends ValidatorDecisionBase {
   validatorConfigId: string;
   /** Validator version identifier (plugin-name@semver) */
   validatorVersion: string;
+  /** Canonical novelty (replay-stable fields only) */
+  canonicalNovelty?: CanonicalNovelty;
 }
 
 /**
@@ -59,6 +67,8 @@ const inputSchema = z.object({
   }),
   score: z.number().optional(), // From ensemble scorer
   confidence: z.number().optional(),
+  // Optional context for novelty scoring (passed through from pipeline)
+  _context: z.any().optional(),
 });
 
 type ScoredSignal = z.infer<typeof inputSchema>;
@@ -119,7 +129,7 @@ function computeValidatorConfigId(config: ValidatorConfig): string {
 /**
  * Evaluate validator decision based on UWR score.
  *
- * @param signal - Scored signal with Froggy analysis
+ * @param signal - Scored signal with Froggy analysis (may include _context field)
  * @param config - Decision thresholds (defaults to VALIDATOR_CONFIG_V0)
  * @returns ValidatorDecisionWithAudit envelope with audit/replay metadata
  */
@@ -130,11 +140,69 @@ async function run(
   // Validate input
   const validatedInput = inputSchema.parse(signal);
 
+  // Extract context from payload (if passed through from pipeline)
+  const context = (signal as any)._context as PipelineContext | undefined;
+
   // Use UWR score from analystScore (canonical source)
   const uwrScore = validatedInput.analysis.analystScore.uwrScore;
   const uwrConfidence = Math.min(1, Math.max(0, uwrScore));
 
-  // Determine decision based on thresholds
+  // ═══════════════════════════════════════════════════════════════
+  // NOVELTY SCORING (Phase: Real Novelty + Replay Canonical)
+  // ═══════════════════════════════════════════════════════════════
+
+  let novelty: NoveltyResult | undefined;
+  let canonicalNovelty: CanonicalNovelty | undefined;
+
+  if (context?.rawUss) {
+    try {
+      // Step 1: Derive deterministic cohortId from USS provenance
+      const { market, timeframe, strategy } = extractCohortAttributesFromUss(context.rawUss);
+      const cohortId = deriveCohortId(market, timeframe, strategy);
+
+      // Step 2: Fetch baseline signals from TSSD vault (deterministic ordering)
+      const currentTimestamp = context.rawUss.provenance.ingestedAt || new Date().toISOString();
+      const baselineSignals = await fetchBaselineSignals(
+        cohortId,
+        validatedInput.signalId,
+        currentTimestamp
+      );
+
+      // Step 3: Build current signal input for novelty scorer
+      const currentSignal: NoveltySignalInput = {
+        signalId: validatedInput.signalId,
+        cohortId,
+        market,
+        timeframe,
+        strategy,
+        direction: validatedInput.analysis.analystScore.strategyId.includes("long") ? "long" :
+                   validatedInput.analysis.analystScore.strategyId.includes("short") ? "short" : "neutral",
+        structureAxis: validatedInput.analysis.analystScore.uwrAxes.structure,
+        executionAxis: validatedInput.analysis.analystScore.uwrAxes.execution,
+        riskAxis: validatedInput.analysis.analystScore.uwrAxes.risk,
+        insightAxis: validatedInput.analysis.analystScore.uwrAxes.insight,
+        createdAt: currentTimestamp,
+      };
+
+      // Step 4: Compute novelty score using afi-core scorer
+      novelty = computeNoveltyScore(currentSignal, baselineSignals);
+
+      // Step 5: Canonicalize for replay comparison (exclude computedAt)
+      canonicalNovelty = canonicalizeNovelty(novelty);
+
+      console.info(`✅ Novelty scored: ${novelty.noveltyClass} (score=${novelty.noveltyScore.toFixed(2)}, cohort=${cohortId}, baseline=${baselineSignals.length} signals)`);
+    } catch (error: any) {
+      console.warn(`⚠️  Novelty scoring failed:`, error.message || String(error));
+      // Continue without novelty (graceful degradation)
+    }
+  } else {
+    console.info("ℹ️  Novelty scoring skipped: context.rawUss not available");
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // DECISION LOGIC (with novelty-based flagging)
+  // ═══════════════════════════════════════════════════════════════
+
   let decision: "approve" | "reject" | "flag";
   const reasonCodes: string[] = [];
 
@@ -147,6 +215,15 @@ async function run(
   } else {
     decision = "flag";
     reasonCodes.push("score-medium", "needs-review", "froggy-demo");
+  }
+
+  // Decision policy v0: Flag redundant signals with low confidence
+  // If signal is redundant AND uwrConfidence < approveThreshold → flag
+  if (canonicalNovelty?.noveltyClass === "redundant" && uwrConfidence < config.approveThreshold) {
+    decision = "flag";
+    if (!reasonCodes.includes("needs-review")) {
+      reasonCodes.push("needs-review");
+    }
   }
 
   // Add axis-specific reason codes (read from analystScore.uwrAxes)
@@ -162,6 +239,22 @@ async function run(
   }
   if (axes.insight < config.weakAxisThreshold) {
     reasonCodes.push("weak-insight");
+  }
+
+  // Add novelty-based reason codes
+  if (canonicalNovelty) {
+    switch (canonicalNovelty.noveltyClass) {
+      case "breakthrough":
+        reasonCodes.push("NOVELTY_BREAKTHROUGH");
+        break;
+      case "incremental":
+        reasonCodes.push("NOVELTY_INCREMENTAL");
+        break;
+      case "redundant":
+        reasonCodes.push("NOVELTY_REDUNDANT");
+        break;
+      // "contradictory" reserved for future use
+    }
   }
 
   // Compute deterministic config ID for audit/replay
@@ -181,9 +274,11 @@ async function run(
     validatorConfigId,
     validatorVersion: VALIDATOR_VERSION,
 
-    // Novelty stub (optional, undefined for now)
-    // Will be populated when novelty evaluation is wired in
-    novelty: undefined,
+    // Novelty evaluation (Phase: Real Novelty + Replay Canonical)
+    // - novelty: Full NoveltyResult with computedAt (for observability)
+    // - canonicalNovelty: Replay-stable fields only (for deterministic comparison)
+    novelty,
+    canonicalNovelty,
   };
 
   return validatorDecision;

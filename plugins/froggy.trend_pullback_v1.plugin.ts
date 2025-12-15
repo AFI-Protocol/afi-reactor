@@ -40,6 +40,11 @@ async function run(enriched: FroggyEnrichedView): Promise<FroggyAnalyzedSignal> 
     analysis,
   };
 
+  // Pass through context for downstream plugins (e.g., validator novelty scoring)
+  if ((enriched as any)._context) {
+    (analyzed as any)._context = (enriched as any)._context;
+  }
+
   return analyzed;
 }
 

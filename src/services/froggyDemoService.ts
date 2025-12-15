@@ -288,6 +288,10 @@ async function runFroggyTrendPullbackDagInternal(
     // Store derived telemetry in context for debugging/logging
     ctx.telemetry = derivedSignal;
 
+    // Attach context to payload for downstream plugins (e.g., validator novelty scoring)
+    // This allows plugins to access rawUss and other context fields
+    (derivedSignal as any)._context = ctx;
+
     return derivedSignal;
   });
 
@@ -536,6 +540,12 @@ async function runFroggyTrendPullbackDagInternal(
           decision: executionResult.validatorDecision.decision,
           uwrConfidence: executionResult.validatorDecision.uwrConfidence,
           reasonCodes: executionResult.validatorDecision.reasonCodes,
+          // Audit/replay metadata (Phase: Validator v0 → Holy)
+          validatorConfigId: executionResult.validatorDecision.validatorConfigId,
+          validatorVersion: executionResult.validatorDecision.validatorVersion,
+          // Novelty evaluation (Phase: Real Novelty + Replay Canonical)
+          novelty: executionResult.validatorDecision.novelty,
+          canonicalNovelty: executionResult.validatorDecision.canonicalNovelty,
         },
         execution: {
           status: executionResult.execution.status,
@@ -552,6 +562,12 @@ async function runFroggyTrendPullbackDagInternal(
         name: strategy,
         direction,
       },
+      // Novelty metadata for baseline queries (Phase: Real Novelty + Replay Canonical)
+      noveltyMeta: executionResult.validatorDecision.canonicalNovelty
+        ? {
+            cohortId: executionResult.validatorDecision.canonicalNovelty.cohortId,
+          }
+        : undefined,
       // Phase 3: Persist canonical USS v1.1 as dedicated queryable field
       rawUss: context.rawUss,
       // Legacy field (kept for backward compatibility)

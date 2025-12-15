@@ -18,6 +18,8 @@
 import type { SupportedLens } from "./UssLenses.js";
 import type { AnalystScoreTemplate } from "afi-core/analyst";
 import type { CanonicalUss } from "../services/pipelineRunner.js";
+import type { NoveltyResult } from "afi-core/validators/NoveltyTypes.js";
+import type { CanonicalNovelty } from "../novelty/canonicalNovelty.js";
 
 /**
  * T.S.S.D. Vault Document
@@ -88,11 +90,15 @@ export interface TssdSignalDocument {
       /** Audit/replay metadata (Phase: Validator v0 → Holy) */
       validatorConfigId?: string;
       validatorVersion?: string;
-      novelty?: {
-        score?: number;
-        flag?: boolean;
-        method?: string;
-      };
+
+      /**
+       * Novelty evaluation (Phase: Real Novelty + Replay Canonical)
+       *
+       * - novelty: Full NoveltyResult from afi-core (includes computedAt for observability)
+       * - canonicalNovelty: Replay-stable subset (excludes computedAt for deterministic comparison)
+       */
+      novelty?: NoveltyResult;
+      canonicalNovelty?: CanonicalNovelty;
     };
 
     /** Execution result (simulated) */
@@ -122,6 +128,16 @@ export interface TssdSignalDocument {
   strategy: {
     name: string;          // e.g., "froggy_trend_pullback_v1"
     direction: string;     // e.g., "long", "short", "neutral"
+  };
+
+  /**
+   * Novelty Metadata (Phase: Real Novelty + Replay Canonical)
+   *
+   * Stores cohortId for deterministic baseline queries.
+   * This enables efficient MongoDB queries for novelty scoring.
+   */
+  noveltyMeta?: {
+    cohortId: string;  // Deterministic cohort identifier (market-timeframe-strategy)
   };
 
   /**
@@ -288,11 +304,8 @@ export interface ReplayResult {
       reasonCodes?: string[];
       validatorConfigId?: string;
       validatorVersion?: string;
-      novelty?: {
-        score?: number;
-        flag?: boolean;
-        method?: string;
-      };
+      novelty?: NoveltyResult;
+      canonicalNovelty?: CanonicalNovelty;
     };
     execution: {
       status: "simulated" | "skipped";
@@ -332,11 +345,8 @@ export interface ReplayResult {
       reasonCodes?: string[];
       validatorConfigId?: string;
       validatorVersion?: string;
-      novelty?: {
-        score?: number;
-        flag?: boolean;
-        method?: string;
-      };
+      novelty?: NoveltyResult;
+      canonicalNovelty?: CanonicalNovelty;
     };
     execution: {
       status: "simulated" | "skipped";
