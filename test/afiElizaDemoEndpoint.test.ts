@@ -85,12 +85,16 @@ describe("AFI Eliza Demo Endpoint", () => {
     // Execution status can be "simulated" (if approved) or "skipped" (if rejected/flagged)
     expect(["simulated", "skipped"]).toContain(result.execution.status);
 
-    // Verify meta fields
+    // Verify meta fields (derived from USS facts block, not providerRef)
     expect(result.meta).toBeDefined();
-    expect(result.meta.symbol).toBe("BTC/USDT");
+    expect(result.meta.symbol).toBe("BTC/USDT"); // From rawUss.facts.symbol (replay-canonical)
     expect(result.meta.timeframe).toBe("1h");
     expect(result.meta.strategy).toBe("froggy_trend_pullback_v1");
     expect(result.meta.direction).toBe("long");
+
+    // Verify that symbol is NOT the strategy name (regression test for facts block)
+    // Before facts block, symbol was incorrectly derived from provenance.providerRef
+    expect(result.meta.symbol).not.toBe("froggy_trend_pullback_v1");
   });
 
   it("should return deterministic results for demo mode", async () => {

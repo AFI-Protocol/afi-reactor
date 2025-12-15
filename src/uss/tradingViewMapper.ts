@@ -108,12 +108,21 @@ export function mapTradingViewToUssV11(payload: TradingViewAlertPayload): UssV11
       ingestedAt: now,
       ingestHash,
       providerType: "tradingview",
-      providerRef: payload.strategy || "unknown",
+      providerRef: payload.strategy || "unknown", // Provider reference (strategy identity)
+    },
+    // Ingest facts block - replay-canonical market/strategy metadata
+    // This is persisted in TSSD vault and used by telemetry deriver for deterministic replay
+    facts: {
+      symbol: payload.symbol,
+      market: payload.market || "perp", // Default to perp if not specified
+      timeframe: payload.timeframe,
+      strategy: payload.strategy || payload.strategyId || "unknown",
+      direction: payload.direction || "neutral",
     },
   };
 
   // NO decay mapping at ingest - this is handled by analyst/scoring stages
-  // Keep only true ingest facts: symbol, timeframe, direction, strategy
+  // Ingest facts (symbol, timeframe, direction, strategy) are now stored in facts block
 
   return uss;
 }

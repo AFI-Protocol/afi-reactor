@@ -43,6 +43,17 @@ export interface UssV11Payload {
     providerRef?: string;
     [key: string]: any;
   };
+  /**
+   * Ingest facts block - replay-canonical market/strategy metadata
+   * Populated at ingest time and persisted in TSSD vault for deterministic replay
+   */
+  facts?: {
+    symbol?: string;      // e.g. "BTC/USDT"
+    market?: string;      // e.g. "perp" | "spot"
+    timeframe?: string;   // e.g. "4h"
+    strategy?: string;    // e.g. "froggy_trend_pullback_v1"
+    direction?: "long" | "short" | "neutral";
+  };
   core?: any;
   lens?: string;
   [key: string]: any;

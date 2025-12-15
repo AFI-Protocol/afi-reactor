@@ -266,9 +266,9 @@ async function runFroggyTrendPullbackDagInternal(
       throw new Error("uss-telemetry-deriver: context.rawUss is missing (canonical USS v1.1 flow required)");
     }
 
-    // Extract fields from canonical USS provenance
-    // If TradingView payload is available in context, use it for market data (until USS v1.1 has core field)
-    // Otherwise, derive from provenance (limited information)
+    // Extract fields from canonical USS facts block (replay-canonical)
+    // Facts block exists and is persisted in rawUss; telemetry reads it first
+    // Fallback to context.tradingViewPayload for demo convenience (if facts not populated)
     const tvPayload = (ctx as any).tradingViewPayload;
 
     const derivedSignal = {
@@ -277,11 +277,11 @@ async function runFroggyTrendPullbackDagInternal(
       confidence: 0.5, // Default confidence; will be refined by Froggy
       timestamp: rawUss.provenance.ingestedAt || new Date().toISOString(),
       meta: {
-        symbol: tvPayload?.symbol || rawUss.provenance.providerRef || "UNKNOWN",
-        market: tvPayload?.market || "spot",
-        timeframe: tvPayload?.timeframe || "1h",
-        strategy: tvPayload?.strategy || rawUss.provenance.providerRef || "unknown",
-        direction: tvPayload?.direction || ("neutral" as const),
+        symbol: rawUss.facts?.symbol ?? tvPayload?.symbol ?? "UNKNOWN",
+        market: rawUss.facts?.market ?? tvPayload?.market ?? "spot",
+        timeframe: rawUss.facts?.timeframe ?? tvPayload?.timeframe ?? "1h",
+        strategy: rawUss.facts?.strategy ?? tvPayload?.strategy ?? rawUss.provenance.providerRef ?? "unknown",
+        direction: rawUss.facts?.direction ?? tvPayload?.direction ?? ("neutral" as const),
         source: rawUss.provenance.source,
         enrichmentProfile: tvPayload?.enrichmentProfile,
       },
