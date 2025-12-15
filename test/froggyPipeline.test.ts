@@ -66,20 +66,21 @@ describe("Froggy Pipeline Integration", () => {
 
     // Assertions: Froggy analyst output
     expect(analyzedSignal.analysis).toBeDefined();
-    expect(analyzedSignal.analysis.analystId).toBe("froggy");
-    expect(analyzedSignal.analysis.strategyId).toBe("trend_pullback_v1");
-    expect(analyzedSignal.analysis.uwrScore).toBeGreaterThanOrEqual(0);
-    expect(analyzedSignal.analysis.uwrScore).toBeLessThanOrEqual(1);
-    expect(analyzedSignal.analysis.uwrAxes).toBeDefined();
-    expect(analyzedSignal.analysis.uwrAxes.structureAxis).toBeGreaterThanOrEqual(0);
-    expect(analyzedSignal.analysis.uwrAxes.executionAxis).toBeGreaterThanOrEqual(0);
-    expect(analyzedSignal.analysis.uwrAxes.riskAxis).toBeGreaterThanOrEqual(0);
-    expect(analyzedSignal.analysis.uwrAxes.insightAxis).toBeGreaterThanOrEqual(0);
+    expect(analyzedSignal.analysis.analystScore).toBeDefined();
+    expect(analyzedSignal.analysis.analystScore.analystId).toBe("froggy");
+    expect(analyzedSignal.analysis.analystScore.strategyId).toBe("trend_pullback_v1");
+    expect(analyzedSignal.analysis.analystScore.uwrScore).toBeGreaterThanOrEqual(0);
+    expect(analyzedSignal.analysis.analystScore.uwrScore).toBeLessThanOrEqual(1);
+    expect(analyzedSignal.analysis.analystScore.uwrAxes).toBeDefined();
+    expect(analyzedSignal.analysis.analystScore.uwrAxes.structure).toBeGreaterThanOrEqual(0);
+    expect(analyzedSignal.analysis.analystScore.uwrAxes.execution).toBeGreaterThanOrEqual(0);
+    expect(analyzedSignal.analysis.analystScore.uwrAxes.risk).toBeGreaterThanOrEqual(0);
+    expect(analyzedSignal.analysis.analystScore.uwrAxes.insight).toBeGreaterThanOrEqual(0);
 
     // Step 5: Validator evaluates the analyzed signal
     const validatorDecision = await validatorDecisionEvaluator.run({
       signalId: enrichedSignal.signalId, // Use enrichedSignal.signalId since analyzedSignal extends it
-      analysis: analyzedSignal.analysis,
+      analystScore: analyzedSignal.analysis.analystScore,
     });
 
     // Assertions: Validator decision output

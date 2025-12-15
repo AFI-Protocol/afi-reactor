@@ -1,5 +1,10 @@
 import { describe, it, expect } from "@jest/globals";
-import dagConfig from "../config/dag.codex.json" with { type: "json" };
+import { readFileSync } from "fs";
+import { join } from "path";
+
+const dagConfig = JSON.parse(
+  readFileSync(join(process.cwd(), "config/dag.codex.json"), "utf-8")
+);
 
 describe("dag.codex.json shape", () => {
   it("loads without throwing", () => {
