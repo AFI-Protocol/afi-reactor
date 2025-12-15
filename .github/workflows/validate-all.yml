@@ -39,7 +39,11 @@ jobs:
           mkdir -p codex
           echo "✅ Created tmp/ and codex/ directories"
 
-      - name: Install dependencies
+      - name: Install afi-core dependencies
+        working-directory: afi-core
+        run: npm ci
+
+      - name: Install afi-reactor dependencies
         working-directory: afi-reactor
         run: npm ci
 
