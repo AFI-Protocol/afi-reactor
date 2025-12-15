@@ -85,6 +85,7 @@ declare module "afi-core/analysts/froggy.enrichment_adapter.js" {
 declare module "afi-core/src/analyst/AnalystScoreTemplate.js" {
   export interface AnalystScoreTemplate {
     analystId: string;
+    strategyId: string;
     uwrScore: number;
     uwrAxes: {
       structure: number;
@@ -103,6 +104,7 @@ declare module "afi-core/analysts/froggy.trend_pullback_v1.js" {
   export interface FroggyTrendPullbackScore {
     analystScore: {
       analystId: string;
+      strategyId: string;
       uwrScore: number;
       uwrAxes: {
         structure: number;
