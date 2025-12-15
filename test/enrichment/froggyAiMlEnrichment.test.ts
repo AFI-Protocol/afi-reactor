@@ -177,11 +177,14 @@ describe("Froggy AI/ML Enrichment (Tiny Brains)", () => {
     expect(enriched).toBeDefined();
     expect(enriched.signalId).toBe("test-signal-003");
 
-    // Verify aiMl is undefined (service unavailable)
-    expect(enriched.aiMl).toBeUndefined();
+    // Verify aiMl placeholder is present (service unavailable)
+    expect(enriched.aiMl).toBeDefined();
+    expect(enriched.aiMl?.convictionScore).toBe(0.5);
+    expect(enriched.aiMl?.direction).toBe("neutral");
+    expect(enriched.aiMl?.notes).toBe("AI/ML service unavailable");
 
-    // Verify enrichmentMeta does NOT include "aiMl" (no data received)
-    expect(enriched.enrichmentMeta?.categories).not.toContain("aiMl");
+    // Verify enrichmentMeta includes "aiMl" (category always added if enabled)
+    expect(enriched.enrichmentMeta?.categories).toContain("aiMl");
 
     // Verify Tiny Brains client was called (but returned undefined)
     expect(mockFetchAiMlForFroggy).toHaveBeenCalledTimes(1);

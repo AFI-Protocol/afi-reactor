@@ -67,7 +67,8 @@ describe("Froggy DAG Pipeline Integration", () => {
     // Verify result structure
     expect(result).toBeDefined();
     expect(result.signalId).toBeDefined();
-    expect(result.signalId).toMatch(/^alpha-/);
+    // SignalId format: {symbol}-{timeframe}-{strategy}-{direction}-{timestamp}
+    expect(result.signalId).toMatch(/^btcusdt-1h-froggy-trend-pullback-v1-long-/);
 
     // Verify validator decision
     expect(result.validatorDecision).toBeDefined();
@@ -87,13 +88,12 @@ describe("Froggy DAG Pipeline Integration", () => {
     expect(result.meta.strategy).toBe("froggy_trend_pullback_v1");
     expect(result.meta.direction).toBe("long");
 
-    // Verify stage summaries (now 8 stages with tech+pattern + sentiment+news split)
+    // Verify stage summaries (canonical USS v1.1 flow: 7 stages)
+    // No scout/structurer stages - USS telemetry deriver handles ingest facts
     expect(result.stageSummaries).toBeDefined();
-    expect(result.stageSummaries?.length).toBe(8);
+    expect(result.stageSummaries?.length).toBe(7);
 
     const stageNames = result.stageSummaries!.map(s => s.stage);
-    expect(stageNames).toContain("scout");
-    expect(stageNames).toContain("structurer");
     expect(stageNames).toContain("tech-pattern");
     expect(stageNames).toContain("sentiment-news");
     expect(stageNames).toContain("enrichment");
