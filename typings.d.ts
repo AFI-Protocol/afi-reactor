@@ -71,6 +71,7 @@ declare module "afi-core/analysts/froggy.enrichment_adapter.js" {
     };
     enrichmentMeta?: {
       enrichedBy?: string;
+      categories?: string[];
       [key: string]: unknown;
     };
     [key: string]: unknown;
