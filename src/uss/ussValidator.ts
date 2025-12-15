@@ -1,25 +1,21 @@
 /**
  * USS v1.1 Runtime Validator
- * 
+ *
  * Provides AJV-based validation for canonical USS v1.1 payloads.
  * Validators are compiled once at module load time for performance.
- * 
+ *
  * @module ussValidator
  */
 
-import { createRequire } from "module";
+import { Ajv } from "ajv";
+import * as ajvFormatsModule from "ajv-formats";
 import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-
-const require = createRequire(import.meta.url);
-const Ajv = require("ajv");
-const addFormats = require("ajv-formats");
+import { join } from "path";
 
 import type { ValidateFunction } from "ajv";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Extract default export from ajv-formats (ESM/CJS compatibility)
+const addFormats = (ajvFormatsModule as any).default || ajvFormatsModule;
 
 /**
  * Validation result
@@ -67,9 +63,8 @@ let validateUsignal: ValidateFunction | null = null;
 
 try {
   // Load from afi-config package
-  // When running from dist/, __dirname is dist/src/uss, so go up to project root
-  // then into node_modules/afi-config
-  const projectRoot = join(__dirname, "../../../");
+  // Use process.cwd() to get project root (works in both runtime and Jest)
+  const projectRoot = process.cwd();
   const configRoot = join(projectRoot, "node_modules/afi-config");
 
   coreSchema = JSON.parse(
