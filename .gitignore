@@ -31,3 +31,13 @@ Thumbs.db
 *.log
 npm-debug.log*
 afi-core
+
+# deps
+node_modules/
+
+# builds
+dist/
+build/
+coverage/
+*.log
+.DS_Store
