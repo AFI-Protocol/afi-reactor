@@ -2,20 +2,24 @@
  * Pattern Regime Profile
  *
  * Computes regime-level market context for pattern interpretation.
- * Uses CoinGecko OHLC data and Fear & Greed Index to classify:
+ * Uses exchange OHLC data (Blofin/Coinbase) and Fear & Greed Index to classify:
  * - Cycle phase (early/mid/late bull, bear, sideways, etc.)
  * - Trend state and volatility regime
  * - Top/bottom risk assessment
  *
  * This is BTC-centric for now (global market context).
+ *
+ * Environment Variables:
+ * - PATTERN_REGIME_PROVIDER: blofin|coinbase|coingecko|off (default: blofin)
+ * - PATTERN_REGIME_TIMEFRAME: 4h|1d|etc (default: 4h)
+ * - PATTERN_REGIME_LOOKBACK_DAYS: number (default: 90)
  */
 
 import type { PatternRegimeSummary } from "../types/UssLenses.js";
 import {
-  fetchCoinGeckoOhlc,
-  mapSymbolToCoinGeckoId,
-  type CoinGeckoOhlcCandle,
-} from "../adapters/coingecko/coingeckoClient.js";
+  fetchRegimeCandles,
+  type RegimeCandle,
+} from "./regimeCandleProvider.js";
 import {
   fetchFearGreedHistory,
   mapFearGreedLabel,
@@ -94,7 +98,7 @@ function stdDev(values: number[]): number {
 /**
  * Compute Pattern Regime Summary
  *
- * @param symbol - Trading symbol (e.g. "BTCUSDT")
+ * @param symbol - Trading symbol (e.g. "BTCUSDT", "BTCUSDT.P")
  * @param timeframe - Timeframe (not used for daily regime, but kept for API consistency)
  * @returns Pattern regime summary or null if data unavailable
  */
@@ -103,17 +107,14 @@ export async function computePatternRegimeSummary(
   timeframe: string
 ): Promise<PatternRegimeSummary | null> {
   try {
-    // Map symbol to CoinGecko coin ID
-    const coinId = mapSymbolToCoinGeckoId(symbol);
-
     console.log(
-      `🔍 Pattern Regime: Computing for ${symbol} (${coinId}) on ${timeframe}...`
+      `🔍 Pattern Regime: Computing for ${symbol} on ${timeframe}...`
     );
 
-    // Fetch data in parallel
+    // Fetch data in parallel using new provider system
     const [ohlcData, fearGreedData] = await Promise.all([
-      fetchCoinGeckoOhlc(coinId, "usd", 90).catch((err) => {
-        console.warn(`⚠️  Pattern Regime: CoinGecko failed:`, err.message);
+      fetchRegimeCandles(symbol).catch((err) => {
+        console.warn(`⚠️  Pattern Regime: Candle fetch failed:`, err.message);
         return [];
       }),
       fetchFearGreedHistory(90).catch((err) => {
@@ -122,12 +123,17 @@ export async function computePatternRegimeSummary(
       }),
     ]);
 
-    // Require at least OHLC data to proceed
+    // If no OHLC data, return "unknown" regime instead of null (resilient)
     if (ohlcData.length < 20) {
       console.warn(
-        `⚠️  Pattern Regime: Insufficient OHLC data (${ohlcData.length} candles). Need at least 20.`
+        `⚠️  Pattern Regime: Insufficient OHLC data (${ohlcData.length} candles). Returning "unknown" regime.`
       );
-      return null;
+      return {
+        cyclePhase: "unknown",
+        trendState: "choppy",
+        volRegime: "normal",
+        topBottomRisk: "neutral",
+      };
     }
 
     // Continue in next part...
@@ -139,7 +145,13 @@ export async function computePatternRegimeSummary(
         error.message
       );
     }
-    return null;
+    // Return "unknown" regime on error (resilient)
+    return {
+      cyclePhase: "unknown",
+      trendState: "choppy",
+      volRegime: "normal",
+      topBottomRisk: "neutral",
+    };
   }
 }
 
@@ -147,7 +159,7 @@ export async function computePatternRegimeSummary(
  * Compute regime from OHLC and Fear & Greed data
  */
 async function computeRegimeFromData(
-  ohlcData: CoinGeckoOhlcCandle[],
+  ohlcData: RegimeCandle[],
   fearGreedData: FearGreedPoint[],
   symbol: string
 ): Promise<PatternRegimeSummary> {
