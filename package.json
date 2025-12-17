@@ -43,8 +43,8 @@
   "dependencies": {
     "@types/mongodb": "^4.0.6",
     "@types/node-telegram-bot-api": "^0.64.13",
-    "afi-config": "git+ssh://git@github.com/AFI-Protocol/afi-config.git#cca82e2",
-    "afi-core": "git+ssh://git@github.com/AFI-Protocol/afi-core.git#0be9be4",
+    "afi-config": "git+https://github.com/AFI-Protocol/afi-config.git#cca82e2",
+    "afi-core": "git+https://github.com/AFI-Protocol/afi-core.git#0be9be4",
     "ajv": "^8.12.0",
     "ajv-formats": "^2.1.1",
     "ccxt": "^4.5.26",
