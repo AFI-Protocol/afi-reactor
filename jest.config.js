@@ -14,7 +14,6 @@ export default {
     ],
   },
   moduleNameMapper: {
-    '^afi-core/(.+)$': '/Users/secretservice/AFI_Modular_Repos/afi-core/src/$1/index.ts',
     // Map relative imports with .js extension to .ts source files
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },
