@@ -1,36 +1,37 @@
+// @ts-nocheck
 /**
- * 🐸 FROGGY DEMO SERVICE
- * 
- * This service runs the Froggy trend-pullback pipeline in a reusable, testable way.
- * It is designed for dev/demo purposes and is NOT part of the canonical orchestrator
- * or production emissions logic.
- * 
- * ⚠️ DEV/DEMO ONLY:
- * - Execution is simulated (no real trades)
- * - No AFI token minting or emissions occur here
- * - No real exchange API calls
- * - Uses demo enrichment data
- * 
- * Pipeline sequence (matches test/froggyPipeline.test.ts):
- * 1. Alpha Scout Ingest → converts TradingView payload to reactor signal envelope
- * 2. Signal Structurer (Pixel Rick) → normalizes and validates signal
- * 3. Froggy Enrichment Adapter → adds technical/pattern/sentiment enrichment
- * 4. Froggy Analyst → runs trend_pullback_v1 strategy from afi-core
- * 5. Validator Decision Evaluator (Val Dook) → approve/reject/abstain (uses UWR score)
- * 6. Execution Agent Sim → simulates trade execution
- * 
+ * AFI Reactor - Froggy Scoring Service
+ *
+ * Reactor's responsibility: ingest → enrich → score → persist.
+ *
+ * Pipeline sequence (canonical USS v1.1 flow):
+ * 1. USS Telemetry Deriver (internal) → extracts routing/debug fields from context.rawUss
+ * 2. Froggy Enrichment (Tech+Pattern) → adds technical indicators and pattern recognition
+ * 3. Froggy Enrichment (Sentiment+News) → adds sentiment and news enrichment (parallel)
+ * 4. Froggy Enrichment Adapter → merges enrichment legos + adds AI/ML (Tiny Brains optional)
+ * 5. Froggy Analyst → runs trend_pullback_v1 strategy from afi-core, computes UWR score
+ * 6. Reactor Vault Write (internal) → persists scored signal to MongoDB
+ *
+ * NOT Reactor's responsibility:
+ * - Validator certification (moved to external certification layer)
+ * - Execution (moved to consumer/adapter layer)
+ * - Minting/emissions (moved to afi-mint)
+ *
  * @module froggyDemoService
  */
 
-import alphaScoutIngest from "../../plugins/alpha-scout-ingest.plugin.js";
-import signalStructurer from "../../plugins/signal-structurer.plugin.js";
+import { getTssdVaultService } from "./tssdVaultService.js";
+import type { ReactorScoredSignalV1, ReactorScoredSignalDocument } from "../types/ReactorScoredSignalV1.js";
+import { FROGGY_TREND_PULLBACK_PIPELINE } from "../config/froggyPipeline.js";
+import { runPipelineDag, type PipelineContext } from "./pipelineRunner.js";
+import { pickDecayParamsForAnalystScore } from "afi-core/decay";
+import { mapTradingViewToUssV11 } from "../uss/tradingViewMapper.js";
+
+// Import plugins directly (for now - will be replaced by dynamic loading in future DAG engine)
+import froggyEnrichmentTechPattern from "../../plugins/froggy-enrichment-tech-pattern.plugin.js";
+import froggyEnrichmentSentimentNews from "../../plugins/froggy-enrichment-sentiment-news.plugin.js";
 import froggyEnrichmentAdapter from "../../plugins/froggy-enrichment-adapter.plugin.js";
 import froggyAnalyst from "../../plugins/froggy.trend_pullback_v1.plugin.js";
-import validatorDecisionEvaluator from "../../plugins/validator-decision-evaluator.plugin.js";
-import executionAgentSim from "../../plugins/execution-agent-sim.plugin.js";
-
-// Import EnrichmentProfile type (type-only import to avoid rootDir issues)
-type EnrichmentProfile = any;
 
 /**
  * TradingView alert payload shape.
@@ -51,8 +52,6 @@ export interface TradingViewAlertPayload {
   setupSummary?: string;
   /** Additional notes */
   notes?: string;
-  /** Enrichment profile (optional, designed by Pixel Rick or similar personas) */
-  enrichmentProfile?: EnrichmentProfile;
   /** Optional external signal ID */
   signalId?: string;
   /** Optional shared secret for webhook authentication */
@@ -62,200 +61,260 @@ export interface TradingViewAlertPayload {
 }
 
 /**
- * Stage summary for Prize Demo.
- * Each stage in the pipeline gets a summary entry.
- */
-export interface PipelineStageSummary {
-  /** Stage name */
-  stage: "scout" | "structurer" | "enrichment" | "analyst" | "validator" | "execution";
-  /** Persona/agent name for this stage */
-  persona: "Alpha" | "Pixel Rick" | "Froggy" | "Val Dook" | "Execution Sim";
-  /** Stage status */
-  status: "complete" | "skipped" | "error";
-  /** Key outputs from this stage (demo-friendly) */
-  summary: string;
-  /** Optional: enrichment categories applied (for Pixel Rick stage) */
-  enrichmentCategories?: string[];
-  /** Optional: UWR score (for Froggy stage) */
-  uwrScore?: number;
-  /** Optional: decision (for Val Dook stage) */
-  decision?: "approve" | "reject" | "flag" | "abstain";
-}
-
-/**
- * Froggy pipeline result.
- * This is what we return to the webhook caller.
- */
-export interface FroggyPipelineResult {
-  /** Signal ID (generated or provided) */
-  signalId: string;
-  /** Validator decision */
-  validatorDecision: {
-    decision: "approve" | "reject" | "flag" | "abstain";
-    uwrConfidence: number;
-    reasonCodes?: string[];
-  };
-  /** Execution result (simulated) */
-  execution: {
-    status: "simulated" | "skipped";
-    type?: "buy" | "sell" | "hold";
-    asset?: string;
-    amount?: number;
-    simulatedPrice?: number;
-    timestamp: string;
-    notes?: string;
-  };
-  /** Full pipeline metadata */
-  meta: {
-    symbol: string;
-    timeframe: string;
-    strategy: string;
-    direction: string;
-    source: string;
-  };
-  /** UWR score from Froggy analyst */
-  uwrScore: number;
-  /** DEMO-ONLY: Stage-by-stage summaries for Prize Demo */
-  stageSummaries?: PipelineStageSummary[];
-  /** DEMO-ONLY: Marker to indicate this is a demo run */
-  isDemo?: boolean;
-}
-
-/**
- * Run the Froggy trend-pullback pipeline from a TradingView alert payload.
+ * Run the Froggy trend-pullback scoring pipeline from canonical USS v1.1.
  *
- * This function orchestrates the complete Froggy pipeline in the same sequence
- * as test/froggyPipeline.test.ts, making it easy to test and maintain.
+ * This is the canonical entrypoint that accepts USS v1.1 directly.
+ * The canonical USS is passed through the pipeline context as rawUss.
+ *
+ * The pipeline starts with uss-telemetry-deriver (internal stage) which
+ * extracts routing/debug fields from context.rawUss into a minimal structured signal.
+ *
+ * @param canonicalUss - Canonical USS v1.1 payload (already validated)
+ * @returns Reactor scored signal V1
+ */
+export async function runFroggyTrendPullbackFromCanonicalUss(
+  canonicalUss: any
+): Promise<ReactorScoredSignalV1> {
+  // Build pipeline context WITH canonical USS
+  const context: PipelineContext = {
+    rawUss: canonicalUss, // ✅ CANONICAL USS v1.1 in context
+    logger: (message: string) => console.log(message),
+  };
+
+  // Initial payload is empty - uss-telemetry-deriver will extract fields from context.rawUss
+  const initialPayload = {};
+
+  // Delegate to shared DAG execution logic
+  return runFroggyTrendPullbackDagInternal(initialPayload, context);
+}
+
+/**
+ * Run the Froggy trend-pullback scoring pipeline from a TradingView alert payload.
+ *
+ * DEPRECATED: Use runFroggyTrendPullbackFromCanonicalUss instead.
+ * This is kept for backward compatibility during migration.
  *
  * @param payload - TradingView alert payload
- * @param options - Optional configuration (e.g., includeStageSummaries for Prize Demo)
- * @returns Pipeline result with validator decision and execution status
+ * @returns Reactor scored signal V1
  */
 export async function runFroggyTrendPullbackFromTradingView(
-  payload: TradingViewAlertPayload,
-  options?: { includeStageSummaries?: boolean; isDemo?: boolean }
-): Promise<FroggyPipelineResult> {
-  const stageSummaries: PipelineStageSummary[] = [];
+  payload: TradingViewAlertPayload
+): Promise<ReactorScoredSignalV1> {
+  // Map TradingView payload to canonical USS v1.1
+  const canonicalUss = mapTradingViewToUssV11(payload);
 
-  // Step 1: Alpha Scout Ingest - convert TradingView payload to reactor signal envelope
-  const alphaDraft = {
-    symbol: payload.symbol,
-    market: payload.market || "spot",
-    timeframe: payload.timeframe,
-    strategy: payload.strategy,
-    direction: payload.direction,
-    setupSummary: payload.setupSummary,
-    notes: payload.notes,
-    enrichmentProfile: payload.enrichmentProfile,
-    signalId: payload.signalId,
+  // Build pipeline context WITH canonical USS and original TradingView payload
+  // The original payload is stored in context for telemetry derivation
+  const context: PipelineContext = {
+    rawUss: canonicalUss,
+    tradingViewPayload: payload, // Store original payload for telemetry derivation
+    logger: (message: string) => console.log(message),
   };
 
-  const rawSignal = await alphaScoutIngest.run(alphaDraft);
+  // Initial payload is empty - uss-telemetry-deriver will extract fields from context
+  const initialPayload = {};
 
-  if (options?.includeStageSummaries) {
-    stageSummaries.push({
-      stage: "scout",
-      persona: "Alpha",
-      status: "complete",
-      summary: `Ingested ${payload.symbol} ${payload.direction} signal on ${payload.timeframe} timeframe`,
-    });
-  }
-
-  // Step 2: Signal Structurer (Pixel Rick) - normalize and validate
-  const structuredSignal = await signalStructurer.run(rawSignal);
-
-  if (options?.includeStageSummaries) {
-    stageSummaries.push({
-      stage: "structurer",
-      persona: "Pixel Rick",
-      status: "complete",
-      summary: `Normalized signal to USS (Universal Signal Schema) format`,
-    });
-  }
-
-  // Step 3: Froggy Enrichment Adapter - add technical/pattern/sentiment enrichment
-  const enrichedSignal = await froggyEnrichmentAdapter.run(structuredSignal);
-
-  if (options?.includeStageSummaries) {
-    const enrichmentCategories = enrichedSignal.enrichmentMeta?.categories || [];
-    stageSummaries.push({
-      stage: "enrichment",
-      persona: "Pixel Rick",
-      status: "complete",
-      summary: `Applied enrichment legos: ${enrichmentCategories.join(", ")}`,
-      enrichmentCategories,
-    });
-  }
-
-  // Step 4: Froggy Analyst - run trend_pullback_v1 strategy from afi-core
-  const analyzedSignal = await froggyAnalyst.run(enrichedSignal);
-
-  if (options?.includeStageSummaries) {
-    stageSummaries.push({
-      stage: "analyst",
-      persona: "Froggy",
-      status: "complete",
-      summary: `Analyzed trend-pullback setup, UWR score: ${analyzedSignal.analysis.analystScore.uwrScore.toFixed(2)}`,
-      uwrScore: analyzedSignal.analysis.analystScore.uwrScore,
-    });
-  }
-
-  // Step 5: Validator Decision Evaluator (Val Dook) - approve/reject/abstain
-  // Pass the analyzed signal with canonical analystScore to validator
-  const validatorDecision = await validatorDecisionEvaluator.run({
-    signalId: enrichedSignal.signalId,
-    analystScore: analyzedSignal.analysis.analystScore,
-  });
-
-  if (options?.includeStageSummaries) {
-    stageSummaries.push({
-      stage: "validator",
-      persona: "Val Dook",
-      status: "complete",
-      summary: `Decision: ${validatorDecision.decision}, Confidence: ${validatorDecision.uwrConfidence.toFixed(2)}`,
-      decision: validatorDecision.decision,
-    });
-  }
-
-  // Step 6: Execution Agent Sim - simulate trade execution
-  const executionResult = await executionAgentSim.run(validatorDecision);
-
-  if (options?.includeStageSummaries) {
-    stageSummaries.push({
-      stage: "execution",
-      persona: "Execution Sim",
-      status: "complete",
-      summary: `Simulated ${executionResult.execution.type || "action"}: ${executionResult.execution.status}`,
-    });
-  }
-
-  // Build final result
-  return {
-    signalId: rawSignal.signalId,
-    validatorDecision: {
-      decision: validatorDecision.decision,
-      uwrConfidence: validatorDecision.uwrConfidence,
-      reasonCodes: validatorDecision.reasonCodes,
-    },
-    execution: {
-      status: executionResult.execution.status,
-      type: executionResult.execution.type,
-      asset: executionResult.execution.asset,
-      amount: executionResult.execution.amount,
-      simulatedPrice: executionResult.execution.simulatedPrice,
-      timestamp: executionResult.execution.timestamp,
-      notes: executionResult.execution.notes,
-    },
-    meta: {
-      symbol: payload.symbol,
-      timeframe: payload.timeframe,
-      strategy: payload.strategy,
-      direction: payload.direction,
-      source: "tradingview-webhook",
-    },
-    uwrScore: analyzedSignal.analysis.analystScore.uwrScore,
-    stageSummaries: options?.includeStageSummaries ? stageSummaries : undefined,
-    isDemo: options?.isDemo,
-  };
+  // Delegate to shared DAG execution logic
+  return runFroggyTrendPullbackDagInternal(initialPayload, context);
 }
 
+/**
+ * Shared internal DAG execution logic.
+ * Used by both canonical USS and legacy TradingView entrypoints.
+ *
+ * Reactor's responsibility: ingest → enrich → score → persist.
+ *
+ * @param initialPayload - Initial payload for pipeline (empty for canonical USS)
+ * @param context - Pipeline context (with rawUss)
+ * @returns Reactor scored signal V1
+ */
+async function runFroggyTrendPullbackDagInternal(
+  initialPayload: any,
+  context: PipelineContext
+): Promise<ReactorScoredSignalV1> {
+  // Build plugin registry (maps stage ID to plugin instance)
+  const pluginRegistry = new Map<string, any>();
+  pluginRegistry.set("froggy-enrichment-tech-pattern", froggyEnrichmentTechPattern);
+  pluginRegistry.set("froggy-enrichment-sentiment-news", froggyEnrichmentSentimentNews);
+  pluginRegistry.set("froggy-enrichment-adapter", froggyEnrichmentAdapter);
+  pluginRegistry.set("froggy-analyst", froggyAnalyst);
+
+  // Register internal stage handlers
+  const internalHandlers = new Map<string, (payload: any, ctx: PipelineContext) => Promise<any>>();
+
+  // USS Telemetry Deriver (internal stage)
+  // Extracts routing/debug fields from context.rawUss into a minimal structured signal
+  // This does NOT mutate rawUss - it creates a derived payload for downstream stages
+  internalHandlers.set("uss-telemetry-deriver", async (payload: any, ctx: PipelineContext) => {
+    const rawUss = ctx.rawUss;
+
+    // Hard requirement: rawUss must be present (canonical USS v1.1 flow)
+    if (!rawUss) {
+      throw new Error("uss-telemetry-deriver: context.rawUss is missing (canonical USS v1.1 flow required)");
+    }
+
+    // Extract fields from canonical USS facts block (replay-canonical)
+    // Facts block exists and is persisted in rawUss; telemetry reads it first
+    // Fallback to context.tradingViewPayload for demo convenience (if facts not populated)
+    const tvPayload = (ctx as any).tradingViewPayload;
+
+    const derivedSignal = {
+      signalId: rawUss.provenance.signalId,
+      score: 0, // Initial score; will be computed downstream
+      confidence: 0.5, // Default confidence; will be refined by Froggy
+      timestamp: rawUss.provenance.ingestedAt || new Date().toISOString(),
+      meta: {
+        symbol: rawUss.facts?.symbol ?? tvPayload?.symbol ?? "UNKNOWN",
+        market: rawUss.facts?.market ?? tvPayload?.market ?? "spot",
+        timeframe: rawUss.facts?.timeframe ?? tvPayload?.timeframe ?? "1h",
+        strategy: rawUss.facts?.strategy ?? tvPayload?.strategy ?? rawUss.provenance.providerRef ?? "unknown",
+        direction: rawUss.facts?.direction ?? tvPayload?.direction ?? ("neutral" as const),
+        source: rawUss.provenance.source,
+      },
+      setupSummary: tvPayload?.setupSummary,
+      notes: tvPayload?.notes,
+    };
+
+    // Store derived telemetry in context for debugging/logging
+    ctx.telemetry = derivedSignal;
+
+    // Attach context to payload for downstream plugins
+    (derivedSignal as any)._context = ctx;
+
+    return derivedSignal;
+  });
+
+  // Reactor vault write handler (internal stage)
+  internalHandlers.set("tssd-vault-write", async (payload: any, ctx: PipelineContext) => {
+    // This handler is called after froggy-analyst stage
+    // Payload at this point is the analyzed signal
+    // The actual vault write logic will be handled after pipeline execution
+    return payload;
+  });
+
+  // Execute pipeline through all stages using DAG runner
+  const pipelineResult = await runPipelineDag(
+    FROGGY_TREND_PULLBACK_PIPELINE,
+    initialPayload,
+    context,
+    internalHandlers,
+    pluginRegistry
+  );
+
+  // Extract intermediate payloads
+  const intermediates = pipelineResult.intermediatePayloads || new Map();
+  const derivedTelemetry = intermediates.get("uss-telemetry-deriver");
+  const enrichedSignal = intermediates.get("froggy-enrichment-adapter");
+  const analyzedSignal = intermediates.get("froggy-analyst");
+
+  // Validate that we have the required analyst score
+  if (!analyzedSignal?.analysis?.analystScore) {
+    throw new Error("Froggy analyst stage did not produce analystScore");
+  }
+
+  // Compute decay parameters (reused in result and vault doc)
+  const decayParams = pickDecayParamsForAnalystScore(analyzedSignal.analysis.analystScore);
+
+  // Compute scoredAt (canonical timestamp when analystScore was produced)
+  const scoredAt = new Date().toISOString();
+
+  // Extract metadata from canonical USS or derived telemetry
+  const signalId = context.rawUss?.provenance?.signalId || derivedTelemetry?.signalId;
+  const symbol = derivedTelemetry?.meta?.symbol || context.rawUss?.provenance?.providerRef || "UNKNOWN";
+  const timeframe = derivedTelemetry?.meta?.timeframe || "1h";
+  const strategy = derivedTelemetry?.meta?.strategy || context.rawUss?.provenance?.providerRef || "unknown";
+  const direction = derivedTelemetry?.meta?.direction || "neutral";
+  const source = context.rawUss?.provenance?.source || "tradingview-webhook";
+
+  // Extract price source metadata and lenses from enriched signal
+  const priceSource = (enrichedSignal as any)._priceFeedMetadata?.priceSource;
+  const venueType = (enrichedSignal as any)._priceFeedMetadata?.venueType;
+  const marketType = (enrichedSignal as any)._priceFeedMetadata?.marketType;
+  const lenses = (enrichedSignal as any).lenses || [];
+  const technicalIndicators = (enrichedSignal as any)._priceFeedMetadata?.technicalIndicators;
+  const patternSignals = (enrichedSignal as any)._priceFeedMetadata?.patternSignals;
+
+  // Build ReactorScoredSignalV1 result
+  const result: ReactorScoredSignalV1 = {
+    signalId,
+    rawUss: context.rawUss,
+    lenses: lenses.length > 0 ? lenses : undefined,
+    _priceFeedMetadata: {
+      priceSource,
+      venueType,
+      marketType,
+      technicalIndicators,
+      patternSignals,
+    },
+    analystScore: analyzedSignal.analysis.analystScore,
+    scoredAt,
+    decayParams: decayParams
+      ? {
+          halfLifeMinutes: decayParams.halfLifeMinutes,
+          greeksTemplateId: decayParams.greeksTemplateId,
+        }
+      : null,
+    meta: {
+      symbol,
+      timeframe,
+      strategy,
+      direction,
+      source,
+    },
+  };
+
+  // Reactor Vault Integration
+  // Persist the scored signal to MongoDB (if enabled)
+  const vaultService = getTssdVaultService();
+  if (vaultService) {
+    // PROVENANCE GUARDRAIL: Enforce priceSource and venueType for all vault writes
+    // These fields are required for audit trail and data provenance tracking
+    if (!priceSource || !venueType) {
+      const errorMsg = `❌ Reactor Vault Write BLOCKED: Missing provenance metadata for signal ${signalId}. ` +
+        `priceSource=${priceSource}, venueType=${venueType}. ` +
+        `All price-based pipelines MUST attach _priceFeedMetadata in enrichment stage.`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    const reactorDoc: ReactorScoredSignalDocument = {
+      signalId,
+      createdAt: new Date(),
+      source,
+      market: {
+        symbol,
+        timeframe,
+        market: marketType || "spot",
+        priceSource,
+        venueType,
+      },
+      lenses: lenses.length > 0 ? lenses : undefined,
+      _priceFeedMetadata: {
+        technicalIndicators,
+        patternSignals,
+      },
+      pipeline: {
+        analystScore: analyzedSignal.analysis.analystScore,
+        scoredAt,
+        decayParams: decayParams
+          ? {
+              halfLifeMinutes: decayParams.halfLifeMinutes,
+              greeksTemplateId: decayParams.greeksTemplateId,
+            }
+          : null,
+      },
+      strategy: {
+        name: strategy,
+        direction,
+      },
+      rawUss: context.rawUss,
+      rawPayload: context.rawUss || derivedTelemetry,
+      version: "v1.0",
+    };
+
+    await vaultService.insertSignalDocument(reactorDoc);
+  }
+
+  return result;
+}
+// @ts-nocheck

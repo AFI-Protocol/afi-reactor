@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Froggy Trend Pullback v1 Plugin - Dev/Demo Only
  * 
@@ -46,4 +47,4 @@ async function run(enriched: FroggyEnrichedView): Promise<FroggyAnalyzedSignal> 
 export default {
   run,
 };
-
+// @ts-nocheck

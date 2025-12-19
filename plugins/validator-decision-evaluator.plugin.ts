@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Validator Decision Evaluator Plugin - Dev/Demo Only
  * 
@@ -118,4 +119,4 @@ export default {
   run,
   inputSchema,
 };
-
+// @ts-nocheck

@@ -1,23 +1,51 @@
 /**
- * Froggy Pipeline Integration Test
+ * Froggy Pipeline Integration Test (LEGACY)
+ *
+ * ⚠️ NOTE: This test uses DEPRECATED legacy ingest plugins for backward compatibility.
  *
  * Tests the complete Froggy trend_pullback_v1 pipeline:
  * Alpha Scout → Pixel Rick → Froggy Enrichment → Froggy Analyst → Validator → Execution Sim
  *
  * This test does NOT run the full DAG engine; it tests each plugin in sequence
  * to ensure the data flows correctly through the pipeline.
+ *
+ * TODO: Migrate this test to use the canonical USS v1.1 pipeline flow:
+ *   Webhook → AJV validate → context.rawUss → uss-telemetry-deriver → enrichment → analyst → validator → vault
  */
 
-import { describe, it, expect } from "@jest/globals";
-import alphaScoutIngest from "../plugins/alpha-scout-ingest.plugin.js";
-import signalStructurer from "../plugins/signal-structurer.plugin.js";
+import { describe, it, expect, jest, beforeEach } from "@jest/globals";
+// LEGACY: Using deprecated plugins from _deprecated_ingest for backward compatibility
+import alphaScoutIngest from "../plugins/_deprecated_ingest/alpha-scout-ingest.plugin.js";
+import signalStructurer from "../plugins/_deprecated_ingest/signal-structurer.plugin.js";
 import froggyEnrichmentAdapter from "../plugins/froggy-enrichment-adapter.plugin.js";
 import froggyAnalyst from "../plugins/froggy.trend_pullback_v1.plugin.js";
 import validatorDecisionEvaluator from "../plugins/validator-decision-evaluator.plugin.js";
 import executionAgentSim from "../plugins/execution-agent-sim.plugin.js";
 import type { EnrichmentProfile } from "afi-core/analysts/froggy.enrichment_adapter.js";
+import type { CoinalyzePerpMetrics } from "../src/adapters/coinalyze/coinalyzeClient.js";
+import { fetchCoinalyzePerpMetrics } from "../src/adapters/coinalyze/coinalyzeClient.js";
+
+// Mock Coinalyze client to avoid real API calls in tests
+jest.mock("../src/adapters/coinalyze/coinalyzeClient.js", () => ({
+  fetchCoinalyzePerpMetrics: jest.fn(),
+}));
 
 describe("Froggy Pipeline Integration", () => {
+  beforeEach(() => {
+    // Clear all mocks before each test
+    jest.clearAllMocks();
+
+    // Set up default mock response for Coinalyze
+    const mockMetrics: CoinalyzePerpMetrics = {
+      fundingRate: 0.0005, // 0.05% - normal regime
+      fundingHistory: [0.0004, 0.0005, 0.0006],
+      oiUsd: 1000000000,
+      oiHistoryUsd: [980000000, 990000000, 1000000000], // +2% change
+      longShortRatio: 1.05,
+    };
+
+    (fetchCoinalyzePerpMetrics as jest.MockedFunction<typeof fetchCoinalyzePerpMetrics>).mockResolvedValue(mockMetrics);
+  });
   it("should process a signal through the complete pipeline", async () => {
     // Step 1: Alpha Scout ingests a draft signal
     const alphaDraft = {
@@ -64,7 +92,7 @@ describe("Froggy Pipeline Integration", () => {
     // Step 4: Froggy analyst scores the signal
     const analyzedSignal = await froggyAnalyst.run(enrichedSignal);
 
-    // Assertions: Froggy analyst output
+    // Assertions: Froggy analyst output (now uses analystScore as canonical source)
     expect(analyzedSignal.analysis).toBeDefined();
     expect(analyzedSignal.analysis.analystScore).toBeDefined();
     expect(analyzedSignal.analysis.analystScore.analystId).toBe("froggy");
@@ -80,7 +108,7 @@ describe("Froggy Pipeline Integration", () => {
     // Step 5: Validator evaluates the analyzed signal
     const validatorDecision = await validatorDecisionEvaluator.run({
       signalId: enrichedSignal.signalId, // Use enrichedSignal.signalId since analyzedSignal extends it
-      analystScore: analyzedSignal.analysis.analystScore,
+      analysis: analyzedSignal.analysis,
     });
 
     // Assertions: Validator decision output
@@ -203,11 +231,19 @@ describe("Froggy Pipeline Integration", () => {
     expect(enrichedSignal.pattern).toBeDefined();
     expect(enrichedSignal.sentiment).toBeDefined();
     expect(enrichedSignal.news).toBeDefined();
-    expect(enrichedSignal.aiMl).toBeDefined();
 
-    // enrichmentMeta should reflect all categories
+    // aiMl is optional (Tiny Brains fail-soft) - may be undefined if service unavailable
+    // This is correct behavior - no placeholders, no hard dependencies
+    if (enrichedSignal.aiMl) {
+      console.log("✅ Tiny Brains service available - aiMl enrichment present");
+    } else {
+      console.log("⚠️  Tiny Brains service unavailable - aiMl enrichment skipped (fail-soft)");
+    }
+
+    // enrichmentMeta should reflect categories that were actually enriched
+    // aiMl may or may not be present depending on Tiny Brains availability
     expect(enrichedSignal.enrichmentMeta?.categories).toEqual(
-      expect.arrayContaining(["technical", "pattern", "sentiment", "news", "aiMl"])
+      expect.arrayContaining(["technical", "pattern", "sentiment", "news"])
     );
   });
 });
