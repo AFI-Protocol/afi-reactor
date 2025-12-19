@@ -19,8 +19,4 @@ export class VaultService {
   static saveSignal(signal: any): void {
     throw new Error('VaultService.saveSignal not implemented yet');
   }
-
-  static replaySignal(signal: any): void {
-    throw new Error('VaultService.replaySignal not implemented yet');
-  }
 }
