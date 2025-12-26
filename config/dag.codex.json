@@ -1,22 +1,5 @@
 [
   {
-    "id": "afi-ensemble-score",
-    "type": "scorer",
-    "plugin": "afi-ensemble-scorer",
-    "input": ["analyzed-signal"],
-    "output": "scored-signal",
-    "description": "Performs signal scoring using AFI's custom ensemble method, balancing PoI and PoInsight.",
-    "tags": ["ensemble", "validator", "afi"],
-    "config": {
-      "poiWeight": 0.6,
-      "insightWeight": 0.4
-    },
-    "codexVersion": "1.0.0",
-    "agentReady": true,
-    "maintainedBy": ["augmentcode", "factory.droid"],
-    "schemaRef": "scored-signal.schema.json"
-  },
-  {
     "id": "dao-mint-checkpoint",
     "type": "governance",
     "plugin": "dao-checkpoint-verifier",
@@ -187,29 +170,12 @@
     "schemaRef": "scored-signal.schema.json"
   },
   {
-    "id": "validator-decision-node",
-    "type": "validator",
-    "plugin": "validator-decision-evaluator",
-    "input": ["froggy_scored_signal"],
-    "output": "froggy_validator_decision",
-    "description": "Validator decision node: transforms scored signal into ValidatorDecision envelope (afi-core contract).",
-    "tags": ["froggy", "validator", "valdook", "demo"],
-    "config": {
-      "approveThreshold": 0.7,
-      "rejectThreshold": 0.3
-    },
-    "codexVersion": "1.0.0",
-    "agentReady": true,
-    "maintainedBy": ["augmentcode"],
-    "schemaRef": "validator-decision.schema.json"
-  },
-  {
     "id": "execution-sim-node",
     "type": "executor",
     "plugin": "execution-agent-sim",
-    "input": ["froggy_validator_decision"],
+    "input": ["froggy_scored_signal"],
     "output": "froggy_execution_result",
-    "description": "Execution simulation node: dev-only simulation of trade execution based on validator decision.",
+    "description": "Execution simulation node: dev-only simulation of trade execution based on scored signal.",
     "tags": ["froggy", "executor", "simulation", "demo"],
     "config": {
       "mode": "simulation",
