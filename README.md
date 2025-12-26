@@ -31,9 +31,9 @@ cp .env.example .env
 
 ---
 
-## 🚀 The 15-Node DAG
+## 🚀 The 13-Node DAG
 
-AFI-Engine now runs a **full 15-node Codex pipeline**, delivering a complete cycle of agentic financial intelligence:
+AFI-Reactor now runs a **full 13-node Codex pipeline**, delivering a complete cycle of agentic financial intelligence:
 
 ```
 [Generators]
@@ -49,10 +49,6 @@ AFI-Engine now runs a **full 15-node Codex pipeline**, delivering a complete cyc
   sentiment-analysis-node
   news-event-analysis-node
   ai-ml-ensemble-node
-
-[Validators]
-  signal-validator
-  mentorchain-orchestrator
 
 [Executors]
   exchange-execution-node
@@ -85,9 +81,6 @@ Each node has a designated role in the pipeline:
 - **news-event-analysis-node** → Measures the impact of breaking news and macroeconomic events  
 - **ai-ml-ensemble-node** → Aggregates AI/ML scoring and probabilistic outcomes for decisioning  
 
-### **Validators** *(Proof-of-Intelligence Layer)*
-- **signal-validator** → Performs Proof-of-Insight & Proof-of-Intelligence checks  
-- **mentorchain-orchestrator** → Coordinates mentor-agent review for pipeline integrity and governance  
 
 ### **Executors** *(Output Actions)*
 - **exchange-execution-node** → Routes signals to live trade execution or on-chain actions  
