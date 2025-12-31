@@ -24,11 +24,13 @@ export default {
   testMatch: [
     "**/test/dagConfigShape.test.ts",
     "**/test/froggyWebhookService.test.ts",
+    "**/test/state-management.test.ts",
+    "**/test/integration/state-lifecycle.test.ts",
+    "**/src/dag/__tests__/*.test.ts",
   ],
   testPathIgnorePatterns: [
     "<rootDir>/dist/",
     "<rootDir>/test/enrichment/",
-    "<rootDir>/test/integration/",
     "<rootDir>/test/guardrails/",
     "<rootDir>/test/news/",
     "<rootDir>/test/novelty/",
