@@ -31,9 +31,13 @@ cp .env.example .env
 
 ---
 
-## 🚀 The 13-Node DAG
+## 🚀 Flexible DAG Architecture
 
-AFI-Reactor now runs a **full 13-node Codex pipeline**, delivering a complete cycle of agentic financial intelligence:
+AFI-Reactor implements a **flexible, plugin-based DAG pipeline** that can be customized with as many nodes as needed while adhering to AFI standards. The system supports dynamic pipeline construction through a composable plugin architecture.
+
+### Example Pipeline Configuration
+
+The current default configuration includes the following node types:
 
 ```
 [Generators]
@@ -57,8 +61,10 @@ AFI-Reactor now runs a **full 13-node Codex pipeline**, delivering a complete cy
   telemetry-log-node
 ```
 
-✅ **Codex Health:** 100%  
-✅ **DAG Success Rate:** 100%  
+**Note:** This is an example configuration. The flexible DAG system allows you to add, remove, or reorder nodes as needed for your specific use case, as long as they follow the AFI Orchestrator Doctrine.
+
+✅ **Codex Health:** 100%
+✅ **DAG Success Rate:** 100%
 ✅ **Agent Readiness:** 100%
 
 ---
