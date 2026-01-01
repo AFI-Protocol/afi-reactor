@@ -916,7 +916,6 @@ Current feature branches may contain experimental or in-development features:
 **Validation**:
 - Run `npm run build` to verify TypeScript compiles without errors.
 - Run `npm run start:demo` to ensure the server starts without ESM module resolution errors.
-- Test endpoints (e.g., `/demo/prize-froggy`) to verify runtime imports work correctly.
 
 **For new contributors**: When adding new plugins or services, always use `afi-core/...` for cross-repo imports and include `.js` extensions for relative paths. This is non-negotiable for ESM compatibility.
 
