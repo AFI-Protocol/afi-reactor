@@ -841,6 +841,33 @@ Located in `src/dag/plugins/AiMlNode.ts`, the AiMlNode is responsible for:
 - **Commit messages**: Conventional commits (e.g., `feat(dag): add sentiment analysis node`)
 - **Before committing**: Run `npm test && npm run validate-all`
 
+### Feature Branches
+
+Current feature branches may contain experimental or in-development features:
+
+- **feat/dag-infrastructure**: Flexible DAG system with plugin architecture, state management, and AI/ML provider integration
+  - Introduces DAGBuilder, DAGExecutor, PluginRegistry
+  - Adds StateManager, StateSerializer, StateValidator
+  - Implements MLProviderRegistry and TinyBrainsProvider
+  - Migrates from fixed 15-node pipeline to flexible, plugin-based architecture
+
+**Branch Protection Rules**:
+- Direct pushes to `main` are disabled
+- All changes must be submitted via pull requests
+- PRs require at least one approval before merging
+- CI/CD checks must pass before merge
+
+**Pull Request Process**:
+1. Create feature branch from `main` or `migration/multi-repo-reorg`
+2. Make changes following the AFI Orchestrator Doctrine
+3. Run `npm test && npm run validate-all` locally
+4. Submit pull request with clear description
+5. Address review feedback
+6. Ensure CI/CD checks pass
+7. Merge after approval
+
+**For Contributors**: Always work on feature branches and submit PRs. Never push directly to protected branches.
+
 ---
 
 ## Conventions & Patterns
