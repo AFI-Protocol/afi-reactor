@@ -18,10 +18,7 @@ It orchestrates a multi-agent DAG-based pipeline capable of generating, analyzin
 
 ## 🔒 Security
 
-**IMPORTANT**: This repository uses environment variables for sensitive configuration. See [SECURITY.md](./SECURITY.md) for:
-- Secure credential management practices
-- Secret scanning setup (GitHub Actions + pre-commit hooks)
-- Security incident history and response procedures
+**IMPORTANT**: This repository uses environment variables for sensitive configuration.
 
 **Quick setup**:
 ```bash
