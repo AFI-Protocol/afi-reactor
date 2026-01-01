@@ -166,7 +166,7 @@ All commits to `main` trigger a full CI run with:
 
 ## 🌌 AFI-Reactor Vision
 
-AFI-Reactor is **agent-first**, **modular**, and **ElizaOS compatible**, powering use cases for:
+AFI-Reactor is **agent-first**, **modular**, and **framework-agnostic**, powering use cases for:
 - Retail traders and institutions
 - Agent developers and ML researchers
 - Real-time financial signal generation and execution
