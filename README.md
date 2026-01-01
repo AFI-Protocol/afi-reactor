@@ -32,33 +32,38 @@ cp .env.example .env
 
 AFI-Reactor implements a **flexible, plugin-based DAG pipeline** that can be customized with as many nodes as needed while adhering to AFI standards. The system supports dynamic pipeline construction through a composable plugin architecture.
 
-### Example Pipeline Configuration
+### Core Node Types
 
-The current default configuration includes the following node types:
+AFI-Reactor uses two categories of nodes: **core nodes** and **plugin nodes**.
 
-```
-[Generators]
-  market-data-streamer
-  onchain-feed-ingestor
-  social-signal-crawler
-  news-feed-parser
-  ai-strategy-generator
+#### Core Nodes (Required)
 
-[Analyzers]
-  technical-analysis-node
-  pattern-recognition-node
-  sentiment-analysis-node
-  news-event-analysis-node
-  ai-ml-ensemble-node
+Core nodes are always present in the DAG and handle fundamental pipeline operations:
 
-[Executors]
-  exchange-execution-node
+- **AnalystNode** — Loads analyst configuration, initializes enrichment pipeline, aggregates enrichment results (including AI/ML predictions), scores signals using ensemble ML models, and generates narratives
+- **ExecutionNode** — Aggregates enrichment results, validates enrichment results, generates final scored signal, and prepares signal for observer
+- **ObserverNode** — Observes the final scored signal, logs execution metrics, publishes signal to downstream consumers, and adds trace entries for execution tracking
 
-[Observers]
-  telemetry-log-node
-```
+#### Plugin Nodes (Optional & Composable)
 
-**Note:** This is an example configuration. The flexible DAG system allows you to add, remove, or reorder nodes as needed for your specific use case, as long as they follow the AFI Orchestrator Doctrine.
+Plugin nodes provide specific functionality and can be enabled/disabled as needed:
+
+- **ScoutNode** — Scouts for new signals from external sources or AFI-native models, discovers trading opportunities, submits signals to enrichment pipeline, and tracks signal submissions for reward attribution
+- **NewsNode** — Fetches news data from news providers, extracts news features, and stores news enrichment results
+- **SentimentNode** — Fetches sentiment data from sentiment providers, calculates sentiment scores, and stores sentiment enrichment results
+- **PatternRecognitionNode** — Detects chart patterns, calculates pattern metrics, and stores pattern recognition enrichment results
+- **SignalIngressNode** — Ingests external signals, normalizes signal format, and stores signal ingress results
+- **TechnicalIndicatorsNode** — Calculates technical indicators and stores technical indicator enrichment results
+- **AiMlNode** — Calls AI/ML providers for predictions and stores AI/ML enrichment results (conviction scores, direction, regime, risk flags)
+
+### Pipeline Flow
+
+1. **Scout nodes** execute first (independent signal sources, no dependencies)
+2. **Signal Ingress nodes** execute second (may depend on Scout)
+3. **Enrichment nodes** execute in parallel where possible (based on dependencies)
+4. **Required nodes** execute last (analyst → execution → observer)
+
+**Note:** This flexible architecture allows analysts to configure custom pipelines by selecting and ordering plugins as needed, as long as they follow the AFI Orchestrator Doctrine.
 
 ✅ **Codex Health:** 100%
 ✅ **DAG Success Rate:** 100%
@@ -66,30 +71,40 @@ The current default configuration includes the following node types:
 
 ---
 
-## 🧠 Agent Roles
+## 🧠 Node Architecture
 
-Each node has a designated role in the pipeline:
+### Core vs Plugin Nodes
 
-### **Generators** *(Signal Sources)*
-- **market-data-streamer** → Pulls real-time market price and volume feeds  
-- **onchain-feed-ingestor** → Collects blockchain events, token metrics, and liquidity data  
-- **social-signal-crawler** → Gathers social and community sentiment signals  
-- **news-feed-parser** → Monitors and parses financial and economic news headlines  
-- **ai-strategy-generator** → Synthesizes strategies based on live opportunities  
+**Core nodes**:
+- Always present in the DAG
+- Handle fundamental pipeline operations
+- Cannot be disabled or removed
+- Execute in fixed order (analyst → execution → observer)
 
-### **Analyzers** *(Deep Analysis & Insight)*
-- **technical-analysis-node** → Runs TA indicators, patterns, and multi-timeframe evaluations  
-- **pattern-recognition-node** → Detects unique structures like harmonics, fractals, and breakout signals  
-- **sentiment-analysis-node** → Evaluates market sentiment from social and onchain data  
-- **news-event-analysis-node** → Measures the impact of breaking news and macroeconomic events  
-- **ai-ml-ensemble-node** → Aggregates AI/ML scoring and probabilistic outcomes for decisioning  
+**Plugin nodes**:
+- Optional and composable
+- Can be enabled/disabled
+- Can be ordered as needed
+- Execute based on DAG configuration and dependencies
 
+### Signal Providers (Scouts)
 
-### **Executors** *(Output Actions)*
-- **exchange-execution-node** → Routes signals to live trade execution or on-chain actions  
+Scouts are signal providers that bring strategies producing buy/sell signals or trade setups:
 
-### **Observers** *(Telemetry & Monitoring)*
-- **telemetry-log-node** → Logs all signals, scores, and actions into the T.S.S.D. Vault  
+- **ScoutNode** — Discovers signals from external sources or AFI-native models
+- Does NOT perform scoring (that's Analyst's responsibility)
+- Does NOT enrich signals (that's Enrichers' responsibility)
+- Tracks submissions for reward attribution (important for third-party Scouts)
+
+### Enrichment Layers
+
+The pipeline supports multiple enrichment layers that can be configured:
+
+- **Technical**: Technical indicators (RSI, MACD, EMA, etc.)
+- **Pattern**: Chart pattern recognition (head and shoulders, triangles, etc.)
+- **Sentiment**: Market sentiment analysis (social media, news sentiment)
+- **News**: News analysis and feature extraction
+- **AI/ML**: AI/ML predictions (conviction scores, direction, regime, risk flags)
 
 ---
 
