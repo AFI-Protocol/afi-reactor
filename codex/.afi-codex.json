@@ -1,6 +1,6 @@
 {
   "codexVersion": "2.0.0",
-  "description": "AFI-Reactor: Canonical orchestrator for Agentic Financial Intelligence - 15-node DAG Engine with full agent readiness",
+  "description": "AFI-Reactor: Canonical orchestrator for Agentic Financial Intelligence - Flexible DAG System with Plugin Architecture and full agent readiness",
   "lastUpdated": "2025-11-16T00:00:00Z",
   "module": {
     "name": "afi-reactor",
@@ -13,13 +13,13 @@
     "agents": "../config/agents.codex.json",
     "ops": "./ops.codex.json"
   },
-  "nodeCount": 15,
+  "nodeCount": "dynamic",
   "pipelineCount": 2,
   "schemaCount": 15,
   "agentCount": 15,
   "trackedBy": [
     "Scarlet",
-    "augmentcode",
+    "afi-reactor",
     "factory.droid"
   ],
   "agentReady": true,
@@ -35,7 +35,7 @@
     "telemetryLogging": true
   },
   "validation": {
-    "expectedNodes": 15,
+    "expectedNodes": "dynamic",
     "expectedSchemas": 15,
     "expectedPipelines": 2,
     "expectedAgents": 15,
@@ -59,7 +59,7 @@
       "AIEnsembleAgentV1"
     ],
     "validators": [
-      "augmentcode",
+      "afi-reactor",
       "factory.droid"
     ],
     "executors": [
@@ -73,7 +73,7 @@
     ]
   },
   "healthStatus": {
-    "nodesHealthy": "15/15",
+    "nodesHealthy": "dynamic",
     "dagSuccessRate": "100%",
     "agentReadiness": "100%",
     "lastHealthCheck": "2025-01-27T00:00:00Z"

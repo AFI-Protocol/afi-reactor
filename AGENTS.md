@@ -2,7 +2,7 @@
 
 **afi-reactor** is the canonical DAG orchestrator for AFI Protocol. It implements a **flexible, plugin-based DAG pipeline** following the AFI Orchestrator Doctrine. This is the **ONLY orchestrator** in the AFI ecosystem—agents are nodes, not orchestrators.
 
-**Naming Note**: This repo was renamed from `afi-engine` to `afi-reactor` (2025-11-14). Do not use "afi-engine" naming anywhere.
+**Naming Note**: Use "afi-reactor" naming throughout.
 
 **Global Authority**: All agents operating in AFI Protocol repos must follow `afi-config/codex/governance/droids/AFI_DROID_CHARTER.v0.1.md`. If this AGENTS.md conflicts with the Charter, **the Charter wins**.
 
@@ -117,13 +117,13 @@ npm run mentor-eval
 - `afi-reactor` MUST NOT import ElizaOS code, SDKs, or character definitions.
 - **Dependency direction**: Eliza gateways depend on afi-reactor; afi-reactor never depends on Eliza.
 
-### afi-eliza-gateway Integration
+### afi-gateway Integration
 
-afi-reactor integrates with afi-eliza-gateway via HTTP/WS APIs, enabling ElizaOS agents to interact with the Froggy pipeline.
+afi-reactor integrates with afi-gateway via HTTP/WS APIs, enabling ElizaOS agents to interact with the Froggy pipeline.
 
 #### AFI Reactor Actions Plugin
 
-Located in `afi-eliza-gateway/plugins/afi-reactor-actions/index.ts`, the AFI Reactor Actions Plugin provides ElizaOS actions for interacting with afi-reactor's Froggy trend-pullback pipeline.
+Located in `afi-gateway/plugins/afi-reactor-actions/index.ts`, the AFI Reactor Actions Plugin provides ElizaOS actions for interacting with afi-reactor's Froggy trend-pullback pipeline.
 
 **Available Actions**:
 
@@ -158,7 +158,7 @@ The Froggy pipeline supports multiple enrichment layers that can be configured v
 
 #### Community Agents
 
-afi-eliza-gateway provides community agent configurations for Discord and Telegram:
+afi-gateway provides community agent configurations for Discord and Telegram:
 
 - **Alpha Scout**: Discovers and submits trading signals to the Froggy pipeline
 - **Phoenix Guide**: Checks AFI Reactor health and explains Froggy decisions
@@ -168,7 +168,7 @@ afi-eliza-gateway provides community agent configurations for Discord and Telegr
 
 ```
 ┌─────────────────────────────────────┐
-│  afi-eliza-gateway                  │
+│  afi-gateway                        │
 │  - Alpha Scout (signal submission)  │
 │  - Phoenix Guide (health/explain)   │
 │  - AFI Reactor Actions Plugin       │
@@ -286,7 +286,7 @@ Located in [`config/agents.codex.json`](config/agents.codex.json), this registry
     "agentId": "MarketDataAgentV1",
     "linkedNodes": ["market-data-streamer"],
     "description": "Streams real-time market prices, OHLCV, and order books from multiple exchanges",
-    "maintainer": "augmentcode",
+    "maintainer": "afi-reactor",
     "agentReady": true,
     "status": "active",
     "role": "generator",
@@ -345,7 +345,7 @@ Analyze signals or data:
 
 Assign scores to signals:
 
-- **augmentcode**: Handles ensemble-based signal scoring using PoI and PoInsight balancing
+- **afi-reactor**: Handles ensemble-based signal scoring using PoI and PoInsight balancing
 
 #### Validator Agents
 
@@ -418,7 +418,7 @@ Agents integrate with the DAG pipeline through their `linkedNodes` field:
   "agentId": "TechnicalAnalysisAgentV1",
   "linkedNodes": ["technical-indicators-node"],
   "description": "Runs MACD, RSI, Bollinger, and other TA indicators for signal validation",
-  "maintainer": "augmentcode",
+  "maintainer": "afi-reactor",
   "agentReady": true,
   "status": "active",
   "role": "analyzer",
@@ -437,7 +437,7 @@ This agent connects to the `TechnicalIndicatorsNode` plugin in the DAG, providin
   "agentId": "MarketDataAgentV1",
   "linkedNodes": ["market-data-streamer"],
   "description": "Streams real-time market prices, OHLCV, and order books from multiple exchanges",
-  "maintainer": "augmentcode",
+  "maintainer": "afi-reactor",
   "agentReady": true,
   "status": "active",
   "role": "generator",
@@ -452,7 +452,7 @@ This agent connects to the `TechnicalIndicatorsNode` plugin in the DAG, providin
   "agentId": "TechnicalAnalysisAgentV1",
   "linkedNodes": ["technical-analysis-node"],
   "description": "Runs MACD, RSI, Bollinger, and other TA indicators for signal validation",
-  "maintainer": "augmentcode",
+  "maintainer": "afi-reactor",
   "agentReady": true,
   "status": "active",
   "role": "analyzer",
@@ -464,10 +464,10 @@ This agent connects to the `TechnicalIndicatorsNode` plugin in the DAG, providin
 **Example 3: Scorer Agent**
 ```json
 {
-  "agentId": "augmentcode",
+  "agentId": "afi-reactor",
   "linkedNodes": ["afi-ensemble-score"],
-  "description": "AugmentCode handles ensemble-based signal scoring using PoI and PoInsight balancing",
-  "maintainer": "augmentcode",
+  "description": "AFI Reactor handles ensemble-based signal scoring using PoI and PoInsight balancing",
+  "maintainer": "afi-reactor",
   "agentReady": true,
   "status": "active",
   "role": "scorer",
@@ -512,7 +512,7 @@ This agent connects to the `TechnicalIndicatorsNode` plugin in the DAG, providin
   "agentId": "ExchangeExecutionAgentV1",
   "linkedNodes": ["exchange-execution-node"],
   "description": "Executes trades via exchanges with risk controls and position management",
-  "maintainer": "augmentcode",
+  "maintainer": "afi-reactor",
   "agentReady": true,
   "status": "active",
   "role": "executor",
@@ -558,7 +558,7 @@ This agent connects to the `TechnicalIndicatorsNode` plugin in the DAG, providin
 
 - [Flexible DAG Architecture](#flexible-dag-architecture) - How DAG nodes are composed and executed
 - [Node Types](#node-types) - Core nodes and plugin nodes in the DAG
-- [afi-eliza-gateway Integration](#afi-eliza-gateway-integration) - ElizaOS agent integration
+- [afi-gateway Integration](#afi-gateway-integration) - ElizaOS agent integration
 - [AFI Orchestrator Doctrine](../AFI_ORCHESTRATOR_DOCTRINE.md) - Guidelines for agent behavior
 
 ---
@@ -874,7 +874,7 @@ Current feature branches may contain experimental or in-development features:
 
 - **Language**: TypeScript (ESM)
 - **DAG nodes**: Stateless, composable, follow Doctrine
-- **Naming**: No "afi-engine" references; use "afi-reactor"
+- **Naming**: Use "afi-reactor" naming throughout
 - **Tests**: Jest, located in `test/`
 - **Codex**: All DAG runs must be Codex-replayable
 
@@ -935,7 +935,6 @@ Current feature branches may contain experimental or in-development features:
 - Change 15-node DAG structure without explicit approval
 - Modify Codex replay logic without understanding impact
 - Add orchestration logic to other repos (afi-reactor is ONLY orchestrator)
-- Use "afi-engine" naming anywhere
 
 **When unsure**: Read `AFI_ORCHESTRATOR_DOCTRINE.md` first. Ask for explicit spec on DAG changes. Prefer no-op over breaking orchestration.
 

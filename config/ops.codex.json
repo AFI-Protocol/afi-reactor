@@ -42,7 +42,7 @@
       "entryPoint": "ops/codexReplay.ts",
       "output": "codex/codex.replay.log.json",
       "agentReady": true,
-      "trackedBy": ["Scarlet", "augmentcode"],
+      "trackedBy": ["Scarlet", "afi-reactor"],
       "status": "active"
     }
   ],

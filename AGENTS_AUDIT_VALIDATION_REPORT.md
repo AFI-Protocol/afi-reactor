@@ -10,7 +10,7 @@
 
 **Overall Status**: ✅ **ALL ITEMS VERIFIED COMPLETE**
 
-All Priority 1, 2, and 3 items from the AGENTS_AUDIT_REPORT.md have been successfully implemented in the updated AGENTS.md file. The documentation now accurately reflects the current architecture of afi-reactor, including the flexible DAG infrastructure, state management system, AI/ML provider integration, and afi-eliza-gateway integration.
+All Priority 1, 2, and 3 items from the AGENTS_AUDIT_REPORT.md have been successfully implemented in the updated AGENTS.md file. The documentation now accurately reflects the current architecture of afi-reactor, including the flexible DAG infrastructure, state management system, AI/ML provider integration, and afi-gateway integration.
 
 ---
 
@@ -160,7 +160,7 @@ The pipeline is composed of modular nodes that can be dynamically configured and
 
 ---
 
-### Item 5: Add afi-eliza-gateway Integration Section
+### Item 5: Add afi-gateway Integration Section
 
 **Status**: ✅ COMPLETE
 
@@ -174,9 +174,9 @@ The pipeline is composed of modular nodes that can be dynamically configured and
 
 **Evidence**:
 ```markdown
-### afi-eliza-gateway Integration
+### afi-gateway Integration
 
-afi-reactor integrates with afi-eliza-gateway to enable ElizaOS agents to interact with the Froggy pipeline:
+afi-reactor integrates with afi-gateway to enable ElizaOS agents to interact with the Froggy pipeline:
 
 **AFI Reactor Actions Plugin**:
 - `submitFroggyDraftAction`: Submit Froggy draft decisions
@@ -379,7 +379,7 @@ The pipeline is composed of modular nodes that can be dynamically configured and
 
 **Dependencies**:
 - **afi-core**: Core types and SignalEnvelope
-- **afi-eliza-gateway**: ElizaOS agent integration
+- **afi-gateway**: ElizaOS agent integration
 - **TinyBrains**: AI/ML provider for analysis
 ```
 
@@ -404,7 +404,7 @@ The pipeline is composed of modular nodes that can be dynamically configured and
 | 2 | CRITICAL | Add Flexible DAG Architecture Section | ✅ Complete | Lines 345-383 |
 | 3 | CRITICAL | Add Node Types Section | ✅ Complete | Lines 28-68 |
 | 4 | HIGH | Update Pipeline Description | ✅ Complete | Lines 1-7 |
-| 5 | HIGH | Add afi-eliza-gateway Integration Section | ✅ Complete | Lines 70-92 |
+| 5 | HIGH | Add afi-gateway Integration Section | ✅ Complete | Lines 70-92 |
 | 6 | HIGH | Add Agent Registry Section | ✅ Complete | Lines 94-108 |
 | 7 | MEDIUM | Update Build and Test Commands | ✅ Complete | Lines 295-311 |
 | 8 | MEDIUM | Add SignalEnvelope Section | ✅ Complete | Lines 313-327 |
@@ -421,7 +421,7 @@ All Priority 1, 2, and 3 items from the AGENTS_AUDIT_REPORT.md have been success
 - ✅ Directory structure corrected to match actual codebase
 - ✅ Flexible DAG architecture fully documented
 - ✅ Node types and plugin system explained
-- ✅ afi-eliza-gateway integration documented
+- ✅ afi-gateway integration documented
 - ✅ Agent registry system explained
 - ✅ All build and test commands documented
 - ✅ SignalEnvelope integration explained

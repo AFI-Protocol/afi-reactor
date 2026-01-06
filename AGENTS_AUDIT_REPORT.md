@@ -2,7 +2,7 @@
 
 **Date**: 2025-12-31
 **Auditor**: Automated Audit
-**Scope**: Comprehensive review of AGENTS.md against current codebase state, including recent infrastructure updates (feat/dag-infrastructure branch) and integration changes with afi-eliza-gateway
+**Scope**: Comprehensive review of AGENTS.md against current codebase state, including recent infrastructure updates (feat/dag-infrastructure branch) and integration changes with afi-gateway
 
 ---
 
@@ -15,7 +15,7 @@ The AGENTS.md file contains multiple outdated references that do not reflect the
 1. **Incorrect directory structure** - References `src/dags/` which doesn't exist
 2. **Missing new infrastructure** - No mention of flexible DAG system, state management, or AI/ML providers
 3. **Outdated pipeline description** - Describes 13-node pipeline that doesn't match current implementation
-4. **Missing integration references** - No mention of afi-eliza-gateway integration or new agent actions
+4. **Missing integration references** - No mention of afi-gateway integration or new agent actions
 5. **Incomplete agent registry** - References old agent types that have been superseded
 
 **Priority**: HIGH - Documentation should be updated before next release to avoid confusion for contributors.
@@ -165,7 +165,7 @@ The current DAG configuration shows **11 nodes**, not 15:
 
 ### 5. Missing Integration References
 
-#### Issue 5.1: No Mention of afi-eliza-gateway Integration
+#### Issue 5.1: No Mention of afi-gateway Integration
 
 **What's Missing**:
 - **AFI Reactor Actions Plugin** - Integration with ElizaOS agents
@@ -175,11 +175,11 @@ The current DAG configuration shows **11 nodes**, not 15:
 
 **Current AGENTS.md Coverage**: None
 
-**Impact**: HIGH - Integration with afi-eliza-gateway is completely undocumented.
+**Impact**: HIGH - Integration with afi-gateway is completely undocumented.
 
-**Evidence from afi-eliza-gateway**:
+**Evidence from afi-gateway**:
 ```typescript
-// From afi-eliza-gateway/plugins/afi-reactor-actions/index.ts
+// From afi-gateway/plugins/afi-reactor-actions/index.ts
 export const afiReactorActionsPlugin: Plugin = {
   name: "@afi/plugin-afi-reactor-actions",
   description: "Actions for interacting with AFI Reactor's Froggy pipeline...",
@@ -193,7 +193,7 @@ export const afiReactorActionsPlugin: Plugin = {
 };
 ```
 
-**Action Required**: Add section describing afi-eliza-gateway integration and available agent actions.
+**Action Required**: Add section describing afi-gateway integration and available agent actions.
 
 ---
 
@@ -403,7 +403,7 @@ export interface SignalEnvelope<T = {
    - Update to reflect current 11-node configuration from dag.codex.json
    - Describe how nodes are composed and orchestrated
 
-5. **Add afi-eliza-gateway Integration Section**
+5. **Add afi-gateway Integration Section**
    - Document AFI Reactor Actions Plugin
    - List available agent actions: SUBMIT_FROGGY_DRAFT, CHECK_AFI_REACTOR_HEALTH, EXPLAIN_LAST_FROGGY_DECISION
    - Describe enrichment layers and their categories
@@ -467,7 +467,7 @@ The AGENTS.md file requires significant updates to align with the current state 
 
 1. **Incorrect directory references** - Will cause immediate confusion for contributors
 2. **Missing flexible DAG architecture documentation** - Core infrastructure is completely undocumented
-3. **Missing afi-eliza-gateway integration** - Major integration point is not documented
+3. **Missing afi-gateway integration** - Major integration point is not documented
 
 **Recommended Timeline**:
 - **Immediate**: Fix directory structure and add flexible DAG architecture section
@@ -481,7 +481,7 @@ The AGENTS.md file requires significant updates to align with the current state 
 2. Prioritize fixes based on severity ratings
 3. Create pull request with AGENTS.md updates
 4. Update related documentation (README.md, AFI_ORCHESTRATOR_DOCTRINE.md) if needed
-5. Ensure all documentation is synchronized across afi-reactor, afi-core, and afi-eliza-gateway
+5. Ensure all documentation is synchronized across afi-reactor, afi-core, and afi-gateway
 
 ---
 

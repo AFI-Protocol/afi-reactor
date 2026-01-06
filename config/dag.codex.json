@@ -106,7 +106,7 @@
     "tags": ["froggy", "scout", "alpha", "demo"],
     "codexVersion": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["augmentcode"],
+    "maintainedBy": ["afi-reactor"],
     "schemaRef": "reactor-signal-envelope.schema.json"
   },
   {
@@ -119,7 +119,7 @@
     "tags": ["froggy", "engineer", "pixelrick", "demo"],
     "codexVersion": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["augmentcode"],
+    "maintainedBy": ["afi-reactor"],
     "schemaRef": "base-signal.schema.json"
   },
   {
@@ -132,7 +132,7 @@
     "tags": ["froggy", "enrichment", "demo"],
     "codexVersion": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["augmentcode"],
+    "maintainedBy": ["afi-reactor"],
     "schemaRef": "froggy-enriched-view.schema.json"
   },
   {
@@ -149,7 +149,7 @@
     },
     "codexVersion": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["augmentcode"],
+    "maintainedBy": ["afi-reactor"],
     "schemaRef": "froggy-trend-pullback-score.schema.json"
   },
   {
@@ -166,7 +166,7 @@
     },
     "codexVersion": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["augmentcode"],
+    "maintainedBy": ["afi-reactor"],
     "schemaRef": "scored-signal.schema.json"
   },
   {
@@ -184,7 +184,7 @@
     },
     "codexVersion": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["augmentcode"],
+    "maintainedBy": ["afi-reactor"],
     "schemaRef": "execution-result.schema.json"
   },
   {
@@ -197,7 +197,7 @@
     "tags": ["froggy", "vault", "persistence", "demo"],
     "codexVersion": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["augmentcode"],
+    "maintainedBy": ["afi-reactor"],
     "schemaRef": "vaulted-signal.schema.json"
   }
 ]
