@@ -158,7 +158,7 @@ All commits to `main` trigger a full CI run with:
 
 10. **If orchestration logic doesn't fit this doctrine, it's in the wrong repo** - Move it or refactor it until afi-reactor remains the single, boringly-obvious brain.
 
-**Full doctrine:** See [AFI_ORCHESTRATOR_DOCTRINE.md](../AFI_ORCHESTRATOR_DOCTRINE.md) in the workspace root.
+**Full doctrine:** See [AFI_ORCHESTRATOR_DOCTRINE.md](docs/AFI_ORCHESTRATOR_DOCTRINE.md)
 
 ---
 
