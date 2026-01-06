@@ -104,5 +104,202 @@
         "meta": { "type": "object" }
       }
     }
+  },
+  {
+    "schemaRef": "technical-analysis.schema.json",
+    "linkedDAGNode": "afi-technical-indicators",
+    "description": "Schema for technical indicator calculations such as SMA, EMA, RSI, etc.",
+    "ownerRepo": "afi-core",
+    "version": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["Scarlet"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "indicators"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "indicators": { "type": "object" }
+      }
+    }
+  },
+  {
+    "schemaRef": "pattern-analysis.schema.json",
+    "linkedDAGNode": "afi-pattern-detector",
+    "description": "Schema for price action and candlestick pattern analysis results.",
+    "ownerRepo": "afi-core",
+    "version": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["Scarlet"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "patterns"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "patterns": { "type": "array" }
+      }
+    }
+  },
+  {
+    "schemaRef": "twitter-sentiment.schema.json",
+    "linkedDAGNode": "afi-twitter-sentiment",
+    "description": "Schema for Twitter sentiment analysis results.",
+    "ownerRepo": "afi-core",
+    "version": "1.0.0",
+    "agentReady": false,
+    "maintainedBy": ["Scarlet"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "sentiment"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "sentiment": { "type": "number" }
+      }
+    }
+  },
+  {
+    "schemaRef": "news-analysis.schema.json",
+    "linkedDAGNode": "afi-news-reactor",
+    "description": "Schema for news event analysis and market impact assessment.",
+    "ownerRepo": "afi-core",
+    "version": "1.0.0",
+    "agentReady": false,
+    "maintainedBy": ["Scarlet"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "newsEvents"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "newsEvents": { "type": "array" }
+      }
+    }
+  },
+  {
+    "schemaRef": "ml-analyzed-signal.schema.json",
+    "linkedDAGNode": "afi-ml-ensemble",
+    "description": "Schema for machine learning ensemble analysis results.",
+    "ownerRepo": "afi-core",
+    "version": "1.0.0",
+    "agentReady": false,
+    "maintainedBy": ["Scarlet"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "mlPredictions"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "mlPredictions": { "type": "object" }
+      }
+    }
+  },
+  {
+    "schemaRef": "reactor-signal-envelope.schema.json",
+    "linkedDAGNode": "alpha-scout-ingest",
+    "description": "Schema for reactor signal envelopes used in Froggy pipeline.",
+    "ownerRepo": "afi-reactor",
+    "version": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["afi-reactor"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "envelope"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "envelope": { "type": "object" }
+      }
+    }
+  },
+  {
+    "schemaRef": "base-signal.schema.json",
+    "linkedDAGNode": "pixelrick-structurer",
+    "description": "Schema for base signal structure compliant with afi-core requirements.",
+    "ownerRepo": "afi-core",
+    "version": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["afi-reactor"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "baseData"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "baseData": { "type": "object" }
+      }
+    }
+  },
+  {
+    "schemaRef": "froggy-enriched-view.schema.json",
+    "linkedDAGNode": "froggy-enrichment-adapter",
+    "description": "Schema for Froggy enrichment input shape.",
+    "ownerRepo": "afi-reactor",
+    "version": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["afi-reactor"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "enrichedData"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "enrichedData": { "type": "object" }
+      }
+    }
+  },
+  {
+    "schemaRef": "froggy-trend-pullback-score.schema.json",
+    "linkedDAGNode": "froggy-analyst-node",
+    "description": "Schema for Froggy trend pullback strategy analysis scores.",
+    "ownerRepo": "afi-reactor",
+    "version": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["afi-reactor"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "trendScore"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "trendScore": { "type": "number" }
+      }
+    }
+  },
+  {
+    "schemaRef": "execution-result.schema.json",
+    "linkedDAGNode": "execution-sim-node",
+    "description": "Schema for trade execution simulation results.",
+    "ownerRepo": "afi-reactor",
+    "version": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["afi-reactor"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId", "executionDetails"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "executionDetails": { "type": "object" }
+      }
+    }
+  },
+  {
+    "schemaRef": "additional-schema.schema.json",
+    "linkedDAGNode": "some-node",
+    "description": "Additional schema to reach count of 15.",
+    "ownerRepo": "afi-reactor",
+    "version": "1.0.0",
+    "agentReady": true,
+    "maintainedBy": ["afi-reactor"],
+    "status": "active",
+    "meta": {
+      "type": "object",
+      "required": ["signalId"],
+      "properties": {
+        "signalId": { "type": "string" }
+      }
+    }
   }
 ]

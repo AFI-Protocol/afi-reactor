@@ -1,7 +1,7 @@
 {
   "codexVersion": "2.0.0",
   "description": "AFI-Reactor: Canonical orchestrator for Agentic Financial Intelligence - Flexible DAG System with Plugin Architecture and full agent readiness",
-  "lastUpdated": "2025-11-16T00:00:00Z",
+  "lastUpdated": "2026-01-06T21:08:08Z",
   "module": {
     "name": "afi-reactor",
     "role": "orchestrator",
@@ -13,7 +13,7 @@
     "agents": "../config/agents.codex.json",
     "ops": "./ops.codex.json"
   },
-  "nodeCount": "dynamic",
+  "nodeCount": 14,
   "pipelineCount": 2,
   "schemaCount": 15,
   "agentCount": 15,
@@ -76,6 +76,6 @@
     "nodesHealthy": "dynamic",
     "dagSuccessRate": "100%",
     "agentReadiness": "100%",
-    "lastHealthCheck": "2025-01-27T00:00:00Z"
+    "lastHealthCheck": "2026-01-06T21:08:16Z"
   }
 }

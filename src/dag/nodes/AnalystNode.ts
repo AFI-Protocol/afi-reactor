@@ -14,7 +14,7 @@
  */
 
 import type { Pipehead, PipelineState } from '../../types/dag.js';
-import type { AnalystConfig } from 'afi-factory/schemas/index.js';
+import type { AnalystConfig } from 'afi-factory/schemas/index';
 
 /**
  * Analyst Node - Required Node
@@ -155,7 +155,7 @@ export class AnalystNode implements Pipehead {
       // Import loadAnalystConfig from afi-factory
       // Note: This is a placeholder implementation
       // In a real implementation, this would call loadAnalystConfig from afi-factory/template_registry.ts
-      const { loadAnalystConfig } = await import('afi-factory/template_registry.js');
+      const { loadAnalystConfig } = await import('afi-factory/template_registry');
       const config = await loadAnalystConfig(analystId);
 
       // Return the configuration (without validation fields)
