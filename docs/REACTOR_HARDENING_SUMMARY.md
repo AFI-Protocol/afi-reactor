@@ -109,7 +109,7 @@ npm test
 
 ## Ready for Droids
 
-AFI-Reactor is now documented and structured for safe extension by Factory.ai / augmentcode droids:
+AFI-Reactor is now documented and structured for safe extension by Factory.ai / afi-reactor droids:
 
 ### How to Extend Safely
 
@@ -174,5 +174,5 @@ The following are explicitly **OUT OF SCOPE** for AFI-Reactor and belong in othe
 ---
 
 **Last Updated:** 2025-11-16  
-**Hardening Performed By:** AugmentCode  
+**Hardening Performed By:** AFI Protocol Core Team
 **Next Steps:** Resolve test configuration issues, finalize signal schema, add retry/failure policies

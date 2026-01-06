@@ -19,7 +19,7 @@
   "agentCount": 15,
   "trackedBy": [
     "Scarlet",
-    "augmentcode",
+    "afi-reactor",
     "factory.droid"
   ],
   "agentReady": true,
@@ -59,7 +59,7 @@
       "AIEnsembleAgentV1"
     ],
     "validators": [
-      "augmentcode",
+      "afi-reactor",
       "factory.droid"
     ],
     "executors": [

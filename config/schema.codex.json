@@ -7,7 +7,7 @@
     "ownerRepo": "afi-core",
     "version": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["augmentcode"],
+    "maintainedBy": ["afi-reactor"],
     "status": "active",
     "meta": {
       "type": "object",
@@ -85,7 +85,7 @@
     "ownerRepo": "afi-reactor",
     "version": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["Scarlet", "augmentcode"],
+    "maintainedBy": ["Scarlet", "afi-reactor"],
     "status": "active",
     "meta": {
       "type": "object",

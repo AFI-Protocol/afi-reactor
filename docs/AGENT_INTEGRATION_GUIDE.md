@@ -82,7 +82,7 @@ Each agent is assigned to one or more **node categories** in the DAG. The catego
 - Route rejected signals to logging/audit
 
 **Examples:**
-- `augmentcode` - Automated validation agent
+- `afi-reactor` - Automated validation agent
 - `factory.droid` - Droid-based validation
 - `SignalValidator` - Core validation logic
 - `MentorChainOrchestrator` - Mentor-based governance
