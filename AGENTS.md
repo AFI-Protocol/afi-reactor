@@ -2,7 +2,7 @@
 
 **afi-reactor** is the canonical DAG orchestrator for AFI Protocol. It implements a **flexible, plugin-based DAG pipeline** following the AFI Orchestrator Doctrine. This is the **ONLY orchestrator** in the AFI ecosystem—agents are nodes, not orchestrators.
 
-**Naming Note**: This repo was renamed from `afi-engine` to `afi-reactor` (2025-11-14). Do not use "afi-engine" naming anywhere.
+**Naming Note**: Use "afi-reactor" naming throughout.
 
 **Global Authority**: All agents operating in AFI Protocol repos must follow `afi-config/codex/governance/droids/AFI_DROID_CHARTER.v0.1.md`. If this AGENTS.md conflicts with the Charter, **the Charter wins**.
 
@@ -874,7 +874,7 @@ Current feature branches may contain experimental or in-development features:
 
 - **Language**: TypeScript (ESM)
 - **DAG nodes**: Stateless, composable, follow Doctrine
-- **Naming**: No "afi-engine" references; use "afi-reactor"
+- **Naming**: Use "afi-reactor" naming throughout
 - **Tests**: Jest, located in `test/`
 - **Codex**: All DAG runs must be Codex-replayable
 
@@ -935,7 +935,6 @@ Current feature branches may contain experimental or in-development features:
 - Change 15-node DAG structure without explicit approval
 - Modify Codex replay logic without understanding impact
 - Add orchestration logic to other repos (afi-reactor is ONLY orchestrator)
-- Use "afi-engine" naming anywhere
 
 **When unsure**: Read `AFI_ORCHESTRATOR_DOCTRINE.md` first. Ask for explicit spec on DAG changes. Prefer no-op over breaking orchestration.
 

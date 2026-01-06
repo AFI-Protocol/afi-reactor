@@ -26,7 +26,7 @@
   ],
   "droid_ready": true,
   "notes": [
-    "Renamed from afi-engine on 2025-11-14",
+    "Repository renamed on 2025-11-14",
     "Follows AFI Orchestrator Doctrine",
     "15-node DAG for signal processing",
     "Git remote updated to afi-reactor.git on 2025-11-21"

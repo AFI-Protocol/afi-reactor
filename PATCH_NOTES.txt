@@ -1,4 +1,4 @@
-AFI-ENGINE FINAL PATCH
+AFI-REACTOR FINAL PATCH
 
 Fixes:
 1. Convert all .ts imports to .js for NodeNext ESM compatibility.
@@ -8,7 +8,7 @@ Fixes:
 5. Fix type errors in signal-agent and vaultInsert tests.
 
 After extracting:
-1. Overwrite the afi-engine root.
+1. Overwrite the afi-reactor root.
 2. Run:
    rm -rf dist .tsbuildinfo
    npm install
