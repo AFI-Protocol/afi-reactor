@@ -39,8 +39,8 @@ export class AiMlNode implements Pipehead {
   /** Whether this node can run in parallel with other nodes. */
   parallel = true;
 
-  /** Node dependencies. The DAG will ensure all dependencies complete before executing this node. */
-  dependencies: string[] = ['technical-indicators', 'pattern-recognition', 'sentiment', 'news'];
+  /** Node dependencies. Configured dynamically based on enabled enrichment nodes. */
+  dependencies: string[] = [];
 
   /** ML Provider Registry for managing and selecting ML providers */
   private providerRegistry: MLProviderRegistry;
@@ -60,6 +60,18 @@ export class AiMlNode implements Pipehead {
       this.providerRegistry = new MLProviderRegistry();
       this.registerDefaultProviders();
     }
+  }
+
+  /**
+   * Resolve dependencies dynamically based on enabled enrichment nodes.
+   *
+   * @param enabledNodeIds - Enabled enrichment node IDs
+   * @returns Filtered dependency list
+   */
+  static resolveDependencies(enabledNodeIds: string[]): string[] {
+    const baseDeps = ['technical-indicators', 'pattern-recognition', 'sentiment', 'news'];
+    const enabled = new Set(enabledNodeIds);
+    return baseDeps.filter((dep) => enabled.has(dep));
   }
 
   /**

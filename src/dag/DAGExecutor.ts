@@ -141,6 +141,12 @@ export interface ExecutionContext {
   /** Cancellation flag */
   cancelled: boolean;
 
+  /** Cancellation signal promise */
+  cancelSignal: Promise<void>;
+
+  /** Cancellation trigger */
+  cancelReject?: (reason?: unknown) => void;
+
   /** Cancellation reason */
   cancellationReason?: string;
 
@@ -186,6 +192,9 @@ export interface ExecutionOptions {
 
   /** Whether to fail fast on first error */
   failFast?: boolean;
+
+  /** Execution mode: sequential, parallel, or adaptive (default) */
+  executionMode?: 'sequential' | 'parallel' | 'adaptive';
 
   /** Maximum number of parallel nodes (0 for unlimited) */
   maxParallelNodes?: number;
@@ -293,6 +302,7 @@ export class DAGExecutor {
       maxParallelNodes: 0,
       trackMemoryUsage: false,
       enableLogging: false,
+      executionMode: 'adaptive',
       ...defaultOptions,
     };
   }
@@ -322,52 +332,57 @@ export class DAGExecutor {
 
     this.log(context, `Starting execution ${executionId}`, 'info');
 
-    try {
-      // Check for timeout
-      if (mergedOptions.timeout && mergedOptions.timeout > 0) {
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => {
-            reject(new Error(`Execution timeout after ${mergedOptions.timeout}ms`));
-          }, mergedOptions.timeout);
-        });
+    const runPromise = (async () => {
+      try {
+        // Check for timeout
+        if (mergedOptions.timeout && mergedOptions.timeout > 0) {
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => {
+              reject(new Error(`Execution timeout after ${mergedOptions.timeout}ms`));
+            }, mergedOptions.timeout);
+          });
 
-        await Promise.race([
-          this.executeInternal(context),
-          timeoutPromise,
-        ]);
-      } else {
-        await this.executeInternal(context);
+          await Promise.race([
+            this.executeInternal(context),
+            timeoutPromise,
+          ]);
+        } else {
+          await this.executeInternal(context);
+        }
+
+        // Determine final status
+        if (context.cancelled) {
+          context.status = 'cancelled';
+        } else if (context.failedNodes.size > 0) {
+          context.status = 'failed';
+        } else {
+          context.status = 'completed';
+        }
+
+        context.endTime = Date.now();
+
+        this.log(context, `Execution ${executionId} completed with status: ${context.status}`, 'info');
+
+        return this.buildExecutionResult(context);
+      } catch (error) {
+        context.status = context.cancelled ? 'cancelled' : 'failed';
+        context.endTime = Date.now();
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        context.errors.push(errorMessage);
+
+        this.log(context, `Execution ${executionId} failed: ${errorMessage}`, 'error');
+
+        return this.buildExecutionResult(context);
+      } finally {
+        // Clean up execution context after a delay
+        setTimeout(() => {
+          this.executions.delete(executionId);
+        }, 60000); // Keep for 1 minute
       }
+    })();
 
-      // Determine final status
-      if (context.cancelled) {
-        context.status = 'cancelled';
-      } else if (context.failedNodes.size > 0) {
-        context.status = 'failed';
-      } else {
-        context.status = 'completed';
-      }
-
-      context.endTime = Date.now();
-
-      this.log(context, `Execution ${executionId} completed with status: ${context.status}`, 'info');
-
-      return this.buildExecutionResult(context);
-    } catch (error) {
-      context.status = 'failed';
-      context.endTime = Date.now();
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      context.errors.push(errorMessage);
-
-      this.log(context, `Execution ${executionId} failed: ${errorMessage}`, 'error');
-
-      return this.buildExecutionResult(context);
-    } finally {
-      // Clean up execution context after a delay
-      setTimeout(() => {
-        this.executions.delete(executionId);
-      }, 60000); // Keep for 1 minute
-    }
+    (runPromise as any).executionId = executionId;
+    return runPromise;
   }
 
   /**
@@ -415,10 +430,15 @@ export class DAGExecutor {
    * @param reason - The reason for cancellation
    * @returns Promise<void>
    */
-  async cancelExecution(executionId: string, reason?: string): Promise<void> {
-    const context = this.executions.get(executionId);
+  async cancelExecution(executionId?: string, reason?: string): Promise<void> {
+    const targetId = executionId || Array.from(this.executions.keys()).pop();
+    if (!targetId) {
+      throw new Error('Execution not found');
+    }
+
+    const context = this.executions.get(targetId);
     if (!context) {
-      throw new Error(`Execution ${executionId} not found`);
+      throw new Error(`Execution ${targetId} not found`);
     }
 
     if (context.status !== 'running' && context.status !== 'pending') {
@@ -428,7 +448,11 @@ export class DAGExecutor {
     context.cancelled = true;
     context.cancellationReason = reason || 'Execution cancelled by user';
 
-    this.log(context, `Cancelling execution ${executionId}: ${context.cancellationReason}`, 'warn');
+    if (context.cancelReject) {
+      context.cancelReject(new Error(context.cancellationReason));
+    }
+
+    this.log(context, `Cancelling execution ${targetId}: ${context.cancellationReason}`, 'warn');
   }
 
   /**
@@ -503,40 +527,36 @@ export class DAGExecutor {
   private async executeInternal(context: ExecutionContext): Promise<void> {
     context.status = 'running';
 
-    // 1. Execute Scout nodes first (independent signal sources)
-    await this.executeScoutNodes(context);
+    const levels = this.dagBuilder.getExecutionLevels(context.dag);
 
-    // Check for cancellation
-    if (context.cancelled) {
-      this.log(context, 'Execution cancelled, stopping', 'warn');
-      return;
-    }
+    for (const level of levels) {
+      const pending = level.filter((nodeId) => !context.executedNodes.has(nodeId));
+      if (pending.length === 0) continue;
 
-    // 2. Execute Signal Ingress nodes (may depend on Scout)
-    await this.executeNodesByType(context, 'ingress', 'signal-ingress');
+      const runParallel = this.shouldRunLevelParallel(context, pending);
 
-    // Check for cancellation
-    if (context.cancelled) {
-      this.log(context, 'Execution cancelled, stopping', 'warn');
-      return;
-    }
+      if (runParallel) {
+        await this.executeLevelParallel(context, pending);
+      } else {
+        for (const nodeId of pending) {
+          await this.executeNode(context, nodeId);
 
-    // 3. Execute enrichment nodes (may depend on Signal Ingress)
-    await this.executeNodesByType(context, 'enrichment');
+          if (context.options.failFast && context.failedNodes.size > 0) {
+            this.log(context, 'Fail fast enabled, stopping execution', 'warn');
+            return;
+          }
 
-    // Check for cancellation
-    if (context.cancelled) {
-      this.log(context, 'Execution cancelled, stopping', 'warn');
-      return;
-    }
+          if (context.cancelled) {
+            this.log(context, 'Execution cancelled, stopping', 'warn');
+            return;
+          }
+        }
+      }
 
-    // 4. Execute required nodes (e.g., Analyst)
-    await this.executeNodesByType(context, 'required');
-
-    // Check for fail fast
-    if (context.options.failFast && context.failedNodes.size > 0) {
-      this.log(context, 'Fail fast enabled, stopping execution', 'warn');
-      return;
+      if (context.cancelled) {
+        this.log(context, 'Execution cancelled, stopping', 'warn');
+        return;
+      }
     }
   }
 
@@ -604,8 +624,12 @@ export class DAGExecutor {
           throw new Error(`Plugin ${node.plugin} not found for pipehead ${nodeId}`);
         }
 
-        // Execute pipehead
-        const newState = await nodeImpl.execute(context.currentState);
+        // Execute pipehead with cancellation support
+        const executionPromise = nodeImpl.execute(context.currentState);
+        const newState = await Promise.race([
+          executionPromise,
+          this.getCancellationPromise(context),
+        ]);
 
         // Update state
         context.currentState = newState;
@@ -632,6 +656,13 @@ export class DAGExecutor {
 
         return;
       } catch (error) {
+        if (context.cancelled) {
+          this.log(context, `Skipping pipehead ${nodeId} due to cancellation`, 'warn');
+          context.skippedNodes.add(nodeId);
+          context.executingNodes.delete(nodeId);
+          return;
+        }
+
         lastError = error instanceof Error ? error.message : String(error);
         retries++;
 
@@ -709,6 +740,33 @@ export class DAGExecutor {
         return;
       }
     }
+  }
+
+  private shouldRunLevelParallel(context: ExecutionContext, level: string[]): boolean {
+    const mode = context.options.executionMode || 'adaptive';
+    if (mode === 'sequential') return false;
+    if (level.length <= 1) return false;
+
+    const maxParallel = context.options.maxParallelNodes || level.length;
+    if (maxParallel <= 1) return false;
+
+    const allParallelCapable = level.every((nodeId) => {
+      const node = context.dag.nodes.get(nodeId);
+      return node?.parallel !== false;
+    });
+
+    if (!allParallelCapable) return false;
+
+    if (mode === 'parallel') return true;
+
+    // adaptive: parallel when safe and capacity allows
+    return true;
+  }
+
+  private getCancellationPromise(context: ExecutionContext): Promise<never> {
+    return context.cancelSignal.then(() => {
+      throw new Error(context.cancellationReason || 'Execution cancelled');
+    });
   }
 
   /**
@@ -835,6 +893,11 @@ export class DAGExecutor {
   ): ExecutionContext {
     const now = new Date().toISOString();
 
+    let cancelReject: (reason?: unknown) => void;
+    const cancelSignal = new Promise<void>((_, reject) => {
+      cancelReject = reject;
+    });
+
     // Create initial state if not provided
     const state: PipelineState = initialState || {
       signalId: `signal-${executionId}`,
@@ -859,6 +922,8 @@ export class DAGExecutor {
       startTime: Date.now(),
       options: options || this.defaultOptions,
       cancelled: false,
+      cancelSignal,
+      cancelReject,
       nodeResults: new Map(),
       errors: [],
       warnings: [],

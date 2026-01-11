@@ -15,6 +15,7 @@
 
 import type { Pipehead } from '../types/dag.js';
 import { PluginRegistry } from './PluginRegistry.js';
+import { AiMlNode } from './plugins/AiMlNode.js';
 
 /**
  * Analyst configuration interface
@@ -253,10 +254,12 @@ export class DAGBuilder {
     const nodes = new Map<string, DAGNode>();
     const edges: DAGEdge[] = [];
 
-    for (const nodeConfig of config.enrichmentNodes) {
-      // Skip disabled pipeheads
+    const enrichmentNodes = Array.isArray(config.enrichmentNodes) ? config.enrichmentNodes : [];
+
+    for (const nodeConfig of enrichmentNodes) {
+      // Skip disabled nodes
       if (!nodeConfig.enabled) {
-        result.warnings?.push(`Pipehead '${nodeConfig.id}' is disabled and will be skipped`);
+        result.warnings?.push(`Node '${nodeConfig.id}' is disabled and will be skipped`);
         continue;
       }
 
@@ -264,8 +267,22 @@ export class DAGBuilder {
       const plugin = this.pluginRegistry.getPlugin(nodeConfig.plugin);
       if (!plugin) {
         result.errors = result.errors || [];
-        result.errors.push(`Plugin '${nodeConfig.plugin}' not found in registry for pipehead '${nodeConfig.id}'`);
+        result.errors.push(`Plugin '${nodeConfig.plugin}' not found in registry for node '${nodeConfig.id}'`);
         continue;
+      }
+
+      const builtinDeps = nodeConfig.plugin === 'ai-ml'
+        ? this.resolveAiMlDependencies(config)
+        : [];
+
+      if (nodeConfig.dependencies && nodeConfig.dependencies.length > 0) {
+        const seenDeps = new Set<string>();
+        for (const depId of nodeConfig.dependencies) {
+          if (seenDeps.has(depId)) {
+            result.warnings?.push(`Duplicate edge detected: ${depId} -> ${nodeConfig.id}`);
+          }
+          seenDeps.add(depId);
+        }
       }
 
       // Create DAG pipehead
@@ -276,7 +293,7 @@ export class DAGBuilder {
         enabled: nodeConfig.enabled,
         optional: nodeConfig.optional ?? true,
         parallel: nodeConfig.parallel ?? plugin.parallel,
-        dependencies: this.mergeDependencies(nodeConfig.dependencies || [], plugin.dependencies || []),
+        dependencies: this.mergeDependencies(nodeConfig.dependencies || [], builtinDeps),
         config: nodeConfig.config || {},
         node: plugin,
       };
@@ -294,7 +311,7 @@ export class DAGBuilder {
       for (const depId of node.dependencies) {
         // Check if dependency exists
         if (!nodes.has(depId)) {
-          result.warnings?.push(`Pipehead '${nodeId}' depends on non-existent pipehead '${depId}'`);
+          result.warnings?.push(`Node '${nodeId}' depends on non-existent node '${depId}'`);
           continue;
         }
 
@@ -364,7 +381,7 @@ export class DAGBuilder {
     // Check for empty DAG
     if (dag.nodes.size === 0) {
       result.valid = false;
-      result.errors.push('DAG has no pipeheads');
+      result.errors.push('DAG has no nodes');
       return result;
     }
 
@@ -380,8 +397,19 @@ export class DAGBuilder {
     for (const [nodeId, node] of dag.nodes.entries()) {
       for (const depId of node.dependencies) {
         if (!dag.nodes.has(depId)) {
-          result.warnings.push(`Pipehead '${nodeId}' has missing dependency '${depId}'`);
+          result.warnings.push(`Node '${nodeId}' has missing dependency '${depId}'`);
         }
+      }
+    }
+
+    // Detect duplicate edges
+    const seenEdges = new Set<string>();
+    for (const edge of dag.edges) {
+      const key = `${edge.from} -> ${edge.to}`;
+      if (seenEdges.has(key)) {
+        result.warnings.push(`Duplicate edge detected: ${edge.from} -> ${edge.to}`);
+      } else {
+        seenEdges.add(key);
       }
     }
 
@@ -389,7 +417,7 @@ export class DAGBuilder {
     for (const [nodeId, node] of dag.nodes.entries()) {
       if (node.dependencies.includes(nodeId)) {
         result.valid = false;
-        result.errors.push(`Pipehead '${nodeId}' depends on itself`);
+        result.errors.push(`Node '${nodeId}' depends on itself`);
       }
     }
 
@@ -542,7 +570,7 @@ export class DAGBuilder {
       }
 
       // Pipehead's level is max dependency level + 1
-      const nodeLevel = maxLevel + 1;
+      const nodeLevel = Math.max(1, maxLevel + 1);
       nodeLevels.set(nodeId, nodeLevel);
 
       // Add pipehead to appropriate level
@@ -550,6 +578,10 @@ export class DAGBuilder {
         levels.push([]);
       }
       levels[nodeLevel].push(nodeId);
+    }
+
+    while (levels.length > 0 && levels[0].length === 0) {
+      levels.shift();
     }
 
     return levels;
@@ -671,33 +703,43 @@ export class DAGBuilder {
       result.errors.push('Missing or empty field: enrichmentNodes');
     }
 
-    // Validate enrichment pipeheads
+    // Validate enrichment nodes
     const nodeIds = new Set<string>();
+    let enabledEnrichmentCount = 0;
     for (const node of config.enrichmentNodes || []) {
       if (!node.id) {
         result.valid = false;
-        result.errors.push('Enrichment pipehead missing required field: id');
+        result.errors.push('Enrichment node missing required field: id');
         continue;
       }
 
-      // Check for duplicate pipehead IDs
+      // Check for duplicate node IDs
       if (nodeIds.has(node.id)) {
         result.valid = false;
-        result.errors.push(`Duplicate pipehead ID: ${node.id}`);
+        result.errors.push(`Duplicate node ID: ${node.id}`);
       }
       nodeIds.add(node.id);
 
-      // Validate pipehead type
+      // Validate node type
       if (node.type !== 'enrichment' && node.type !== 'ingress') {
         result.valid = false;
-        result.errors.push(`Invalid pipehead type '${node.type}' for pipehead '${node.id}'`);
+        result.errors.push(`Invalid node type '${node.type}' for node '${node.id}'`);
       }
 
       // Validate plugin
       if (!node.plugin) {
         result.valid = false;
-        result.errors.push(`Pipehead '${node.id}' missing required field: plugin`);
+        result.errors.push(`Node '${node.id}' missing required field: plugin`);
       }
+
+      if (node.type === 'enrichment' && node.enabled) {
+        enabledEnrichmentCount++;
+      }
+    }
+
+    if (enabledEnrichmentCount < 1) {
+      result.valid = false;
+      result.errors.push('At least one enrichment node must be enabled');
     }
 
     // Validate Scout pipehead positioning
@@ -728,23 +770,25 @@ export class DAGBuilder {
       warnings: [],
     };
 
-    for (const node of config.enrichmentNodes) {
+    const nodes = Array.isArray(config.enrichmentNodes) ? config.enrichmentNodes : [];
+
+    for (const node of nodes) {
       if (node.type === 'ingress' && node.plugin === 'scout') {
-        // Scout pipeheads must have no dependencies
+        // Scout nodes must have no dependencies
         if (node.dependencies && node.dependencies.length > 0) {
           result.valid = false;
           result.errors.push(
-            `Scout pipehead '${node.id}' has dependencies [${node.dependencies.join(', ')}]. ` +
-            `Scout pipeheads must be independent signal sources with no dependencies.`
+            `Scout node '${node.id}' has dependencies [${node.dependencies.join(', ')}]. ` +
+            `Scout nodes must be independent signal sources with no dependencies.`
           );
         }
       } else if (node.type === 'enrichment') {
-        // Enrichment pipeheads must not depend on Scout pipeheads
+        // Enrichment nodes must not depend on Scout nodes
         if (node.dependencies && node.dependencies.some(dep => dep.startsWith('scout'))) {
           result.valid = false;
           result.errors.push(
-            `Enrichment pipehead '${node.id}' depends on Scout pipehead. ` +
-            `Enrichment pipeheads must not depend on Scout pipeheads.`
+            `Enrichment node '${node.id}' depends on Scout node. ` +
+            `Enrichment nodes must not depend on Scout nodes.`
           );
         }
       }
@@ -763,8 +807,14 @@ export class DAGBuilder {
    * @private
    */
   private mergeDependencies(configDeps: string[], pluginDeps: string[]): string[] {
-    const merged = new Set([...pluginDeps, ...configDeps]);
-    return Array.from(merged);
+    return [...pluginDeps, ...configDeps];
+  }
+
+  private resolveAiMlDependencies(config: AnalystConfig): string[] {
+    const enabledIds = config.enrichmentNodes
+      .filter((n) => n.enabled && n.id !== 'ai-ml')
+      .map((n) => n.id);
+    return AiMlNode.resolveDependencies(enabledIds);
   }
 
   /**
