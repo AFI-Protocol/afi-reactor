@@ -256,7 +256,7 @@ describe('AiMlNode', () => {
       expect(node.type).toBe('enrichment');
       expect(node.plugin).toBe('ai-ml');
       expect(node.parallel).toBe(true);
-      expect(node.dependencies).toEqual(['technical-indicators', 'pattern-recognition', 'sentiment', 'news']);
+      expect(node.dependencies).toEqual([]);
     });
 
     it('should create default registry when none provided', () => {
@@ -434,6 +434,18 @@ describe('AiMlNode', () => {
       const traceEntry = result.metadata.trace[0];
       expect(traceEntry.status).toBe('failed');
       expect(traceEntry.error).toBe('String error');
+    });
+  });
+
+  describe('resolveDependencies', () => {
+    it('returns enabled default deps only', () => {
+      const deps = AiMlNode.resolveDependencies(['technical-indicators', 'sentiment']);
+      expect(deps).toEqual(['technical-indicators', 'sentiment']);
+    });
+
+    it('returns empty when none enabled', () => {
+      const deps = AiMlNode.resolveDependencies(['other-node']);
+      expect(deps).toEqual([]);
     });
   });
 

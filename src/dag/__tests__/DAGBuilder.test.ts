@@ -197,7 +197,7 @@ describe('DAGBuilder', () => {
 
       expect(result.success).toBe(true);
       expect(result.dag?.nodes.size).toBe(1);
-      expect(result.warnings).toContain("Pipehead 'node2' is disabled and will be skipped");
+      expect(result.warnings).toContain("Node 'node2' is disabled and will be skipped");
     });
 
     it('should fail when plugin not found', () => {
@@ -232,6 +232,7 @@ describe('DAGBuilder', () => {
       expect(result.success).toBe(false);
       expect(result.errors).toContain('Missing required field: analystId');
       expect(result.errors).toContain('Missing or empty field: enrichmentNodes');
+      expect(result.errors).toContain('At least one enrichment node must be enabled');
     });
 
     it('should fail when DAG has cycles', () => {
@@ -1386,6 +1387,7 @@ describe('DAGBuilder', () => {
 
       expect(result.success).toBe(false);
       expect(result.errors).toContain('Missing or empty field: enrichmentNodes');
+      expect(result.errors).toContain('At least one enrichment node must be enabled');
     });
 
     it('should handle configuration with all disabled nodes', () => {
@@ -1408,7 +1410,7 @@ describe('DAGBuilder', () => {
       const result = dagBuilder.buildFromConfig(config);
 
       expect(result.success).toBe(false);
-      expect(result.errors).toContain('DAG has no nodes');
+      expect(result.errors).toContain('At least one enrichment node must be enabled');
     });
 
     it('should handle duplicate node IDs', () => {
@@ -1651,6 +1653,7 @@ describe('DAGBuilder', () => {
   
       it('should validate Scout node with no dependencies', () => {
         registry.registerPlugin(new MockScoutPlugin());
+        registry.registerPlugin(new MockPlugin());
   
         const config: AnalystConfig = {
           analystId: 'test-analyst',
@@ -1661,6 +1664,14 @@ describe('DAGBuilder', () => {
               plugin: 'scout',
               enabled: true,
               dependencies: [], // Valid: no dependencies
+              config: {},
+            },
+            {
+              id: 'technical-indicators',
+              type: 'enrichment',
+              plugin: 'mock-plugin',
+              enabled: true,
+              dependencies: [],
               config: {},
             },
           ],
@@ -1739,6 +1750,7 @@ describe('DAGBuilder', () => {
   
       it('should allow multiple Scout nodes with no dependencies', () => {
         registry.registerPlugin(new MockScoutPlugin());
+        registry.registerPlugin(new MockPlugin());
   
         const config: AnalystConfig = {
           analystId: 'test-analyst',
@@ -1759,6 +1771,14 @@ describe('DAGBuilder', () => {
               dependencies: [],
               config: {},
             },
+            {
+              id: 'technical-indicators',
+              type: 'enrichment',
+              plugin: 'mock-plugin',
+              enabled: true,
+              dependencies: [],
+              config: {},
+            },
           ],
         };
   
@@ -1770,6 +1790,7 @@ describe('DAGBuilder', () => {
       it('should allow Signal Ingress depending on Scout', () => {
         registry.registerPlugin(new MockScoutPlugin());
         registry.registerPlugin(new MockSignalIngressPlugin());
+        registry.registerPlugin(new MockPlugin());
   
         const config: AnalystConfig = {
           analystId: 'test-analyst',
@@ -1788,6 +1809,14 @@ describe('DAGBuilder', () => {
               plugin: 'signal-ingress',
               enabled: true,
               dependencies: ['scout'], // Valid: Signal Ingress can depend on Scout
+              config: {},
+            },
+            {
+              id: 'technical-indicators',
+              type: 'enrichment',
+              plugin: 'mock-plugin',
+              enabled: true,
+              dependencies: [],
               config: {},
             },
           ],
@@ -1832,6 +1861,7 @@ describe('DAGBuilder', () => {
   
       it('should place Scout nodes at execution level 0', () => {
         registry.registerPlugin(new MockScoutPlugin());
+        registry.registerPlugin(new MockPlugin());
   
         const config: AnalystConfig = {
           analystId: 'test-analyst',
@@ -1844,6 +1874,14 @@ describe('DAGBuilder', () => {
               dependencies: [],
               config: {},
             },
+            {
+              id: 'technical-indicators',
+              type: 'enrichment',
+              plugin: 'mock-plugin',
+              enabled: true,
+              dependencies: [],
+              config: {},
+            },
           ],
         };
   
@@ -1851,12 +1889,14 @@ describe('DAGBuilder', () => {
         expect(result.success).toBe(true);
   
         const levels = dagBuilder.getExecutionLevels(result.dag!);
-        expect(levels).toHaveLength(1);
+        expect(levels.length).toBeGreaterThanOrEqual(2);
         expect(levels[0]).toContain('scout');
+        expect(levels[1]).toContain('technical-indicators');
       });
   
       it('should place multiple Scout nodes at execution level 0', () => {
         registry.registerPlugin(new MockScoutPlugin());
+        registry.registerPlugin(new MockPlugin());
   
         const config: AnalystConfig = {
           analystId: 'test-analyst',
@@ -1877,6 +1917,14 @@ describe('DAGBuilder', () => {
               dependencies: [],
               config: {},
             },
+            {
+              id: 'technical-indicators',
+              type: 'enrichment',
+              plugin: 'mock-plugin',
+              enabled: true,
+              dependencies: [],
+              config: {},
+            },
           ],
         };
   
@@ -1884,13 +1932,15 @@ describe('DAGBuilder', () => {
         expect(result.success).toBe(true);
   
         const levels = dagBuilder.getExecutionLevels(result.dag!);
-        expect(levels).toHaveLength(1);
+        expect(levels.length).toBeGreaterThanOrEqual(2);
         expect(levels[0]).toContain('scout1');
         expect(levels[0]).toContain('scout2');
+        expect(levels[1]).toContain('technical-indicators');
       });
   
       it('should place Signal Ingress at level 0 when not depending on Scout', () => {
         registry.registerPlugin(new MockSignalIngressPlugin());
+        registry.registerPlugin(new MockPlugin());
   
         const config: AnalystConfig = {
           analystId: 'test-analyst',
@@ -1903,6 +1953,14 @@ describe('DAGBuilder', () => {
               dependencies: [],
               config: {},
             },
+            {
+              id: 'technical-indicators',
+              type: 'enrichment',
+              plugin: 'mock-plugin',
+              enabled: true,
+              dependencies: [],
+              config: {},
+            },
           ],
         };
   
@@ -1910,13 +1968,15 @@ describe('DAGBuilder', () => {
         expect(result.success).toBe(true);
   
         const levels = dagBuilder.getExecutionLevels(result.dag!);
-        expect(levels).toHaveLength(1);
+        expect(levels.length).toBeGreaterThanOrEqual(2);
         expect(levels[0]).toContain('signal-ingress');
+        expect(levels[1]).toContain('technical-indicators');
       });
   
       it('should place Signal Ingress at level 1 when depending on Scout', () => {
         registry.registerPlugin(new MockScoutPlugin());
         registry.registerPlugin(new MockSignalIngressPlugin());
+        registry.registerPlugin(new MockPlugin());
   
         const config: AnalystConfig = {
           analystId: 'test-analyst',
@@ -1937,6 +1997,14 @@ describe('DAGBuilder', () => {
               dependencies: ['scout'],
               config: {},
             },
+            {
+              id: 'technical-indicators',
+              type: 'enrichment',
+              plugin: 'mock-plugin',
+              enabled: true,
+              dependencies: [],
+              config: {},
+            },
           ],
         };
   
@@ -1944,9 +2012,10 @@ describe('DAGBuilder', () => {
         expect(result.success).toBe(true);
   
         const levels = dagBuilder.getExecutionLevels(result.dag!);
-        expect(levels).toHaveLength(2);
+        expect(levels.length).toBeGreaterThanOrEqual(2);
         expect(levels[0]).toContain('scout');
         expect(levels[1]).toContain('signal-ingress');
+        expect(levels[1]).toContain('technical-indicators');
       });
   
       it('should place enrichment nodes at level 1 or higher', () => {
@@ -2043,6 +2112,7 @@ describe('DAGBuilder', () => {
       it('should place Scout and independent Signal Ingress at level 0', () => {
         registry.registerPlugin(new MockScoutPlugin());
         registry.registerPlugin(new MockSignalIngressPlugin());
+        registry.registerPlugin(new MockPlugin());
   
         const config: AnalystConfig = {
           analystId: 'test-analyst',
@@ -2063,6 +2133,14 @@ describe('DAGBuilder', () => {
               dependencies: [],
               config: {},
             },
+            {
+              id: 'technical-indicators',
+              type: 'enrichment',
+              plugin: 'mock-plugin',
+              enabled: true,
+              dependencies: [],
+              config: {},
+            },
           ],
         };
   
@@ -2070,9 +2148,10 @@ describe('DAGBuilder', () => {
         expect(result.success).toBe(true);
   
         const levels = dagBuilder.getExecutionLevels(result.dag!);
-        expect(levels).toHaveLength(1);
+        expect(levels.length).toBeGreaterThanOrEqual(2);
         expect(levels[0]).toContain('scout');
         expect(levels[0]).toContain('signal-ingress');
+        expect(levels[1]).toContain('technical-indicators');
       });
     });
   });
