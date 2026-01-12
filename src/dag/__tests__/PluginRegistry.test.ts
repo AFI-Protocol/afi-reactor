@@ -7,6 +7,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import os from 'os';
+import path from 'path';
 import type { Pipehead, PipelineState } from '../../types/pipeline.js';
 import {
   PluginRegistry,
@@ -14,7 +17,6 @@ import {
   type PluginType,
   type PluginMetadata,
   type PluginRegistrationResult,
-  type PluginDiscoveryResult,
 } from '../PluginRegistry.js';
 
 /**
@@ -142,6 +144,69 @@ describe('PluginRegistry', () => {
 
       expect(result.discovered).toBe(0);
       expect(result.registered).toBe(0);
+    });
+  });
+
+  describe('discoverPlugins', () => {
+    const tempDirs: string[] = [];
+
+    const makeTempDir = () => {
+      const dir = mkdtempSync(path.join(os.tmpdir(), 'plugin-registry-'));
+      tempDirs.push(dir);
+      return dir;
+    };
+
+    const writePlugin = (dir: string, fileName: string, contents: string) => {
+      writeFileSync(path.join(dir, fileName), contents, 'utf8');
+    };
+
+    afterEach(() => {
+      for (const dir of tempDirs.splice(0)) {
+        try {
+          rmSync(dir, { recursive: true, force: true });
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    });
+
+    it('should load valid plugins from a directory', async () => {
+      const tmpDir = makeTempDir();
+      writePlugin(
+        tmpDir,
+        'custom.plugin.js',
+        `module.exports = { id: 'custom-plugin', type: 'enrichment', plugin: 'custom-plugin', parallel: true, dependencies: [], async execute(state) { return state; } };`
+      );
+
+      const result = await registry.discoverPlugins({ pluginsDir: tmpDir, includeBuiltins: false });
+
+      expect(result.discovered).toBe(1);
+      expect(result.failures).toEqual([]);
+      expect(result.failed).toBe(0);
+      expect(result.registered).toBe(1);
+      expect(registry.getPlugin('custom-plugin')).toBeDefined();
+    });
+
+    it('should record failures for invalid plugins and continue', async () => {
+      const tmpDir = makeTempDir();
+      writePlugin(tmpDir, 'invalid.plugin.js', `export default { notAPlugin: true };`);
+
+      const result = await registry.discoverPlugins({ pluginsDir: tmpDir, includeBuiltins: false });
+
+      expect(result.discovered).toBe(1);
+      expect(result.registered).toBe(0);
+      expect(result.failed).toBe(1);
+      expect(result.failures[0].pluginName).toBe('invalid.plugin.js');
+      expect(registry.getPlugin('invalid.plugin.js')).toBeUndefined();
+    });
+
+    it('should ignore missing plugin directory', async () => {
+      const missing = path.join(os.tmpdir(), 'does-not-exist-plugins');
+      const result = await registry.discoverPlugins({ pluginsDir: missing, includeBuiltins: false });
+
+      expect(result.discovered).toBe(0);
+      expect(result.registered).toBe(0);
+      expect(result.failed).toBe(0);
     });
   });
 
@@ -523,24 +588,26 @@ describe('PluginRegistry', () => {
   });
 
   describe('discoverPlugins', () => {
-    it('should discover and register built-in plugins', () => {
-      const result = registry.discoverPlugins();
+    const missingDir = path.join(os.tmpdir(), 'no-such-plugin-dir');
+
+    it('should discover and register built-in plugins', async () => {
+      const result = await registry.discoverPlugins({ pluginsDir: missingDir, includeBuiltins: true });
 
       expect(result.discovered).toBe(7);
       expect(result.registered).toBe(7);
       expect(result.failed).toBe(0);
     });
 
-    it('should initialize registry if not already initialized', () => {
-      const result = registry.discoverPlugins();
+    it('should initialize registry if not already initialized', async () => {
+      const result = await registry.discoverPlugins({ pluginsDir: missingDir, includeBuiltins: true });
 
       expect(registry.getPluginCount()).toBe(7);
       expect(result.registered).toBe(7);
     });
 
-    it('should not reinitialize if already initialized', () => {
+    it('should not reinitialize if already initialized', async () => {
       registry.initialize();
-      const result = registry.discoverPlugins();
+      const result = await registry.discoverPlugins({ pluginsDir: missingDir, includeBuiltins: true });
 
       expect(result.discovered).toBe(0);
       expect(result.registered).toBe(0);
