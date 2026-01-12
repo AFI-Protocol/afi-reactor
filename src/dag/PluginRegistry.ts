@@ -13,6 +13,9 @@
 
 import type { Pipehead } from '../types/dag.js';
 import { isPipehead } from '../types/dag.js';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { pathToFileURL } from 'url';
 import { TechnicalIndicatorsNode } from './plugins/TechnicalIndicatorsNode.js';
 import { PatternRecognitionNode } from './plugins/PatternRecognitionNode.js';
 import { SentimentNode } from './plugins/SentimentNode.js';
@@ -88,7 +91,18 @@ export interface PluginDiscoveryResult {
   failures: Array<{
     pluginName: string;
     error: string;
+    source?: string;
   }>;
+}
+
+/**
+ * Options for plugin discovery.
+ */
+export interface PluginDiscoveryOptions {
+  /** Directory to scan for plugins. Defaults to <cwd>/plugins. */
+  pluginsDir?: string;
+  /** Whether to register built-in plugins before discovery. Defaults to true. */
+  includeBuiltins?: boolean;
 }
 
 /**
@@ -398,11 +412,70 @@ export class PluginRegistry {
    *
    * @returns PluginDiscoveryResult - Result of plugin discovery
    */
-  discoverPlugins(): PluginDiscoveryResult {
-    // For now, just initialize with built-in plugins
-    // In the future, this could scan the plugins directory and
-    // dynamically import and register plugins
-    return this.initialize();
+  async discoverPlugins(options: PluginDiscoveryOptions = {}): Promise<PluginDiscoveryResult> {
+    const pluginsDir = options.pluginsDir ?? path.resolve(process.cwd(), 'plugins');
+    const includeBuiltins = options.includeBuiltins ?? true;
+
+    const result: PluginDiscoveryResult = {
+      discovered: 0,
+      registered: 0,
+      failed: 0,
+      failures: [],
+    };
+
+    // Always ensure built-ins are available unless explicitly skipped
+    if (includeBuiltins) {
+      const initResult = this.initialize();
+      result.discovered += initResult.discovered;
+      result.registered += initResult.registered;
+      result.failed += initResult.failed;
+      result.failures.push(...initResult.failures);
+    }
+
+    let entries: string[] = [];
+    try {
+      entries = (await fs.readdir(pluginsDir, { withFileTypes: true }))
+        .filter((dirent) => dirent.isFile())
+        .map((dirent) => dirent.name)
+        .filter((name) => /\.plugin\.(ts|js)$/i.test(name));
+    } catch (err: unknown) {
+      // Directory missing or unreadable – treat as zero discoveries
+      return result;
+    }
+
+    for (const fileName of entries) {
+      const filePath = path.resolve(pluginsDir, fileName);
+      result.discovered += 1;
+
+      try {
+        const module = await this.importPluginModule(filePath);
+        const plugin = this.extractPluginExport(module);
+
+        if (!plugin) {
+          throw new Error('No export implementing Pipehead found');
+        }
+
+        if (!this.validatePlugin(plugin)) {
+          throw new Error('Plugin does not implement Pipehead interface');
+        }
+
+        const registration = this.registerPlugin(plugin);
+        if (!registration.success) {
+          throw new Error(registration.error || 'Plugin registration failed');
+        }
+
+        result.registered += 1;
+      } catch (err: unknown) {
+        result.failed += 1;
+        result.failures.push({
+          pluginName: fileName,
+          source: filePath,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -539,6 +612,31 @@ export class PluginRegistry {
     }
 
     return enabledPlugins;
+  }
+
+  private extractPluginExport(module: Record<string, unknown>): Pipehead | undefined {
+    const candidates: unknown[] = [
+      module?.default,
+      (module as Record<string, unknown>).plugin,
+      (module?.default as Record<string, unknown> | undefined)?.plugin,
+    ];
+
+    for (const candidate of candidates) {
+      if (this.validatePlugin(candidate)) {
+        return candidate as Pipehead;
+      }
+    }
+
+    return undefined;
+  }
+
+  private async importPluginModule(filePath: string): Promise<Record<string, unknown>> {
+    try {
+      return await import(pathToFileURL(filePath).href);
+    } catch (err) {
+      // Some environments (e.g., custom Jest resolvers) may not handle file:// URLs; retry with absolute path.
+      return import(filePath);
+    }
   }
 }
 
