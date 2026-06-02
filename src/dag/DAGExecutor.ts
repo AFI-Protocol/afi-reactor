@@ -351,7 +351,7 @@ export class DAGExecutor {
         }
 
         // Determine final status
-        if (context.cancelled) {
+        if (context.cancelled && context.status !== 'failed') {
           context.status = 'cancelled';
         } else if (context.failedNodes.size > 0) {
           context.status = 'failed';
@@ -546,14 +546,14 @@ export class DAGExecutor {
             return;
           }
 
-          if (context.cancelled) {
+          if (context.cancelled && context.status !== 'failed') {
             this.log(context, 'Execution cancelled, stopping', 'warn');
             return;
           }
         }
       }
 
-      if (context.cancelled) {
+      if (context.cancelled && context.status !== 'failed') {
         this.log(context, 'Execution cancelled, stopping', 'warn');
         return;
       }
@@ -575,7 +575,7 @@ export class DAGExecutor {
     }
 
     // Check for cancellation
-    if (context.cancelled) {
+    if (context.cancelled && context.status !== 'failed') {
       this.log(context, `Skipping pipehead ${nodeId} due to cancellation`, 'warn');
       context.skippedNodes.add(nodeId);
       return;
@@ -656,7 +656,7 @@ export class DAGExecutor {
 
         return;
       } catch (error) {
-        if (context.cancelled) {
+        if (context.cancelled && context.status !== 'failed') {
           this.log(context, `Skipping pipehead ${nodeId} due to cancellation`, 'warn');
           context.skippedNodes.add(nodeId);
           context.executingNodes.delete(nodeId);
@@ -725,7 +725,7 @@ export class DAGExecutor {
     // Execute each chunk
     for (const chunk of chunks) {
       // Check for cancellation
-      if (context.cancelled) {
+      if (context.cancelled && context.status !== 'failed') {
         this.log(context, 'Execution cancelled, stopping parallel execution', 'warn');
         return;
       }
