@@ -351,7 +351,7 @@ export class DAGExecutor {
         }
 
         // Determine final status
-        if (context.cancelled) {
+        if (context.cancelled && context.status !== 'failed') {
           context.status = 'cancelled';
         } else if (context.failedNodes.size > 0) {
           context.status = 'failed';
