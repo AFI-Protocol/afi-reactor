@@ -25,6 +25,12 @@ jobs:
           repository: AFI-Protocol/afi-core
           path: afi-core
 
+      - name: Checkout afi-factory (sibling dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: AFI-Protocol/afi-factory
+          path: afi-factory
+
       - name: Setup Node.js 22.x
         uses: actions/setup-node@v4
         with:
