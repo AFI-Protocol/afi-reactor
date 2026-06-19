@@ -3,7 +3,7 @@
  *
  * Comprehensive unit tests for the DAGExecutor component.
  *
- * @module afi-reactor/src/langgraph/__tests__/DAGExecutor.test
+ * @module afi-reactor/src/dag/__tests__/DAGExecutor.test
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';

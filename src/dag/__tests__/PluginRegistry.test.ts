@@ -3,7 +3,7 @@
  *
  * Comprehensive unit tests for the PluginRegistry component.
  *
- * @module afi-reactor/src/langgraph/__tests__/PluginRegistry.test
+ * @module afi-reactor/src/dag/__tests__/PluginRegistry.test
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';

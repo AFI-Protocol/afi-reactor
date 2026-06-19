@@ -1,7 +1,7 @@
 /**
  * Unit tests for SignalIngressNode
  *
- * @module afi-reactor/src/langgraph/plugins/__tests__/SignalIngressNode.test
+ * @module afi-reactor/src/dag/plugins/__tests__/SignalIngressNode.test
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';

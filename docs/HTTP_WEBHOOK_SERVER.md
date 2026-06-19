@@ -8,7 +8,7 @@ The AFI-Reactor HTTP webhook server is a **dev/demo-only** HTTP API that exposes
 - **Local testing**: Test the complete pipeline without ElizaOS or other agent frameworks
 - **Demos**: Show the Froggy pipeline in action with real-time webhook calls
 
-⚠️ **DEV/DEMO ONLY**: This server does NOT execute real trades, mint AFI tokens, or connect to real exchanges. All execution is simulated.
+⚠️ **DEV/DEMO ONLY**: This server does NOT execute trades, mint AFI tokens, or connect to real exchanges. It is **scored-only**: it returns a UWR-scored `ReactorScoredSignalV1` and performs no validator certification or execution (those are downstream / external responsibilities).
 
 ---
 
@@ -107,24 +107,23 @@ TradingView webhook endpoint. Receives alert payloads and runs them through the 
 - `signalId` (string): External signal ID (auto-generated if not provided)
 - `secret` (string): Shared secret for webhook authentication
 
-**Response:**
+**Response:** Scored-only `ReactorScoredSignalV1`. The reactor returns a UWR score; it does **not** return a validator decision or an execution block (those are downstream / external responsibilities — see [Pipeline Flow](#pipeline-flow)).
 
 ```json
 {
-  "signalId": "alpha-abc123",
-  "validatorDecision": {
-    "decision": "approve",
-    "uwrConfidence": 0.85,
-    "reasonCodes": ["score-high", "froggy-demo"]
+  "signalId": "froggy-abc123",
+  "analystScore": {
+    "uwrScore": 0.85,
+    "uwrAxes": {
+      "structure": 0.82,
+      "execution": 0.88,
+      "risk": 0.80,
+      "insight": 0.90
+    }
   },
-  "execution": {
-    "status": "simulated",
-    "type": "buy",
-    "asset": "BTC/USDT",
-    "amount": 0.01,
-    "simulatedPrice": 55432.12,
-    "timestamp": "2025-12-06T21:30:00.000Z",
-    "notes": "Simulated BUY based on validator approval (confidence: 0.85)"
+  "scoredAt": "2025-12-06T21:30:00.000Z",
+  "decayParams": {
+    "halfLifeHours": 24
   },
   "meta": {
     "symbol": "BTCUSDT",
@@ -132,10 +131,11 @@ TradingView webhook endpoint. Receives alert payloads and runs them through the 
     "strategy": "froggy_trend_pullback_v1",
     "direction": "long",
     "source": "tradingview-webhook"
-  },
-  "uwrScore": 0.85
+  }
 }
 ```
+
+The full envelope also carries `rawUss`, optional `lenses`, and optional `_priceFeedMetadata`. There is **no** `validatorDecision` and **no** `execution` field.
 
 **Error Responses:**
 
@@ -268,14 +268,16 @@ To configure TradingView alerts to send webhooks to this server:
 
 ## Pipeline Flow
 
-The webhook endpoint runs the following pipeline:
+The webhook endpoint runs the canonical **scored-only** Froggy trend-pullback pipeline (source of truth: [`src/config/froggyPipeline.ts`](../src/config/froggyPipeline.ts)):
 
-1. **Alpha Scout Ingest** → Converts TradingView payload to reactor signal envelope
-2. **Signal Structurer (Pixel Rick)** → Normalizes and validates signal
-3. **Froggy Enrichment Adapter** → Adds technical/pattern/sentiment enrichment (honors EnrichmentProfile)
-4. **Froggy Analyst** → Runs trend_pullback_v1 strategy from afi-core (UWR scoring)
-5. **Validator Decision Evaluator (Val Dook)** → Approve/reject/flag based on UWR score
-6. **Execution Agent Sim** → Simulates trade execution (dev/demo only)
+1. **USS Telemetry Deriver** (internal) → Validates the payload as canonical USS v1.1 and derives routing/debug fields into `context.telemetry` (does not mutate `rawUss`)
+2. **Froggy Enrichment (Tech + Pattern)** → Adds technical indicators and chart-pattern enrichment (OHLCV-based) — *parallel branch 1*
+3. **Froggy Enrichment (Sentiment + News)** → Adds sentiment and news enrichment via external APIs — *parallel branch 2*
+4. **Froggy Enrichment Adapter** → Merges enrichment legos (honors EnrichmentProfile) and adds optional AI/ML predictions (Tiny Brains, fail-soft)
+5. **Froggy Analyst** → Runs the `trend_pullback_v1` strategy from afi-core and computes the UWR score
+6. **TSSD Vault Write** (internal) → Persists the scored `ReactorScoredSignalV1` to the Reactor-owned MongoDB collection
+
+**Out of scope (not reactor stages):** Validator certification and trade execution are **downstream / external** concerns. The reactor emits a scored-only signal; external certification consumers and mint orchestration (`afi-mint`) act on it. Gateway clients submit drafts via the `SUBMIT_SIGNAL_DRAFT` action and retrieve the last scoring rationale via `EXPLAIN_LAST_DECISION`.
 
 ---
 

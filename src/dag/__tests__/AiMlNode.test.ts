@@ -3,7 +3,7 @@
  *
  * Comprehensive unit tests for the AiMlNode plugin with provider-based architecture.
  *
- * @module afi-reactor/src/langgraph/__tests__/AiMlNode.test
+ * @module afi-reactor/src/dag/__tests__/AiMlNode.test
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';

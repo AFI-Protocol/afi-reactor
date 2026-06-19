@@ -8,7 +8,7 @@
  * function, which implements the full UWR-based scoring logic for Froggy's
  * trend_pullback_v1 strategy.
  * 
- * Part of: froggy-trend-pullback-v1 pipeline (Alpha → Pixel Rick → Froggy → Val Dook → Execution Sim)
+ * Part of: canonical scored-only Froggy pipeline (USS ingest → telemetry derive → enrichment → froggy-analyst UWR score → vault write)
  */
 
 import type { FroggyEnrichedView } from "afi-core/analysts/froggy.enrichment_adapter.js";

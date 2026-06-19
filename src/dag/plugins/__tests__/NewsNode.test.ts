@@ -1,7 +1,7 @@
 /**
  * Unit tests for NewsNode
  *
- * @module afi-reactor/src/langgraph/plugins/__tests__/NewsNode.test
+ * @module afi-reactor/src/dag/plugins/__tests__/NewsNode.test
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';

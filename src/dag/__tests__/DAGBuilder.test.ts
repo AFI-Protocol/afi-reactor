@@ -3,7 +3,7 @@
  *
  * Comprehensive unit tests for the DAGBuilder component.
  *
- * @module afi-reactor/src/langgraph/__tests__/DAGBuilder.test
+ * @module afi-reactor/src/dag/__tests__/DAGBuilder.test
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';

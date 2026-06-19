@@ -1,7 +1,7 @@
 /**
  * Unit tests for TechnicalIndicatorsNode
  *
- * @module afi-reactor/src/langgraph/plugins/__tests__/TechnicalIndicatorsNode.test
+ * @module afi-reactor/src/dag/plugins/__tests__/TechnicalIndicatorsNode.test
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';

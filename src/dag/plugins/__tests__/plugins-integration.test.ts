@@ -1,7 +1,7 @@
 /**
  * Integration tests for enrichment nodes
  *
- * @module afi-reactor/src/langgraph/plugins/__tests__/plugins-integration.test
+ * @module afi-reactor/src/dag/plugins/__tests__/plugins-integration.test
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';

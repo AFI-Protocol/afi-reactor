@@ -7,15 +7,27 @@
     "ownerRepo": "afi-core",
     "version": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["afi-reactor"],
+    "maintainedBy": [
+      "afi-reactor"
+    ],
     "status": "active",
     "meta": {
       "type": "object",
-      "required": ["signalId", "score", "confidence"],
+      "required": [
+        "signalId",
+        "score",
+        "confidence"
+      ],
       "properties": {
-        "signalId": { "type": "string" },
-        "score": { "type": "number" },
-        "confidence": { "type": "number" }
+        "signalId": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        },
+        "confidence": {
+          "type": "number"
+        }
       }
     }
   },
@@ -26,14 +38,26 @@
     "ownerRepo": "afi-core",
     "version": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["factory.droid"],
+    "maintainedBy": [
+      "factory.droid"
+    ],
     "status": "active",
     "meta": {
       "type": "object",
-      "required": ["signalId", "approvalStatus"],
+      "required": [
+        "signalId",
+        "approvalStatus"
+      ],
       "properties": {
-        "signalId": { "type": "string" },
-        "approvalStatus": { "type": "string", "enum": ["approved"] }
+        "signalId": {
+          "type": "string"
+        },
+        "approvalStatus": {
+          "type": "string",
+          "enum": [
+            "approved"
+          ]
+        }
       }
     }
   },
@@ -44,35 +68,59 @@
     "ownerRepo": "afi-infra",
     "version": "2.0.0",
     "agentReady": true,
-    "maintainedBy": ["Scarlet"],
+    "maintainedBy": [
+      "Scarlet"
+    ],
     "status": "active",
     "meta": {
       "bsonType": "object",
-      "required": ["signalId", "timestamp", "score"],
+      "required": [
+        "signalId",
+        "timestamp",
+        "score"
+      ],
       "properties": {
-        "signalId": { "bsonType": "string" },
-        "timestamp": { "bsonType": "date" },
-        "score": { "bsonType": "double" },
-        "meta": { "bsonType": "object" },
+        "signalId": {
+          "bsonType": "string"
+        },
+        "timestamp": {
+          "bsonType": "date"
+        },
+        "score": {
+          "bsonType": "double"
+        },
+        "meta": {
+          "bsonType": "object"
+        },
         "relatedSignals": {
           "bsonType": "array",
-          "items": { "bsonType": "string" },
+          "items": {
+            "bsonType": "string"
+          },
           "description": "Optional references to other related signalIds."
         },
         "lineage": {
           "bsonType": "object",
           "properties": {
-            "parentId": { "bsonType": "string" },
-            "derivedFrom": { "bsonType": "string" },
+            "parentId": {
+              "bsonType": "string"
+            },
+            "derivedFrom": {
+              "bsonType": "string"
+            },
             "ancestorChain": {
               "bsonType": "array",
-              "items": { "bsonType": "string" }
+              "items": {
+                "bsonType": "string"
+              }
             }
           }
         },
         "cognitiveTags": {
           "bsonType": "array",
-          "items": { "bsonType": "string" },
+          "items": {
+            "bsonType": "string"
+          },
           "description": "Tags representing abstract cognitive patterns or domains."
         }
       }
@@ -85,23 +133,41 @@
     "ownerRepo": "afi-reactor",
     "version": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["Scarlet", "afi-reactor"],
+    "maintainedBy": [
+      "Scarlet",
+      "afi-reactor"
+    ],
     "status": "active",
     "meta": {
       "type": "object",
-      "required": ["signalId", "lineage", "cognitiveTags", "score"],
+      "required": [
+        "signalId",
+        "lineage",
+        "cognitiveTags",
+        "score"
+      ],
       "properties": {
-        "signalId": { "type": "string" },
+        "signalId": {
+          "type": "string"
+        },
         "lineage": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "cognitiveTags": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
-        "score": { "type": "number" },
-        "meta": { "type": "object" }
+        "score": {
+          "type": "number"
+        },
+        "meta": {
+          "type": "object"
+        }
       }
     }
   },
@@ -112,14 +178,23 @@
     "ownerRepo": "afi-core",
     "version": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["Scarlet"],
+    "maintainedBy": [
+      "Scarlet"
+    ],
     "status": "active",
     "meta": {
       "type": "object",
-      "required": ["signalId", "indicators"],
+      "required": [
+        "signalId",
+        "indicators"
+      ],
       "properties": {
-        "signalId": { "type": "string" },
-        "indicators": { "type": "object" }
+        "signalId": {
+          "type": "string"
+        },
+        "indicators": {
+          "type": "object"
+        }
       }
     }
   },
@@ -130,14 +205,23 @@
     "ownerRepo": "afi-core",
     "version": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["Scarlet"],
+    "maintainedBy": [
+      "Scarlet"
+    ],
     "status": "active",
     "meta": {
       "type": "object",
-      "required": ["signalId", "patterns"],
+      "required": [
+        "signalId",
+        "patterns"
+      ],
       "properties": {
-        "signalId": { "type": "string" },
-        "patterns": { "type": "array" }
+        "signalId": {
+          "type": "string"
+        },
+        "patterns": {
+          "type": "array"
+        }
       }
     }
   },
@@ -148,14 +232,23 @@
     "ownerRepo": "afi-core",
     "version": "1.0.0",
     "agentReady": false,
-    "maintainedBy": ["Scarlet"],
+    "maintainedBy": [
+      "Scarlet"
+    ],
     "status": "active",
     "meta": {
       "type": "object",
-      "required": ["signalId", "sentiment"],
+      "required": [
+        "signalId",
+        "sentiment"
+      ],
       "properties": {
-        "signalId": { "type": "string" },
-        "sentiment": { "type": "number" }
+        "signalId": {
+          "type": "string"
+        },
+        "sentiment": {
+          "type": "number"
+        }
       }
     }
   },
@@ -166,14 +259,23 @@
     "ownerRepo": "afi-core",
     "version": "1.0.0",
     "agentReady": false,
-    "maintainedBy": ["Scarlet"],
+    "maintainedBy": [
+      "Scarlet"
+    ],
     "status": "active",
     "meta": {
       "type": "object",
-      "required": ["signalId", "newsEvents"],
+      "required": [
+        "signalId",
+        "newsEvents"
+      ],
       "properties": {
-        "signalId": { "type": "string" },
-        "newsEvents": { "type": "array" }
+        "signalId": {
+          "type": "string"
+        },
+        "newsEvents": {
+          "type": "array"
+        }
       }
     }
   },
@@ -184,104 +286,23 @@
     "ownerRepo": "afi-core",
     "version": "1.0.0",
     "agentReady": false,
-    "maintainedBy": ["Scarlet"],
+    "maintainedBy": [
+      "Scarlet"
+    ],
     "status": "active",
     "meta": {
       "type": "object",
-      "required": ["signalId", "mlPredictions"],
+      "required": [
+        "signalId",
+        "mlPredictions"
+      ],
       "properties": {
-        "signalId": { "type": "string" },
-        "mlPredictions": { "type": "object" }
-      }
-    }
-  },
-  {
-    "schemaRef": "reactor-signal-envelope.schema.json",
-    "linkedDAGNode": "alpha-scout-ingest",
-    "description": "Schema for reactor signal envelopes used in Froggy pipeline.",
-    "ownerRepo": "afi-reactor",
-    "version": "1.0.0",
-    "agentReady": true,
-    "maintainedBy": ["afi-reactor"],
-    "status": "active",
-    "meta": {
-      "type": "object",
-      "required": ["signalId", "envelope"],
-      "properties": {
-        "signalId": { "type": "string" },
-        "envelope": { "type": "object" }
-      }
-    }
-  },
-  {
-    "schemaRef": "base-signal.schema.json",
-    "linkedDAGNode": "pixelrick-structurer",
-    "description": "Schema for base signal structure compliant with afi-core requirements.",
-    "ownerRepo": "afi-core",
-    "version": "1.0.0",
-    "agentReady": true,
-    "maintainedBy": ["afi-reactor"],
-    "status": "active",
-    "meta": {
-      "type": "object",
-      "required": ["signalId", "baseData"],
-      "properties": {
-        "signalId": { "type": "string" },
-        "baseData": { "type": "object" }
-      }
-    }
-  },
-  {
-    "schemaRef": "froggy-enriched-view.schema.json",
-    "linkedDAGNode": "froggy-enrichment-adapter",
-    "description": "Schema for Froggy enrichment input shape.",
-    "ownerRepo": "afi-reactor",
-    "version": "1.0.0",
-    "agentReady": true,
-    "maintainedBy": ["afi-reactor"],
-    "status": "active",
-    "meta": {
-      "type": "object",
-      "required": ["signalId", "enrichedData"],
-      "properties": {
-        "signalId": { "type": "string" },
-        "enrichedData": { "type": "object" }
-      }
-    }
-  },
-  {
-    "schemaRef": "froggy-trend-pullback-score.schema.json",
-    "linkedDAGNode": "froggy-analyst-node",
-    "description": "Schema for Froggy trend pullback strategy analysis scores.",
-    "ownerRepo": "afi-reactor",
-    "version": "1.0.0",
-    "agentReady": true,
-    "maintainedBy": ["afi-reactor"],
-    "status": "active",
-    "meta": {
-      "type": "object",
-      "required": ["signalId", "trendScore"],
-      "properties": {
-        "signalId": { "type": "string" },
-        "trendScore": { "type": "number" }
-      }
-    }
-  },
-  {
-    "schemaRef": "execution-result.schema.json",
-    "linkedDAGNode": "execution-sim-node",
-    "description": "Schema for trade execution simulation results.",
-    "ownerRepo": "afi-reactor",
-    "version": "1.0.0",
-    "agentReady": true,
-    "maintainedBy": ["afi-reactor"],
-    "status": "active",
-    "meta": {
-      "type": "object",
-      "required": ["signalId", "executionDetails"],
-      "properties": {
-        "signalId": { "type": "string" },
-        "executionDetails": { "type": "object" }
+        "signalId": {
+          "type": "string"
+        },
+        "mlPredictions": {
+          "type": "object"
+        }
       }
     }
   },
@@ -292,13 +313,19 @@
     "ownerRepo": "afi-reactor",
     "version": "1.0.0",
     "agentReady": true,
-    "maintainedBy": ["afi-reactor"],
+    "maintainedBy": [
+      "afi-reactor"
+    ],
     "status": "active",
     "meta": {
       "type": "object",
-      "required": ["signalId"],
+      "required": [
+        "signalId"
+      ],
       "properties": {
-        "signalId": { "type": "string" }
+        "signalId": {
+          "type": "string"
+        }
       }
     }
   }
