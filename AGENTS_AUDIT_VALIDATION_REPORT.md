@@ -1,5 +1,7 @@
 # AGENTS.md Audit Validation Report
 
+> ⚠️ Historical snapshot. The legacy Froggy demo chain (Alpha Scout → Pixel Rick → Val Dook → Execution Sim) was removed; the reactor is scored-only. Canonical pipeline: `src/config/froggyPipeline.ts`.
+
 **Date**: 2025-12-31
 **Validator**: Automated Validation
 **Scope**: Verification of Priority 1, 2, and 3 items from AGENTS_AUDIT_REPORT.md

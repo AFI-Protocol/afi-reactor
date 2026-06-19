@@ -1,7 +1,7 @@
 /**
  * Integration tests for required nodes execution
  *
- * @module afi-reactor/src/langgraph/nodes/__tests__/nodes-integration
+ * @module afi-reactor/src/dag/nodes/__tests__/nodes-integration
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';

@@ -1,7 +1,7 @@
 /**
  * Unit tests for ObserverNode
  *
- * @module afi-reactor/src/langgraph/nodes/__tests__/ObserverNode.test
+ * @module afi-reactor/src/dag/nodes/__tests__/ObserverNode.test
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';

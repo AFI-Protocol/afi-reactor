@@ -9,7 +9,7 @@
  * For demo purposes, we generate plausible technical indicators (RSI, MA, etc.)
  * that Froggy can consume. In production, these would come from real market data.
  *
- * Part of: froggy-trend-pullback-v1 pipeline (Alpha → Pixel Rick → Froggy → Val Dook → Execution Sim)
+ * Part of: canonical scored-only Froggy pipeline (USS ingest → telemetry derive → enrichment → froggy-analyst UWR score → vault write)
  *
  * DAG Mode (Pass C): This adapter acts as a multi-parent join node:
  * - Consumes _techPatternEnrichment from froggy-enrichment-tech-pattern (parallel branch 1)
@@ -169,7 +169,7 @@ function toAfiCandles(candles: OHLCVCandle[]): AfiCandle[] {
  * - Fetches real price data from configured exchange (BloFin) when AFI_PRICE_FEED_SOURCE is set
  * - Falls back to demo/mocked data when price source is "demo" or fetch fails
  *
- * @param signal - Structured signal from Pixel Rick
+ * @param signal - Structured signal from the upstream enrichment input
  * @returns FroggyEnrichedView ready for Froggy analyst
  */
 async function run(signal: StructuredSignal | any): Promise<FroggyEnrichedView> {

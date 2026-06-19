@@ -1,7 +1,7 @@
 /**
  * Unit tests for SentimentNode
  *
- * @module afi-reactor/src/langgraph/plugins/__tests__/SentimentNode.test
+ * @module afi-reactor/src/dag/plugins/__tests__/SentimentNode.test
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';

@@ -1,7 +1,7 @@
 /**
  * Unit tests for PatternRecognitionNode
  *
- * @module afi-reactor/src/langgraph/plugins/__tests__/PatternRecognitionNode.test
+ * @module afi-reactor/src/dag/plugins/__tests__/PatternRecognitionNode.test
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';

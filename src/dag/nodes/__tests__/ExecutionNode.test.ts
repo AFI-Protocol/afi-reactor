@@ -1,7 +1,7 @@
 /**
  * Unit tests for ExecutionNode
  *
- * @module afi-reactor/src/langgraph/nodes/__tests__/ExecutionNode.test
+ * @module afi-reactor/src/dag/nodes/__tests__/ExecutionNode.test
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';

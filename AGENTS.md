@@ -15,6 +15,23 @@ For global droid behavior and terminology, see:
 
 ---
 
+## Canonical Scored-Only Pipeline
+
+afi-reactor is **scored-only**. The Froggy trend-pullback pipeline is defined in **`src/config/froggyPipeline.ts`** (single source of truth) and runs 6 stages:
+
+1. **uss-telemetry-deriver** (internal) — derive routing/debug fields from canonical USS v1.1 into `context.telemetry`
+2. **froggy-enrichment-tech-pattern** — technical + chart-pattern enrichment (OHLCV) *(parallel branch 1)*
+3. **froggy-enrichment-sentiment-news** — sentiment + news enrichment via external APIs *(parallel branch 2)*
+4. **froggy-enrichment-adapter** — merge enrichment legos + optional AI/ML (Tiny Brains, fail-soft)
+5. **froggy-analyst** — run `trend_pullback_v1` strategy from afi-core, compute UWR score
+6. **tssd-vault-write** (internal) — persist scored signal to the Reactor-owned MongoDB collection
+
+**Output**: a scored-only `ReactorScoredSignalV1` — `{ signalId, rawUss, lenses?, _priceFeedMetadata?, analystScore { uwrScore, uwrAxes { structure, execution, risk, insight } }, scoredAt, decayParams, meta }`. There is **no** `validatorDecision` and **no** execution block.
+
+**Not the reactor's responsibility**: validator certification and trade execution are downstream / external (external certification consumers; mint orchestration lives in `afi-mint`). The legacy demo personas (ingest scout, signal structurer, validator decision evaluator, execution simulator) have been **removed** and must not be reintroduced as the current flow.
+
+---
+
 ## Build & Test
 
 ```bash
@@ -127,12 +144,11 @@ Located in `afi-gateway/plugins/afi-reactor-actions/index.ts`, the AFI Reactor A
 
 **Available Actions**:
 
-1. **SUBMIT_FROGGY_DRAFT** (Alpha Scout)
-   - Purpose: Submit a trend-pullback signal draft to AFI Reactor's Froggy pipeline
-   - Character: Alpha Scout
+1. **SUBMIT_SIGNAL_DRAFT**
+   - Purpose: Submit a trend-pullback signal draft to AFI Reactor's Froggy pipeline for scoring
    - Endpoint: `POST http://localhost:8080/api/webhooks/tradingview`
    - Input: Symbol, timeframe, strategy, direction, market, setup summary, notes, enrichment profile
-   - Output: Signal ID, validator decision, execution result
+   - Output: Scored-only `ReactorScoredSignalV1` (signalId, `analystScore.uwrScore` + `uwrAxes`). No validator decision, no execution result.
 
 2. **CHECK_AFI_REACTOR_HEALTH** (Phoenix Guide)
    - Purpose: Check if AFI Reactor is online and available
@@ -140,11 +156,11 @@ Located in `afi-gateway/plugins/afi-reactor-actions/index.ts`, the AFI Reactor A
    - Endpoint: `GET http://localhost:8080/health`
    - Output: Health status, availability
 
-3. **EXPLAIN_LAST_FROGGY_DECISION** (Phoenix Guide)
-   - Purpose: Explain the last Froggy decision made by AFI Reactor
+3. **EXPLAIN_LAST_DECISION** (Phoenix Guide)
+   - Purpose: Explain the last UWR scoring rationale produced by AFI Reactor
    - Character: Phoenix Guide
    - Endpoint: In-memory cache (future: persistent storage)
-   - Output: Last signal details, validator decision, execution result
+   - Output: Last signal details and UWR score breakdown (`uwrAxes`). No validator decision, no execution result.
 
 #### Enrichment Layers
 
@@ -160,16 +176,17 @@ The Froggy pipeline supports multiple enrichment layers that can be configured v
 
 afi-gateway provides community agent configurations for Discord and Telegram:
 
-- **Alpha Scout**: Discovers and submits trading signals to the Froggy pipeline
-- **Phoenix Guide**: Checks AFI Reactor health and explains Froggy decisions
-- **Froggy**: Provides trend-pullback analysis and explanations
+- **Phoenix Guide**: Checks AFI Reactor health and explains the last UWR scoring rationale
+- **Froggy**: Provides trend-pullback analysis and UWR scoring explanations
+
+Gateway clients submit signal drafts via the `SUBMIT_SIGNAL_DRAFT` action; the reactor responds with a scored-only `ReactorScoredSignalV1`.
 
 #### Integration Architecture
 
 ```
 ┌─────────────────────────────────────┐
 │  afi-gateway                        │
-│  - Alpha Scout (signal submission)  │
+│  - SUBMIT_SIGNAL_DRAFT (submission)  │
 │  - Phoenix Guide (health/explain)   │
 │  - AFI Reactor Actions Plugin       │
 └──────────────┬──────────────────────┘
@@ -178,12 +195,17 @@ afi-gateway provides community agent configurations for Discord and Telegram:
                │ HTTP GET /health
                ▼
 ┌─────────────────────────────────────┐
-│  afi-reactor                        │
-│  - Flexible DAG Pipeline              │
-│  - Froggy Trend-Pullback Analyst     │
-│  - Validator Decision Evaluator     │
-│  - Execution Agent Sim              │
-└─────────────────────────────────────┘
+│  afi-reactor (scored-only)          │
+│  - Froggy DAG Pipeline (6 stages)    │
+│  - Telemetry → Enrichment → Analyst  │
+│  - Froggy Trend-Pullback UWR scoring │
+│  - TSSD Vault Write                  │
+└──────────────┬──────────────────────┘
+               │ ReactorScoredSignalV1 (scored-only)
+               ▼
+   external certification / afi-mint
+   (validator + mint orchestration —
+    NOT reactor responsibilities)
 ```
 
 #### Configuration
@@ -898,10 +920,10 @@ Current feature branches may contain experimental or in-development features:
 - All relative imports within afi-reactor (e.g., from `src/` to `plugins/`) **must** include `.js` extensions:
   ```typescript
   // ✅ CORRECT
-  import alphaScoutIngest from "../../plugins/alpha-scout-ingest.plugin.js";
+  import froggyEnrichmentTechPattern from "../../plugins/froggy-enrichment-tech-pattern.plugin.js";
 
   // ❌ WRONG
-  import alphaScoutIngest from "../../plugins/alpha-scout-ingest.plugin";
+  import froggyEnrichmentTechPattern from "../../plugins/froggy-enrichment-tech-pattern.plugin";
   ```
 - External package imports (e.g., `from "express"`) do **not** need `.js` extensions.
 - No imports may reference `.ts` files at runtime.

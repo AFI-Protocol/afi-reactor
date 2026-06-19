@@ -3,7 +3,11 @@
     {
       "name": "signal-to-vault",
       "entry": "afi-ensemble-score",
-      "flow": ["dao-mint-checkpoint", "afi-sma-tool", "tssd-vault-persist"],
+      "flow": [
+        "dao-mint-checkpoint",
+        "afi-sma-tool",
+        "tssd-vault-persist"
+      ],
       "exit": "tssd-vault-persist",
       "dagRef": "dag.codex.json",
       "status": "active"
@@ -11,28 +15,35 @@
     {
       "name": "signal-to-vault-cognition",
       "entry": "afi-ensemble-score",
-      "flow": ["dao-mint-checkpoint", "afi-sma-tool", "tssd-vault-persist", "full-cognition-loop"],
+      "flow": [
+        "dao-mint-checkpoint",
+        "afi-sma-tool",
+        "tssd-vault-persist",
+        "full-cognition-loop"
+      ],
       "exit": "full-cognition-loop",
       "dagRef": "dag.codex.json",
       "status": "active"
     },
     {
       "name": "froggy-trend-pullback-v1",
-      "entry": "alpha-scout-ingest",
+      "entry": "uss-telemetry-deriver",
       "flow": [
-        "pixelrick-structurer",
+        "froggy-enrichment-tech-pattern",
+        "froggy-enrichment-sentiment-news",
         "froggy-enrichment-adapter",
-        "froggy-analyst-node",
-        "froggy-ensemble-scorer",
-        "validator-decision-node",
-        "execution-sim-node",
-        "froggy-vault-echo"
+        "froggy-analyst",
+        "tssd-vault-write"
       ],
-      "exit": "froggy-vault-echo",
+      "exit": "tssd-vault-write",
       "dagRef": "dag.codex.json",
-      "description": "Demo pipeline: Alpha Scout → Pixel Rick → Froggy Analyst → Val Dook → Execution Sim → Vault. Implements the canonical agent chain for ElizaOS live demos.",
-      "status": "active",
-      "tags": ["demo", "froggy", "agent-chain"]
+      "description": "Canonical scored-only Froggy pipeline (USS v1.1 ingest -> telemetry derive -> parallel tech/pattern + sentiment/news enrichment -> enrichment adapter -> Froggy analyst UWR score -> reactor vault write). Runtime source of truth: src/config/froggyPipeline.ts. Validator certification and execution are NOT reactor responsibilities. Listed for codex replay reference only.",
+      "status": "reference_only",
+      "tags": [
+        "froggy",
+        "canonical",
+        "scored-only"
+      ]
     }
   ],
   "tools": [
@@ -42,7 +53,10 @@
       "entryPoint": "ops/codexReplay.ts",
       "output": "codex/codex.replay.log.json",
       "agentReady": true,
-      "trackedBy": ["Scarlet", "afi-reactor"],
+      "trackedBy": [
+        "Scarlet",
+        "afi-reactor"
+      ],
       "status": "active"
     }
   ],

@@ -1,131 +1,123 @@
 /**
- * Guardrail Test: No Legacy Ingest Plugins
- * 
- * This test ensures that the deprecated legacy ingest plugins
- * (alpha-scout-ingest and signal-structurer) are NOT used in:
- * - Pipeline configurations (ops.codex.json, dag.codex.json)
- * - Runtime code (src/, plugins/)
- * - Active pipeline definitions (froggyPipeline.ts)
- * 
- * These plugins were quarantined in Phase 4 and replaced by the
- * canonical USS v1.1 pipeline flow:
- * 
- *   Webhook → AJV validate → context.rawUss → uss-telemetry-deriver → enrichment → analyst → validator → vault
- * 
- * If this test fails, it means someone accidentally re-introduced
- * a reference to the legacy ingest plugins. Remove the reference
- * and use the canonical USS v1.1 pipeline instead.
+ * Guardrail Test: Legacy Demo Pipeline Is Purged
+ *
+ * The deprecated Froggy "demo chain" personas and plugins have been REMOVED
+ * (not quarantined). This guardrail asserts they stay gone:
+ *
+ *   - alpha-scout-ingest          (Alpha Scout)
+ *   - signal-structurer           (Pixel Rick)
+ *   - validator-decision-evaluator (Val Dook)
+ *   - execution-agent-sim          (Execution Agent Sim)
+ *
+ * The canonical runtime is the scored-only USS v1.1 pipeline:
+ *
+ *   Webhook → AJV validate → context.rawUss → uss-telemetry-deriver →
+ *   enrichment (tech+pattern ∥ sentiment+news) → enrichment-adapter →
+ *   froggy-analyst (UWR score) → reactor vault write
+ *
+ * Validator certification and execution are NOT the reactor's responsibility.
+ *
+ * If this test fails, someone re-introduced the legacy demo chain. Remove the
+ * reference and use the canonical scored-only pipeline instead.
  */
 
 import { describe, it, expect } from "@jest/globals";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
-const REPO_ROOT = join(__dirname, "../..");
-const LEGACY_PLUGIN_NAMES = ["alpha-scout-ingest", "signal-structurer"];
+// jest runs with cwd = reactor rootDir (where jest.config.js lives), and the
+// ESM preset means __dirname is unavailable — anchor on process.cwd() instead.
+const REACTOR_ROOT = process.cwd();
 
-describe("Guardrail: No Legacy Ingest Plugins", () => {
-  it("should not reference legacy ingest plugins in ops.codex.json", () => {
-    const opsConfigPath = join(REPO_ROOT, "config/ops.codex.json");
-    
-    if (!existsSync(opsConfigPath)) {
-      // If config doesn't exist, test passes (nothing to check)
-      return;
-    }
+// Legacy plugin module names that must never reappear in config or runtime.
+const LEGACY_PLUGIN_NAMES = [
+  "alpha-scout-ingest",
+  "signal-structurer",
+  "validator-decision-evaluator",
+  "execution-agent-sim",
+];
 
-    const opsConfig = JSON.parse(readFileSync(opsConfigPath, "utf-8"));
-    const opsConfigStr = JSON.stringify(opsConfig);
+// Legacy codex node IDs / personas that must never reappear in codex config.
+const LEGACY_CODEX_TOKENS = [
+  "alpha-scout-ingest",
+  "pixelrick-structurer",
+  "validator-decision-node",
+  "execution-sim-node",
+  "froggy-vault-echo",
+  "Val Dook",
+  "Alpha Scout",
+];
 
-    for (const pluginName of LEGACY_PLUGIN_NAMES) {
-      expect(opsConfigStr).not.toContain(pluginName);
-    }
-  });
+function readIfExists(path: string): string | null {
+  return existsSync(path) ? readFileSync(path, "utf-8") : null;
+}
 
-  it("should mark legacy ingest plugins as deprecated in dag.codex.json", () => {
-    const dagConfigPath = join(REPO_ROOT, "config/dag.codex.json");
-
-    if (!existsSync(dagConfigPath)) {
-      // If config doesn't exist, test passes (nothing to check)
-      return;
-    }
-
-    const dagConfig = JSON.parse(readFileSync(dagConfigPath, "utf-8"));
-
-    // Find nodes that reference legacy plugins
-    const alphaScoutNode = dagConfig.find((node: any) => node.plugin === "alpha-scout-ingest");
-    const structurerNode = dagConfig.find((node: any) => node.plugin === "signal-structurer");
-
-    // If they exist, they MUST be marked as deprecated
-    if (alphaScoutNode) {
-      expect(alphaScoutNode.deprecated).toBe(true);
-      expect(alphaScoutNode.agentReady).toBe(false);
-      expect(alphaScoutNode.tags).toContain("deprecated");
-    }
-
-    if (structurerNode) {
-      expect(structurerNode.deprecated).toBe(true);
-      expect(structurerNode.agentReady).toBe(false);
-      expect(structurerNode.tags).toContain("deprecated");
+describe("Guardrail: legacy demo pipeline is purged", () => {
+  it("ops.codex.json references no legacy plugins, nodes, or personas", () => {
+    const ops = readIfExists(join(REACTOR_ROOT, "config/ops.codex.json"));
+    if (ops === null) return;
+    for (const token of [...LEGACY_PLUGIN_NAMES, ...LEGACY_CODEX_TOKENS]) {
+      expect(ops).not.toContain(token);
     }
   });
 
-  it("should not import legacy ingest plugins in froggyPipeline.ts", () => {
-    const pipelineConfigPath = join(REPO_ROOT, "src/config/froggyPipeline.ts");
-    
-    if (!existsSync(pipelineConfigPath)) {
-      // If config doesn't exist, test passes (nothing to check)
-      return;
+  it("dag.codex.json contains NO node that references a legacy plugin or persona", () => {
+    const dagRaw = readIfExists(join(REACTOR_ROOT, "config/dag.codex.json"));
+    if (dagRaw === null) return;
+
+    // String-level: no legacy token anywhere in the file.
+    for (const token of [...LEGACY_PLUGIN_NAMES, ...LEGACY_CODEX_TOKENS]) {
+      expect(dagRaw).not.toContain(token);
     }
 
-    const pipelineConfig = readFileSync(pipelineConfigPath, "utf-8");
-
-    // Check for imports (both relative and absolute)
-    for (const pluginName of LEGACY_PLUGIN_NAMES) {
-      expect(pipelineConfig).not.toMatch(new RegExp(`import.*${pluginName}`, "i"));
-      expect(pipelineConfig).not.toMatch(new RegExp(`from.*${pluginName}`, "i"));
-    }
-  });
-
-  it("should not import legacy ingest plugins in froggyDemoService.ts", () => {
-    const servicePath = join(REPO_ROOT, "src/services/froggyDemoService.ts");
-    
-    if (!existsSync(servicePath)) {
-      // If service doesn't exist, test passes (nothing to check)
-      return;
-    }
-
-    const serviceCode = readFileSync(servicePath, "utf-8");
-
-    // Check for imports (both relative and absolute)
-    for (const pluginName of LEGACY_PLUGIN_NAMES) {
-      expect(serviceCode).not.toMatch(new RegExp(`import.*${pluginName}`, "i"));
-      expect(serviceCode).not.toMatch(new RegExp(`from.*${pluginName}`, "i"));
+    // Structural: no node carries a legacy id/plugin (and none is "deprecated"
+    // — the legacy nodes are gone, not quarantined).
+    const dag = JSON.parse(dagRaw);
+    const nodes: any[] = Array.isArray(dag) ? dag : dag.nodes ?? [];
+    for (const node of nodes) {
+      expect(LEGACY_PLUGIN_NAMES).not.toContain(node.plugin);
+      expect(LEGACY_CODEX_TOKENS).not.toContain(node.id);
+      expect(node.deprecated).not.toBe(true);
     }
   });
 
-  it("should not have legacy ingest plugins in active plugins directory", () => {
-    const alphaScoutPath = join(REPO_ROOT, "plugins/alpha-scout-ingest.plugin.ts");
-    const structurerPath = join(REPO_ROOT, "plugins/signal-structurer.plugin.ts");
-
-    expect(existsSync(alphaScoutPath)).toBe(false);
-    expect(existsSync(structurerPath)).toBe(false);
+  it("schema.codex.json links no purged DAG node", () => {
+    const schemaRaw = readIfExists(join(REACTOR_ROOT, "config/schema.codex.json"));
+    if (schemaRaw === null) return;
+    const schemas = JSON.parse(schemaRaw);
+    for (const entry of schemas) {
+      expect(LEGACY_CODEX_TOKENS).not.toContain(entry.linkedDAGNode);
+      expect(LEGACY_PLUGIN_NAMES).not.toContain(entry.linkedDAGNode);
+    }
   });
 
-  it("should have legacy ingest plugins quarantined in _deprecated_ingest", () => {
-    const deprecatedAlphaScoutPath = join(REPO_ROOT, "plugins/_deprecated_ingest/alpha-scout-ingest.plugin.ts");
-    const deprecatedStructurerPath = join(REPO_ROOT, "plugins/_deprecated_ingest/signal-structurer.plugin.ts");
+  it("froggyPipeline.ts imports no legacy plugin", () => {
+    const pipeline = readIfExists(join(REACTOR_ROOT, "src/config/froggyPipeline.ts"));
+    if (pipeline === null) return;
+    // Note: the REMOVED STAGES doc comment intentionally NAMES the removed
+    // stages, so we assert on imports only — not on bare mentions.
+    for (const name of LEGACY_PLUGIN_NAMES) {
+      expect(pipeline).not.toMatch(new RegExp(`import[^\\n]*${name}`, "i"));
+      expect(pipeline).not.toMatch(new RegExp(`from\\s+["'][^"'\\n]*${name}`, "i"));
+    }
+  });
 
-    expect(existsSync(deprecatedAlphaScoutPath)).toBe(true);
-    expect(existsSync(deprecatedStructurerPath)).toBe(true);
+  it("froggyDemoService.ts imports no legacy plugin", () => {
+    const service = readIfExists(join(REACTOR_ROOT, "src/services/froggyDemoService.ts"));
+    if (service === null) return;
+    for (const name of LEGACY_PLUGIN_NAMES) {
+      expect(service).not.toMatch(new RegExp(`import[^\\n]*${name}`, "i"));
+      expect(service).not.toMatch(new RegExp(`from\\s+["'][^"'\\n]*${name}`, "i"));
+    }
+  });
 
-    // Verify deprecation headers are present
-    const alphaScoutContent = readFileSync(deprecatedAlphaScoutPath, "utf-8");
-    const structurerContent = readFileSync(deprecatedStructurerPath, "utf-8");
+  it("legacy plugin files are absent from the active plugins directory", () => {
+    for (const name of LEGACY_PLUGIN_NAMES) {
+      expect(existsSync(join(REACTOR_ROOT, `plugins/${name}.plugin.ts`))).toBe(false);
+    }
+  });
 
-    expect(alphaScoutContent).toContain("@deprecated");
-    expect(alphaScoutContent).toContain("DO NOT USE");
-    expect(structurerContent).toContain("@deprecated");
-    expect(structurerContent).toContain("DO NOT USE");
+  it("there is NO _deprecated_ingest quarantine directory", () => {
+    expect(existsSync(join(REACTOR_ROOT, "plugins/_deprecated_ingest"))).toBe(false);
   });
 });
-

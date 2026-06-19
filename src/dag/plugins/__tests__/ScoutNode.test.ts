@@ -1,7 +1,7 @@
 /**
  * Unit tests for ScoutNode
  *
- * @module afi-reactor/src/langgraph/plugins/__tests__/ScoutNode.test
+ * @module afi-reactor/src/dag/plugins/__tests__/ScoutNode.test
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
