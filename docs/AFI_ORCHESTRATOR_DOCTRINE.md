@@ -17,7 +17,7 @@ All canonical pipelines, DAGs, and routing logic live here—not in afi-core, no
 **Examples:**
 - ✅ DAG definitions in afi-reactor/src/dags/
 - ✅ Pipeline configs in afi-reactor/codex/
-- ❌ Pipeline logic scattered in afi-core or afi-agents
+- ❌ Pipeline logic scattered in afi-core
 
 ---
 
