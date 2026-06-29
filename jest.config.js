@@ -28,6 +28,7 @@ export default {
     "**/test/state-management.test.ts",
     "**/test/integration/state-lifecycle.test.ts",
     "**/src/dag/__tests__/*.test.ts",
+    "**/test/pipeheads/**/*.test.ts",
   ],
   testPathIgnorePatterns: [
     "<rootDir>/dist/",
