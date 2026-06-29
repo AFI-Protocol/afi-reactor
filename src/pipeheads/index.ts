@@ -12,3 +12,14 @@ export {
   EXCLUDED_TIMESTAMP_KEYS,
 } from "./canonicalHash.js";
 export type { CanonicalizeOptions, ScoringProjection } from "./canonicalHash.js";
+export {
+  schemaValidationPipehead,
+  validateUssV11Structural,
+  SCHEMA_VALIDATION_PIPEHEAD_ID,
+  STRUCTURAL_VALIDATOR_NOTE,
+  USS_V11_SCHEMA_CONST,
+} from "./schemaValidationPipehead.js";
+export type {
+  StructuralUssValidationResult,
+  StructuralValidationError,
+} from "./schemaValidationPipehead.js";
