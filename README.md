@@ -116,6 +116,44 @@ npm run validate-all
 
 ---
 
+## 🧪 Signal Evaluation Pipehead System (non-production POC)
+
+> **Status: non-production proof-of-concept.** All scored output, receipts, and
+> audit records are **demo-only / provisional** and are **not** canonical protocol truth.
+
+A self-contained, fully-offline POC under [`src/pipeheads/`](src/pipeheads) that makes AFI's
+signal-evaluation DAG **Droid-operable without making Droids the source of financial truth**.
+Droids operate the machinery (validate → five-lane fan-out → normalize → score →
+receipt → audit); the deterministic **afi-core Froggy trend-pullback UWR scorer is
+invoked, never replaced**, and remains the source of truth.
+
+- **Five analysis lanes:** `technical-indicators` and `pattern-recognition` are wired
+  (real deterministic math); `news`, `social`, and `ai-ml` are clearly-labeled provisional fixtures.
+- **Replayable audit:** every run emits a content-hashed `AuditRecord` (sha256);
+  identical input ⇒ identical `outputHash` (runtime timestamps are excluded from hashing).
+- **Governance:** governed by `AFI_DROID_CHARTER.v0.1.md` and
+  `AFI_DROID_PIPEHEAD_ADDENDUM.v0.1.md`; introduces **no** changes to `afi-core`, `afi-math`, or `afi-config`.
+
+**Run the demo** (deterministic; prints a per-lane WIRED/PROVISIONAL summary plus four parseable JSON blocks):
+
+```bash
+node --loader ts-node/esm src/cli/run-pipehead-demo.ts
+```
+
+**Scoped checks** (new code only; see `AGENTS.md` for why the full `build` / `esm:check` are out of scope):
+
+```bash
+npx tsc -p tsconfig.pipeheads.json   # typecheck
+bash scripts/esm-check-pipeheads.sh  # ESM invariants
+npm test -- --maxWorkers=2           # full Jest suite (includes pipehead tests)
+```
+
+Full design, the pipehead model, and the two offline Decision Records (DR-001
+structural USS validation, DR-002 offline EMA/RSI/ATR helper) are documented in
+[`docs/PIPEHEAD_SYSTEM.md`](docs/PIPEHEAD_SYSTEM.md).
+
+---
+
 ## 📊 CI & Codex
 
 Artifacts from CI include:
