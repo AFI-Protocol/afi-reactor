@@ -96,3 +96,11 @@ export {
   BUNDLE_PROVISIONAL_LANES,
 } from "./normalizePipehead.js";
 export type { BundleIdentity } from "./normalizePipehead.js";
+export {
+  scoringPipehead,
+  createScoringPipehead,
+  buildDemoScoredSignal,
+  froggyScorer,
+  SCORING_PIPEHEAD_ID,
+} from "./scoringPipehead.js";
+export type { FroggyScorer } from "./scoringPipehead.js";
