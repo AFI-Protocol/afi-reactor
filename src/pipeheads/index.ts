@@ -119,3 +119,15 @@ export {
   AUDIT_PIPEHEAD_ID,
 } from "./auditPipehead.js";
 export type { AuditPipeheadInput } from "./auditPipehead.js";
+export {
+  runPipeheadHarness,
+  isHarnessFailure,
+  HARNESS_ID,
+} from "./harness.js";
+export type {
+  HarnessInput,
+  HarnessOptions,
+  HarnessResult,
+  HarnessAggregate,
+  HarnessFailure,
+} from "./harness.js";
