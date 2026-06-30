@@ -1,0 +1,18 @@
+{
+  "_note": "Committed golden replay values for the canonical USS fixture (signal.uss.json + ohlcv.json). uwrScore/uwrAxes/direction/riskBucket/conviction are produced VERBATIM by the afi-core scorer scoreFroggyTrendPullbackFromEnriched with defaultUwrConfig UNCHANGED (four equal 0.25 weights => uwrScore == mean(axes)); established by m2-scoring-pipehead-afi-core. inputHash/bundleHash/outputHash are canonical sha256 digests (recursive key-sorted, runtime timestamps stripped) over the rawUss, the normalized AnalysisBundle, and the deterministic scoring projection respectively; established by m2-audit-pipehead-hashing. Committed intentionally as a replay anchor: a recompute that diverges signals nondeterminism or an unreviewed scoring/canonicalization change.",
+  "analystId": "froggy",
+  "strategyId": "trend_pullback_v1",
+  "direction": "neutral",
+  "riskBucket": "medium",
+  "conviction": 0.1875,
+  "uwrScore": 0.1875,
+  "uwrAxes": {
+    "structure": 0.15,
+    "execution": 0,
+    "risk": 0.2,
+    "insight": 0.4
+  },
+  "inputHash": "92258c5bea8c613238c1f2f7f746c99084251510195682cbaf4cf39884e2422d",
+  "bundleHash": "c75a1860df037619f257af024f8b0a3fc3ef057950bf9e36477c3c6a1d1add31",
+  "outputHash": "4b6dd610cba2b64831b0aa2a9e27707908affdf8134ca77d1083535de78ad8dc"
+}

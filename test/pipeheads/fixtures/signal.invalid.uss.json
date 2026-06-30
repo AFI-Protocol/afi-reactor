@@ -1,0 +1,16 @@
+{
+  "schema": "afi.usignal.v1.1",
+  "provenance": {
+    "source": "tradingview-webhook",
+    "providerId": "tradingview",
+    "providerType": "tradingview",
+    "providerRef": "froggy_trend_pullback_v1"
+  },
+  "facts": {
+    "symbol": "BTC/USDT",
+    "market": "perp",
+    "timeframe": "4h",
+    "strategy": "froggy_trend_pullback_v1",
+    "direction": "long"
+  }
+}
