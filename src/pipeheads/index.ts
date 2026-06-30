@@ -92,10 +92,16 @@ export {
   normalizeToBundle,
   buildEnrichedView,
   extractIdentityFromUss,
+  validateBundleIdentity,
+  NormalizeIdentityError,
   NORMALIZE_PIPEHEAD_ID,
   BUNDLE_PROVISIONAL_LANES,
 } from "./normalizePipehead.js";
-export type { BundleIdentity } from "./normalizePipehead.js";
+export type {
+  BundleIdentity,
+  IdentityValidationError,
+  IdentityValidationResult,
+} from "./normalizePipehead.js";
 export {
   scoringPipehead,
   createScoringPipehead,

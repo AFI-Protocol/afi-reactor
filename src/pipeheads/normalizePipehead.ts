@@ -65,6 +65,36 @@ export interface BundleIdentity {
   timeframe: string;
 }
 
+/** Field-level structured error describing one malformed identity field. */
+export interface IdentityValidationError {
+  field: string;
+  message: string;
+}
+
+/** Structured result of {@link validateBundleIdentity} (clean seam, no throw). */
+export type IdentityValidationResult =
+  | { ok: true; identity: BundleIdentity }
+  | { ok: false; errors: IdentityValidationError[] };
+
+/**
+ * Structured error thrown by {@link normalizeToBundle} when the validated USS is
+ * missing a required identity field, or carries a non-string / empty one. It
+ * exposes field-level `errors` so callers can inspect the failure instead of
+ * silently propagating an empty-string identity.
+ */
+export class NormalizeIdentityError extends Error {
+  readonly stage = "normalize-identity";
+  readonly errors: IdentityValidationError[];
+
+  constructor(errors: IdentityValidationError[]) {
+    super(
+      `normalize: invalid USS identity (${errors.map((e) => e.field).join(", ")})`
+    );
+    this.name = "NormalizeIdentityError";
+    this.errors = errors;
+  }
+}
+
 function readString(source: Record<string, unknown>, key: string): string {
   const value = source[key];
   return typeof value === "string" ? value : "";
@@ -76,9 +106,73 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+/** Where each required identity field is sourced from in the USS. */
+const IDENTITY_FIELD_SOURCES: ReadonlyArray<{
+  field: keyof BundleIdentity;
+  container: "provenance" | "facts";
+  path: string;
+}> = [
+  { field: "signalId", container: "provenance", path: "provenance.signalId" },
+  { field: "symbol", container: "facts", path: "facts.symbol" },
+  { field: "market", container: "facts", path: "facts.market" },
+  { field: "timeframe", container: "facts", path: "facts.timeframe" },
+];
+
+/**
+ * Collect the field-level errors for the identity carried by the validated USS.
+ * Each required field (`signalId` from `provenance`; `symbol`/`market`/
+ * `timeframe` from `facts`) must be present, a string, and non-empty. Returns an
+ * empty array when the identity is well-formed.
+ */
+function collectIdentityErrors(rawUss: unknown): IdentityValidationError[] {
+  const uss = asRecord(rawUss);
+  const containers = {
+    provenance: asRecord(uss.provenance),
+    facts: asRecord(uss.facts),
+  };
+  const errors: IdentityValidationError[] = [];
+
+  for (const { field, container, path } of IDENTITY_FIELD_SOURCES) {
+    const source = containers[container];
+    const value = source[field];
+    if (!(field in source)) {
+      errors.push({ field: path, message: `missing required identity field "${path}"` });
+    } else if (typeof value !== "string") {
+      errors.push({
+        field: path,
+        message: `identity field "${path}" must be a string (received ${
+          value === null ? "null" : typeof value
+        })`,
+      });
+    } else if (value.trim() === "") {
+      errors.push({ field: path, message: `identity field "${path}" must not be empty` });
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Strictly validate the identity carried by the validated USS. Returns a
+ * STRUCTURED result (never throws), so callers can branch on `ok`. This is the
+ * clean seam that backs {@link normalizeToBundle}'s hardening.
+ */
+export function validateBundleIdentity(rawUss: unknown): IdentityValidationResult {
+  const errors = collectIdentityErrors(rawUss);
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+  return { ok: true, identity: extractIdentityFromUss(rawUss) };
+}
+
 /**
  * Carry the identity through from the validated USS fixture (never fabricated):
  * `signalId` from `provenance`, `symbol`/`market`/`timeframe` from `facts`.
+ *
+ * NOTE: this is the LENIENT accessor (returns empty strings for absent fields)
+ * used to derive a best-effort `signalId` BEFORE schema validation runs. The
+ * STRICT, structured check is {@link validateBundleIdentity}, enforced by
+ * {@link normalizeToBundle}.
  */
 export function extractIdentityFromUss(rawUss: unknown): BundleIdentity {
   const uss = asRecord(rawUss);
@@ -223,6 +317,10 @@ export function normalizeToBundle(
   rawUss: unknown
 ): AnalysisBundle {
   const lanes = indexLaneResults(laneResults);
+  const identityErrors = collectIdentityErrors(rawUss);
+  if (identityErrors.length > 0) {
+    throw new NormalizeIdentityError(identityErrors);
+  }
   const identity = extractIdentityFromUss(rawUss);
   const enrichedView = buildEnrichedView(identity, lanes);
   const provenance: BundleProvenance = {
