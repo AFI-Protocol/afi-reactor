@@ -76,3 +76,14 @@ export {
   DEFAULT_AIML_FIXTURE,
 } from "./lanes/aimlLane.js";
 export type { AimlLanePayload } from "./lanes/aimlLane.js";
+export {
+  fanOut,
+  indexLaneResults,
+  isDegradedLaneResult,
+  DEFAULT_LANE_RUNNERS,
+  LANE_PROVISIONAL,
+  WIRED_LANE_IDS,
+  PROVISIONAL_LANE_IDS,
+  DEGRADED_LANE_NOTE,
+} from "./fanOut.js";
+export type { FanOutInput, LaneRunner, DegradedLanePayload } from "./fanOut.js";
