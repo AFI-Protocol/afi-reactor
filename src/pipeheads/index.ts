@@ -112,3 +112,10 @@ export {
   REPUTATION_RECEIPT_NOTE,
 } from "./reputationReceipt.js";
 export type { ReputationReceiptInput } from "./reputationReceipt.js";
+export {
+  auditPipehead,
+  createAuditPipehead,
+  buildAuditRecord,
+  AUDIT_PIPEHEAD_ID,
+} from "./auditPipehead.js";
+export type { AuditPipeheadInput } from "./auditPipehead.js";
