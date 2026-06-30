@@ -63,6 +63,17 @@ export interface AnalysisLaneResult<P = unknown> {
   notes?: string[];
 }
 
+/**
+ * Binds an AnalysisBundle to the validated input it was derived from so
+ * downstream artifacts can tie output to a specific input (validation-contract
+ * VAL-BUNDLE-008). `inputHash` equals the canonical hash of the validated
+ * rawUss (the schema-validation step's inputHash).
+ */
+export interface BundleProvenance {
+  signalId: string;
+  inputHash: string;
+}
+
 export interface AnalysisBundle {
   signalId: string;
   symbol: string;
@@ -71,6 +82,7 @@ export interface AnalysisBundle {
   lanes: Record<AnalysisLaneId, AnalysisLaneResult>; // all 5 keys ALWAYS present
   provisionalLanes: AnalysisLaneId[]; // explicit, e.g. ['news','social','ai-ml']
   enrichedView: unknown; // FroggyEnrichedView projection consumed by afi-core scorer
+  provenance?: BundleProvenance; // binds the bundle to the validated input (signalId + inputHash)
 }
 
 export interface DemoScoredSignal {

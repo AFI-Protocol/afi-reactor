@@ -87,3 +87,12 @@ export {
   DEGRADED_LANE_NOTE,
 } from "./fanOut.js";
 export type { FanOutInput, LaneRunner, DegradedLanePayload } from "./fanOut.js";
+export {
+  normalizePipehead,
+  normalizeToBundle,
+  buildEnrichedView,
+  extractIdentityFromUss,
+  NORMALIZE_PIPEHEAD_ID,
+  BUNDLE_PROVISIONAL_LANES,
+} from "./normalizePipehead.js";
+export type { BundleIdentity } from "./normalizePipehead.js";
