@@ -1,0 +1,7 @@
+{
+  "provisional": true,
+  "fixtureSource": "committed-fixture",
+  "note": "PROVISIONAL committed social/sentiment fixture for BTC/USDT perp 4h. Non-canonical, demo-only, NO network and NO external social adapter. Shaped to map onto afi-core enriched.sentiment ({score, tags}); restoring a wired social lane is deferred to future work.",
+  "score": 0.42,
+  "tags": ["bullish-bias", "accumulation", "fixture"]
+}

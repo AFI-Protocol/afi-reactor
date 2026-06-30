@@ -49,3 +49,30 @@ export {
   PATTERN_LANE_PIPEHEAD_ID,
 } from "./lanes/patternLane.js";
 export type { PatternLanePayload } from "./lanes/patternLane.js";
+export {
+  newsLane,
+  runNewsLane,
+  NEWS_LANE_ID,
+  NEWS_LANE_PIPEHEAD_ID,
+  NEWS_LANE_NOTE,
+  DEFAULT_NEWS_FIXTURE,
+} from "./lanes/newsLane.js";
+export type { NewsLanePayload, NewsLaneItem } from "./lanes/newsLane.js";
+export {
+  socialLane,
+  runSocialLane,
+  SOCIAL_LANE_ID,
+  SOCIAL_LANE_PIPEHEAD_ID,
+  SOCIAL_LANE_NOTE,
+  DEFAULT_SOCIAL_FIXTURE,
+} from "./lanes/socialLane.js";
+export type { SocialLanePayload } from "./lanes/socialLane.js";
+export {
+  aimlLane,
+  runAimlLane,
+  AIML_LANE_ID,
+  AIML_LANE_PIPEHEAD_ID,
+  AIML_LANE_NOTE,
+  DEFAULT_AIML_FIXTURE,
+} from "./lanes/aimlLane.js";
+export type { AimlLanePayload } from "./lanes/aimlLane.js";
