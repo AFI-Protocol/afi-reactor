@@ -104,3 +104,11 @@ export {
   SCORING_PIPEHEAD_ID,
 } from "./scoringPipehead.js";
 export type { FroggyScorer } from "./scoringPipehead.js";
+export {
+  reputationReceiptPipehead,
+  createReputationReceiptPipehead,
+  buildReputationReceipt,
+  REPUTATION_RECEIPT_PIPEHEAD_ID,
+  REPUTATION_RECEIPT_NOTE,
+} from "./reputationReceipt.js";
+export type { ReputationReceiptInput } from "./reputationReceipt.js";
