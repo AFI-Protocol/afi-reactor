@@ -28,6 +28,7 @@ import type {
 import { createFrozenClock, FROZEN_CLOCK_ISO } from "../../src/pipeheads/clock.js";
 import {
   canonicalHash,
+  canonicalize,
   buildScoringProjection,
 } from "../../src/pipeheads/canonicalHash.js";
 import { schemaValidationPipehead } from "../../src/pipeheads/schemaValidationPipehead.js";
@@ -75,12 +76,16 @@ function loadOhlcv(): AfiCandle[] {
 }
 
 /**
- * Deterministic stub afi-core score result (fixed `scoredAt`), so the FULL
- * aggregate is byte-stable across runs even though the real scorer embeds its
- * own wall-clock `scoredAt` (which the harness carries verbatim and the hashes
- * exclude).
+ * Deterministic stub afi-core score result, so the FULL aggregate is byte-stable
+ * across runs even though the real scorer embeds its own wall-clock `scoredAt`
+ * (which the harness carries verbatim and the hashes exclude). `embeddedScoredAt`
+ * models that afi-core-injected wall-clock so a test can vary it independently of
+ * our fixed clock and prove it is excluded from every content hash.
  */
-function fakeScoreResult(axes: UwrAxes = STUB_AXES): FroggyTrendPullbackScore {
+function fakeScoreResult(
+  axes: UwrAxes = STUB_AXES,
+  embeddedScoredAt = "2024-06-01T12:34:56.789Z"
+): FroggyTrendPullbackScore {
   const uwrScore = mean(axes);
   return {
     analystScore: {
@@ -92,7 +97,7 @@ function fakeScoreResult(axes: UwrAxes = STUB_AXES): FroggyTrendPullbackScore {
       conviction: uwrScore,
       uwrAxes: { ...axes },
       uwrScore,
-      scoredAt: "2024-06-01T12:34:56.789Z",
+      scoredAt: embeddedScoredAt,
     },
     notes: ["stub note"],
   } as unknown as FroggyTrendPullbackScore;
@@ -102,14 +107,30 @@ function stubScorer(axes: UwrAxes = STUB_AXES): FroggyScorer {
   return () => fakeScoreResult(axes);
 }
 
+/**
+ * A deterministic stub scorer whose embedded afi-core `analystScore.scoredAt`
+ * wall-clock is set explicitly (modelling the read-only afi-core field our fixed
+ * clock cannot reach), holding everything else constant.
+ */
+function stubScorerWithEmbeddedScoredAt(
+  embeddedScoredAt: string,
+  axes: UwrAxes = STUB_AXES
+): FroggyScorer {
+  return () => fakeScoreResult(axes, embeddedScoredAt);
+}
+
 function ctx(rawUss: unknown = loadRawUss(), iso?: string): PipeheadContext {
   return { signalId: SIGNAL_ID, rawUss, clock: createFrozenClock(iso) };
 }
 
 async function runOk(iso?: string): Promise<HarnessAggregate> {
+  return runOkWith(stubScorer(), iso);
+}
+
+async function runOkWith(scorer: FroggyScorer, iso?: string): Promise<HarnessAggregate> {
   const result = await runPipeheadHarness(
     { rawUss: loadRawUss(), candles: loadOhlcv() },
-    { clock: createFrozenClock(iso), scorer: stubScorer() }
+    { clock: createFrozenClock(iso), scorer }
   );
   if (isHarnessFailure(result)) {
     throw new Error("expected a successful harness aggregate");
@@ -214,21 +235,80 @@ describe("harness — structured-failure short-circuit (VAL-PIPEHEAD-002, VAL-SC
 });
 
 describe("harness — full-aggregate determinism (VAL-HARNESS-002)", () => {
-  it("two runs with the same fixture + fixed clock yield a deeply-equal aggregate", async () => {
+  // VAL-HARNESS-002 part (a): with the SAME fixed clock AND a DETERMINISTIC stub
+  // scorer (injected because Jest's resolver cannot load the afi-core
+  // `./analysts/*` value subpath), two harness runs over the canonical fixture
+  // produce a deeply-equal FULL aggregate — bundle, scored, receipt, AND audit —
+  // not merely identical hashes.
+  it("part (a): two same-fixed-clock runs with a deterministic scorer yield a deeply-equal full aggregate", async () => {
     const a = await runOk(FROZEN_CLOCK_ISO);
     const b = await runOk(FROZEN_CLOCK_ISO);
-    expect(a).toEqual(b);
+    // each of the four artifacts is deeply equal...
+    expect(a.bundle).toEqual(b.bundle);
+    expect(a.scored).toEqual(b.scored);
+    expect(a.receipt).toEqual(b.receipt);
+    expect(a.audit).toEqual(b.audit);
+    // ...and the whole four-artifact aggregate is byte-identical when serialized.
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
-  it("a different injected clock leaves every audit hash unchanged (timestamps excluded)", async () => {
+  // VAL-HARNESS-002 part (b): two runs under DIFFERENT clocks keep all three
+  // content hashes (inputHash/bundleHash/outputHash) byte-equal while the
+  // human-facing timestamps differ — proving timestamps are excluded from hashing.
+  it("part (b): different clocks ⇒ byte-equal content hashes but differing human timestamps", async () => {
     const frozen = await runOk(FROZEN_CLOCK_ISO);
     const future = await runOk("2099-12-31T23:59:59.000Z");
     expect(future.audit.inputHash).toBe(frozen.audit.inputHash);
     expect(future.audit.bundleHash).toBe(frozen.audit.bundleHash);
     expect(future.audit.outputHash).toBe(frozen.audit.outputHash);
-    // human-facing timestamps DO differ
+    // human-facing timestamps DO differ across clocks
+    expect(frozen.scored.scoredAt).toBe(FROZEN_CLOCK_ISO);
+    expect(future.scored.scoredAt).toBe("2099-12-31T23:59:59.000Z");
     expect(future.scored.scoredAt).not.toBe(frozen.scored.scoredAt);
     expect(future.receipt.issuedAt).not.toBe(frozen.receipt.issuedAt);
+  });
+
+  // VAL-HARNESS-002 (documented exclusion): the REAL afi-core scorer embeds its
+  // OWN wall-clock `analystScore.scoredAt` VERBATIM in the scored output.
+  // afi-core is read-only, so our injected fixed clock CANNOT reach that field —
+  // it is the single field that may vary run-to-run on the real-scorer path.
+  // It is, however, EXCLUDED from every content hash: `scoredAt` is in
+  // EXCLUDED_TIMESTAMP_KEYS (stripped recursively before hashing) and `outputHash`
+  // commits to buildScoringProjection(), which omits scoredAt entirely. We prove
+  // the exclusion here by running the harness with two stub scorers that differ
+  // ONLY in their embedded analystScore.scoredAt and asserting all three content
+  // hashes stay byte-equal. Full REAL-scorer determinism is proven end-to-end at
+  // the CLI level under VAL-CROSS-007/009 (where the real afi-core scorer loads),
+  // not in Jest.
+  it("embedded analystScore.scoredAt is a wall-clock field EXCLUDED from every content hash", async () => {
+    const early = await runOkWith(
+      stubScorerWithEmbeddedScoredAt("2001-01-01T00:00:00.000Z"),
+      FROZEN_CLOCK_ISO
+    );
+    const late = await runOkWith(
+      stubScorerWithEmbeddedScoredAt("2099-12-31T23:59:59.000Z"),
+      FROZEN_CLOCK_ISO
+    );
+
+    // The afi-core-injected wall-clock really does differ in the carried-through
+    // analystScore (our fixed clock did NOT control it).
+    const earlyScoredAt = (early.scored.analystScore as Record<string, unknown>).scoredAt;
+    const lateScoredAt = (late.scored.analystScore as Record<string, unknown>).scoredAt;
+    expect(earlyScoredAt).toBe("2001-01-01T00:00:00.000Z");
+    expect(lateScoredAt).toBe("2099-12-31T23:59:59.000Z");
+    expect(earlyScoredAt).not.toBe(lateScoredAt);
+
+    // ...yet NONE of the three content hashes move, because scoredAt is excluded.
+    expect(late.audit.inputHash).toBe(early.audit.inputHash);
+    expect(late.audit.bundleHash).toBe(early.audit.bundleHash);
+    expect(late.audit.outputHash).toBe(early.audit.outputHash);
+
+    // The projection outputHash commits to never carries scoredAt at all...
+    expect(buildScoringProjection(early.scored)).not.toHaveProperty("scoredAt");
+    // ...and the canonical form of the scored object strips the embedded wall-clock,
+    // so the two differ ONLY in that one excluded field.
+    expect(canonicalize(early.scored)).toBe(canonicalize(late.scored));
+    expect(canonicalHash(early.scored)).toBe(canonicalHash(late.scored));
   });
 });
 

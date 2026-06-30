@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, beforeAll } from "@jest/globals";
-import { spawnSync, type SpawnSyncReturns } from "child_process";
+import { spawn, spawnSync, type SpawnSyncReturns } from "child_process";
 
 const CLI_REL = "src/cli/run-pipehead-demo.ts";
 const REPO = process.cwd();
@@ -214,15 +214,74 @@ describe("CLI demo — exit-code semantics & structured errors (VAL-CLI-010)", (
   }, SPAWN_TIMEOUT_MS);
 });
 
-describe("CLI demo — no orphaned process/socket (VAL-CLI-008)", () => {
-  it("leaves no lingering demo process after a synchronous run", () => {
-    const run = runCli();
+interface CliWatchRun {
+  status: number | null;
+  pid: number | undefined;
+  listenersForPid: string[];
+  stdout: string;
+  stderr: string;
+}
+
+/**
+ * Spawn the CLI ASYNCHRONOUSLY and, for the whole lifetime of the spawned
+ * process, poll `ss -ltnp` for any LISTENING socket owned by THIS child's PID.
+ *
+ * The check is scoped strictly to the PID we spawned — NEVER a global
+ * `ps -ef | grep run-pipehead-demo` scan, which false-positives under parallel
+ * jest workers when a sibling suite (e.g. the determinism suite below) spawns
+ * the same CLI concurrently.
+ */
+function runCliWithListenerWatch(): Promise<CliWatchRun> {
+  return new Promise<CliWatchRun>((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      ["--loader", "ts-node/esm", CLI_REL],
+      { cwd: REPO, env: { ...process.env, NODE_NO_WARNINGS: "1" } }
+    );
+    const pid = child.pid;
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.on("data", (d: Buffer) => (stdout += d.toString()));
+    child.stderr?.on("data", (d: Buffer) => (stderr += d.toString()));
+
+    const listenersForPid = new Set<string>();
+    const sample = (): void => {
+      if (pid === undefined) return;
+      const ss = spawnSync("ss", ["-ltnp"], { encoding: "utf-8" });
+      for (const line of (ss.stdout ?? "").split("\n")) {
+        if (line.includes(`pid=${pid},`) || line.includes(`pid=${pid})`)) {
+          listenersForPid.add(line.trim());
+        }
+      }
+    };
+    const timer = setInterval(sample, 30);
+    child.on("error", (err) => {
+      clearInterval(timer);
+      reject(err);
+    });
+    child.on("close", (code) => {
+      clearInterval(timer);
+      sample(); // one final sample after exit
+      resolve({ status: code, pid, listenersForPid: [...listenersForPid], stdout, stderr });
+    });
+  });
+}
+
+describe("CLI demo — no servers/listeners/orphans (VAL-CLI-008)", () => {
+  it("opens NO listening socket attributable to the spawned PID and self-terminates (exit 0)", async () => {
+    const run = await runCliWithListenerWatch();
+    // Behavioral signal: ran fully offline over committed fixtures and exited 0
+    // (it neither hung waiting on a DB/network nor required a server).
     expect(run.status).toBe(0);
-    // The child has exited (spawnSync is synchronous). Confirm no orphan.
-    const ps = spawnSync("ps", ["-eo", "args"], { encoding: "utf-8" });
-    const lingering = (ps.stdout ?? "")
-      .split("\n")
-      .filter((l) => l.includes("run-pipehead-demo.ts"));
-    expect(lingering).toEqual([]);
+    expect(typeof run.pid).toBe("number");
+    expect(run.pid).toBeGreaterThan(0);
+    // Socket ABSENCE, scoped to the PID we spawned: no LISTEN socket was ever
+    // attributed to this child across its lifetime.
+    expect(run.listenersForPid).toEqual([]);
+    // No lingering process: the spawned PID is gone (scoped to PID, not a name scan).
+    const psPid = spawnSync("ps", ["-p", String(run.pid), "-o", "pid="], {
+      encoding: "utf-8",
+    });
+    expect((psPid.stdout ?? "").trim()).toBe("");
   }, SPAWN_TIMEOUT_MS);
 });
