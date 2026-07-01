@@ -31,6 +31,18 @@ jobs:
           repository: AFI-Protocol/afi-factory
           path: afi-factory
 
+      - name: Checkout afi-math (kernel guard dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: AFI-Protocol/afi-math
+          path: afi-math
+
+      - name: Checkout afi-config (kernel guard dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: AFI-Protocol/afi-config
+          path: afi-config
+
       - name: Setup Node.js 22.x
         uses: actions/setup-node@v4
         with:
