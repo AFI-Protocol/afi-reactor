@@ -40,8 +40,8 @@ import type { Clock } from "./clock.js";
 import { createFrozenClock } from "./clock.js";
 import {
   schemaValidationPipehead,
-  type StructuralUssValidationResult,
-  type StructuralValidationError,
+  type UssValidationResult,
+  type UssValidationError,
 } from "./schemaValidationPipehead.js";
 import { fanOut } from "./fanOut.js";
 import { normalizePipehead, extractIdentityFromUss } from "./normalizePipehead.js";
@@ -70,7 +70,7 @@ export interface HarnessOptions {
 /** The four-artifact aggregate produced by a successful end-to-end run. */
 export interface HarnessAggregate {
   ok: true;
-  validation: StructuralUssValidationResult;
+  validation: UssValidationResult;
   bundle: AnalysisBundle;
   scored: DemoScoredSignal;
   receipt: DemoReputationReceipt;
@@ -85,8 +85,8 @@ export interface HarnessAggregate {
 export interface HarnessFailure {
   ok: false;
   stage: "validation";
-  validation: StructuralUssValidationResult;
-  errors: StructuralValidationError[];
+  validation: UssValidationResult;
+  errors: UssValidationError[];
 }
 
 export type HarnessResult = HarnessAggregate | HarnessFailure;
