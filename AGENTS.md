@@ -962,4 +962,35 @@ Current feature branches may contain experimental or in-development features:
 
 ---
 
+## Cursor Cloud specific instructions
+
+Durable, non-obvious notes for running afi-reactor in the Cursor Cloud VM. Standard commands live in the **Build & Test** section above; only the caveats are captured here.
+
+### Sibling repos are mandatory and live at the filesystem root
+`package.json` links `afi-core`, `afi-factory`, and `afi-config` via `file:../` (afi-core also pulls `afi-math`). Because the repo is checked out at `/workspace`, `../` resolves to `/`, so the siblings must exist at `/afi-core`, `/afi-factory`, `/afi-math`, `/afi-config`. These are cloned into the VM snapshot during setup, so the startup `npm install` just re-links them. If they are ever missing, recover with (needs `sudo` to create dirs under `/`):
+
+```bash
+for r in afi-core afi-factory afi-math afi-config; do sudo mkdir -p /$r && sudo chown -R "$USER" /$r; git clone --depth 1 https://github.com/AFI-Protocol/$r.git /$r; done
+cd /afi-core && npm ci        # builds dist/ via its "prepare" script (required before reactor build)
+cd /afi-config && npm ci      # installs its tsc so afi-reactor's install of afi-config@file:../afi-config doesn't fail
+```
+
+### Extra runtime deps were added to package.json to make the server runnable
+The HTTP server (`npm run start:demo`, `dist/src/server.js` on port 8080) statically imports modules whose packages were absent from the original manifest: `ajv`, `ajv-formats` (USS/CPJ validators), `trading-signals` (canonical technical-indicator kernel — `trading-signals@^7` is API-compatible with `src/indicator/indicatorKernel.ts`), `ccxt` (BloFin/Coinbase price adapters), and `telegram`/`node-telegram-bot-api`/`input` (Telegram collectors). `afi-config` was also added as a `file:../afi-config` dependency because `src/uss/ussValidator.ts` loads schemas from `node_modules/afi-config/schemas/...`. In-code comments calling `trading-signals`/`ajv` "uninstallable offline" are only true without network — they install fine in this VM. All of these are needed just to boot the server; if this PR's `package.json` changes are not merged, `npm install` still succeeds but the server will fail at startup with `ERR_MODULE_NOT_FOUND`.
+
+### Running / smoke-testing the server
+`npm run build` (plain `tsc`) then `npm run start:demo`. Healthy startup logs `USS v1.1 validator initialized successfully`, `CPJ v0.1 validator initialized successfully`, and `Listening on http://localhost:8080`. The `❌ Missing required MTProto env vars` line is expected — Telegram collectors are opt-in (`AFI_TELEGRAM_MTPROTO_ENABLED=1`). No env vars or MongoDB are required; the default `demo` price feed and fail-soft enrichment cover everything. Smoke test:
+
+```bash
+curl -s localhost:8080/health
+curl -s -X POST localhost:8080/api/webhooks/tradingview -H 'Content-Type: application/json' \
+  -d '{"symbol":"BTC/USDT","timeframe":"1h","strategy":"trend_pullback_v1","direction":"long"}'
+```
+
+The webhook returns a scored-only `ReactorScoredSignalV1` (`analystScore.uwrScore` + `uwrAxes`, no validator/execution block).
+
+### Lint caveats (pre-existing, not environment issues)
+- `npm run esm:check` currently fails on a handful of source/test files that import without `.js` extensions (e.g. `src/aiMl/providers/TinyBrainsProvider.ts`, `src/state/StateManager.ts`). This predates the environment setup and does not block build/test.
+- `npm run codex-lint` (and therefore `npm run validate-all`) fails because `tsc` does not copy `config/*.json` into `dist/`, so `dist/config/dag.codex.json` is absent. CI only runs `npm run build` + `npm test`, not `validate-all`.
+
 **Last Updated**: 2025-11-26 | **Maintainers**: AFI Reactor Team | **Charter**: `afi-config/codex/governance/droids/AFI_DROID_CHARTER.v0.1.md` | **Doctrine**: `AFI_ORCHESTRATOR_DOCTRINE.md`
