@@ -962,4 +962,87 @@ Current feature branches may contain experimental or in-development features:
 
 ---
 
+## Cursor Cloud / Dev Environment Notes
+
+Durable, non-obvious notes for running afi-reactor in a Cursor Cloud VM (or any
+dev checkout). Standard commands live in **Build & Test** above; only caveats
+are captured here.
+
+### Sibling repos are mandatory and live beside the repo
+
+`package.json` links `afi-core`, `afi-factory`, and `afi-config` via `file:../`
+(afi-core also pulls in `afi-math`). With the repo checked out at `/workspace`,
+`../` resolves to `/`, so the siblings must exist at `/afi-core`,
+`/afi-factory`, `/afi-math`, and **`/afi-config`** (required since Mission
+1.5-B made afi-config a real schema dependency of the canonical USS validator).
+If any sibling is missing, clone it beside the repo (creating dirs under `/`
+needs `sudo`):
+
+```bash
+for r in afi-core afi-factory afi-math afi-config; do
+  sudo mkdir -p /$r && sudo chown -R "$USER" /$r
+  git clone https://github.com/AFI-Protocol/$r.git /$r
+done
+```
+
+### afi-config's prepare/build can affect installs
+
+`afi-config` declares a `prepare` script (`npm run build` → `tsc`). Because
+afi-reactor depends on `afi-config@file:../afi-config`, a plain `npm install`
+in afi-reactor can trigger that hook — which may fail on a bare afi-config
+checkout (no local toolchain) and will regenerate `afi-config/dist/**`
+artifacts (harmless drift; restore with `git -C /afi-config restore dist`).
+Mitigations:
+
+- Run `npm ci` inside `/afi-config` first so the hook resolves afi-config's own
+  locked `tsc` — the CI workflow (`.github/workflows/validate-all.yml`) already
+  does exactly this via its "Install and build afi-config" step before
+  installing afi-reactor.
+- Or install in afi-reactor with `npm install --ignore-scripts` when you only
+  need dependency resolution.
+
+### Runtime deps required for server bootability
+
+`npm run start:demo` (`dist/src/server.js`, port 8080) statically imports
+modules beyond the pipehead/test surface: `ccxt` (BloFin/Coinbase price-feed
+adapters) and `telegram` / `node-telegram-bot-api` / `input` (Telegram
+collectors — opt-in at runtime but statically imported). These are declared in
+`package.json`; without them the server exits at startup with
+`ERR_MODULE_NOT_FOUND`. The validation/indicator stack (`ajv`, `ajv-formats`,
+`trading-signals`, `afi-config`) is canonical and wired since Mission 1.5-B
+(DR-001/DR-002 resolved) — see `docs/PIPEHEAD_SYSTEM.md`.
+
+### Running / smoke-testing the server
+
+`npm run build` then `npm run start:demo`. Healthy startup logs
+`USS v1.1 validator initialized successfully` and
+`Listening on http://localhost:8080`. The `❌ Missing required MTProto env vars`
+line is expected — Telegram collectors are opt-in
+(`AFI_TELEGRAM_MTPROTO_ENABLED=1`). No env vars or MongoDB are required for the
+demo flow; the default `demo` price feed and fail-soft enrichment cover it.
+
+```bash
+curl -s localhost:8080/health
+curl -s -X POST localhost:8080/api/webhooks/tradingview -H 'Content-Type: application/json' \
+  -d '{"symbol":"BTC/USDT","timeframe":"1h","strategy":"trend_pullback_v1","direction":"long"}'
+```
+
+The webhook returns a scored-only `ReactorScoredSignalV1`
+(`analystScore.uwrScore` + `uwrAxes`; no validator/execution block).
+
+### Known caveats (pre-existing, verified 2026-07-02)
+
+- `npm run codex-lint` (and therefore `npm run validate-all`) fails because
+  `tsc` does not copy `config/*.json` into `dist/`, so
+  `dist/config/dag.codex.json` is absent. CI runs `build` + `test`, not
+  `validate-all`.
+- The repo-wide `npm run esm:check` still flags a handful of pre-existing
+  legacy files importing without `.js` extensions (e.g.
+  `src/aiMl/providers/TinyBrainsProvider.ts`, `src/state/StateManager.ts`,
+  `test/uss/*`). This predates Mission 1.5-B and does not affect build/test.
+  The scoped pipehead gates (`npx tsc -p tsconfig.pipeheads.json`,
+  `bash scripts/esm-check-pipeheads.sh`) pass clean.
+
+---
+
 **Last Updated**: 2025-11-26 | **Maintainers**: AFI Reactor Team | **Charter**: `afi-config/codex/governance/droids/AFI_DROID_CHARTER.v0.1.md` | **Doctrine**: `AFI_ORCHESTRATOR_DOCTRINE.md`
