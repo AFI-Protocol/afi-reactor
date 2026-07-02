@@ -7,6 +7,7 @@ import { createFrozenClock } from "../../src/pipeheads/clock.js";
 import {
   technicalLane,
   runTechnicalLane,
+  canonicalIndicatorEngine,
   TECHNICAL_LANE_ID,
   TECHNICAL_LANE_PIPEHEAD_ID,
   TECHNICAL_INDICATOR_NOTE,
@@ -21,6 +22,7 @@ import {
   computeOfflineTechnicalIndicators,
   MIN_CANDLES_FOR_INDICATORS,
 } from "../../src/pipeheads/lanes/technicalIndicators.js";
+import { computeTechnicalEnrichment } from "../../src/enrichment/technicalIndicators.js";
 
 function loadOhlcv(): AfiCandle[] {
   const fixturePath = join(process.cwd(), "test/pipeheads/fixtures/ohlcv.json");
@@ -35,9 +37,24 @@ function ctx(iso?: string): PipeheadContext {
   };
 }
 
-// Golden indicator values for the committed fixture (computed from the
-// repo's deprecated pure EMA/RSI/ATR formulas, the DR-002 blueprint).
+// Golden indicator values for the committed fixture, produced by the CANONICAL
+// indicator kernel (computeTechnicalEnrichment -> froggyProfile ->
+// indicatorKernel -> trading-signals v7; DR-002 RESOLVED). Streaming EMA and
+// Wilder-smoothed RSI/ATR differ numerically from the former offline helper,
+// which is why these goldens (and the bundleHash) were re-pinned.
 const GOLDEN = {
+  ema20: 157.85444974691922,
+  ema50: 143.95118526116832,
+  rsi14: 74.69075351880943,
+  atr14: 3.479208999233225,
+  emaDistancePct: 4.3112818574274,
+  trendBias: "bullish" as const,
+};
+
+// The former OFFLINE helper's golden values (simple-averaged RSI, SMA ATR,
+// batch-seeded EMA). Still pinned HERE ONLY to prove the injectable engine
+// seam keeps working with a non-default engine.
+const GOLDEN_OFFLINE = {
   ema20: 157.85454546262787,
   ema50: 142.39857716501862,
   rsi14: 85.04000000000006,
@@ -60,9 +77,9 @@ describe("fixture ohlcv.json", () => {
   });
 });
 
-describe("computeOfflineTechnicalIndicators (DR-002 offline helper)", () => {
-  it("computes the golden EMA/RSI/ATR + derived fields from the fixture", () => {
-    const ind = computeOfflineTechnicalIndicators(loadOhlcv());
+describe("canonicalIndicatorEngine (DR-002 resolved: canonical kernel behind the seam)", () => {
+  it("computes the golden canonical EMA/RSI/ATR + derived fields from the fixture", () => {
+    const ind = canonicalIndicatorEngine(loadOhlcv());
     expect(ind).not.toBeNull();
     expect(ind!.ema20).toBeCloseTo(GOLDEN.ema20, 10);
     expect(ind!.ema50).toBeCloseTo(GOLDEN.ema50, 10);
@@ -72,19 +89,29 @@ describe("computeOfflineTechnicalIndicators (DR-002 offline helper)", () => {
     expect(ind!.trendBias).toBe(GOLDEN.trendBias);
   });
 
+  it("matches the mission-expected canonical values at 4 decimal places", () => {
+    const ind = canonicalIndicatorEngine(loadOhlcv());
+    expect(ind!.ema20).toBeCloseTo(157.8544, 4);
+    expect(ind!.ema50).toBeCloseTo(143.9512, 4);
+    expect(ind!.rsi14).toBeCloseTo(74.6908, 4);
+    expect(ind!.atr14).toBeCloseTo(3.4792, 4);
+    expect(ind!.emaDistancePct).toBeCloseTo(4.3113, 4);
+    expect(ind!.trendBias).toBe("bullish");
+  });
+
   it("returns null on insufficient data (<50 candles)", () => {
-    expect(computeOfflineTechnicalIndicators(loadOhlcv().slice(0, 49))).toBeNull();
+    expect(canonicalIndicatorEngine(loadOhlcv().slice(0, 49))).toBeNull();
   });
 
   it("is deterministic: two runs produce deeply-equal output", () => {
-    expect(computeOfflineTechnicalIndicators(loadOhlcv())).toEqual(
-      computeOfflineTechnicalIndicators(loadOhlcv())
+    expect(canonicalIndicatorEngine(loadOhlcv())).toEqual(
+      canonicalIndicatorEngine(loadOhlcv())
     );
   });
 });
 
-describe("technical lane (WIRED, DR-002)", () => {
-  it("VAL-LANES-003: provisional:false with finite numeric indicators from the fixture", () => {
+describe("technical lane (WIRED, DR-002 resolved)", () => {
+  it("VAL-LANES-003: provisional:false with finite numeric CANONICAL indicators from the fixture", () => {
     const result = runTechnicalLane(loadOhlcv());
     expect(result.lane).toBe(TECHNICAL_LANE_ID);
     expect(result.provisional).toBe(false);
@@ -97,24 +124,48 @@ describe("technical lane (WIRED, DR-002)", () => {
     expect(p.ema50).toBeCloseTo(GOLDEN.ema50, 10);
     expect(p.rsi14).toBeCloseTo(GOLDEN.rsi14, 10);
     expect(p.atr14).toBeCloseTo(GOLDEN.atr14, 10);
+    expect(p.emaDistancePct).toBeCloseTo(GOLDEN.emaDistancePct, 10);
     expect(p.trendBias).toBe(GOLDEN.trendBias);
   });
 
-  it("VAL-LANES-013: self-labels its indicators as self-contained / non-canonical (DR-002)", () => {
+  it("VAL-LANES-013: self-labels its indicators as the CANONICAL kernel (DR-002 resolved)", () => {
     const result = runTechnicalLane(loadOhlcv());
-    expect(result.provisional).toBe(false); // still genuinely WIRED
-    expect(result.payload.canonicalIndicatorKernel).toBe(false);
-    expect(result.payload.indicatorSource).toBe("self-contained-offline");
+    expect(result.provisional).toBe(false); // genuinely WIRED
+    expect(result.payload.canonicalIndicatorKernel).toBe(true);
+    expect(result.payload.indicatorSource).toBe("canonical-kernel-trading-signals");
 
     const blob = JSON.stringify(result).toLowerCase();
-    expect(blob).toContain("self-contained");
-    expect(blob).toContain("offline");
-    expect(blob).toContain("dr-002");
-    expect(blob).toContain("trading-signals");
     expect(blob).toContain("canonical");
-    expect(blob).toContain("future work");
+    expect(blob).toContain("trading-signals");
+    expect(blob).toContain("dr-002");
+    expect(blob).toContain("wilder");
+    // the offline stand-in is gone from the default path
+    expect(blob).not.toContain("self-contained");
     // note is carried both on the result and in the payload
     expect((result.notes ?? []).join(" ")).toBe(TECHNICAL_INDICATOR_NOTE);
+  });
+
+  it("canonical-kernel identity: default lane output equals computeTechnicalEnrichment verbatim (genuine reuse)", () => {
+    const enriched = computeTechnicalEnrichment(loadOhlcv());
+    expect(enriched).not.toBeNull();
+    const p = runTechnicalLane(loadOhlcv()).payload;
+    expect(p.ema20).toBe(enriched!.ema20);
+    expect(p.ema50).toBe(enriched!.ema50);
+    expect(p.rsi14).toBe(enriched!.rsi14);
+    expect(p.atr14).toBe(enriched!.atr14);
+    expect(p.emaDistancePct).toBe(enriched!.emaDistancePct);
+    expect(p.trendBias).toBe(enriched!.trendBias);
+  });
+
+  it("engine seam preserved: an injected non-default engine (offline helper) is honored", () => {
+    const result = runTechnicalLane(loadOhlcv(), computeOfflineTechnicalIndicators);
+    const p = result.payload;
+    expect(p.ema20).toBeCloseTo(GOLDEN_OFFLINE.ema20, 10);
+    expect(p.ema50).toBeCloseTo(GOLDEN_OFFLINE.ema50, 10);
+    expect(p.rsi14).toBeCloseTo(GOLDEN_OFFLINE.rsi14, 10);
+    expect(p.atr14).toBeCloseTo(GOLDEN_OFFLINE.atr14, 10);
+    expect(p.emaDistancePct).toBeCloseTo(GOLDEN_OFFLINE.emaDistancePct, 10);
+    expect(p.trendBias).toBe(GOLDEN_OFFLINE.trendBias);
   });
 
   it("VAL-LANES-010: byte-identical payload across two runs over the same fixture", () => {
@@ -200,30 +251,20 @@ describe("pattern lane (WIRED, reuses detectPatterns)", () => {
   });
 });
 
-describe("offline discipline (DR-002): neither lane pulls trading-signals / src/indicator", () => {
-  const laneFiles = [
-    "src/pipeheads/lanes/technicalLane.ts",
-    "src/pipeheads/lanes/patternLane.ts",
-    "src/pipeheads/lanes/technicalIndicators.ts",
-  ];
-
-  it("source scan finds no forbidden imports", () => {
-    for (const rel of laneFiles) {
-      const src = readFileSync(join(process.cwd(), rel), "utf-8");
-      // strip line/block comments so the DR-002 prose mentioning these names
-      // (for documentation) does not trip the scan; only real imports matter.
-      const code = src
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/^[ \t]*\/\/.*$/gm, "");
-      expect(code).not.toMatch(/from\s+["'][^"']*trading-signals[^"']*["']/);
-      expect(code).not.toMatch(/from\s+["'][^"']*\/indicator\/[^"']*["']/);
-      expect(code).not.toMatch(/from\s+["'][^"']*enrichment\/technicalIndicators[^"']*["']/);
-    }
+describe("canonical-kernel identity (DR-002): technical lane pulls the canonical chain", () => {
+  it("technicalLane.ts imports the canonical enrichment kernel (source scan)", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/pipeheads/lanes/technicalLane.ts"),
+      "utf-8"
+    );
+    // strip comments so prose does not satisfy the scan; only real imports matter
+    const code = src
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^[ \t]*\/\/.*$/gm, "");
+    expect(code).toMatch(/from\s+["']\.\.\/\.\.\/enrichment\/technicalIndicators\.js["']/);
   });
 
-  it("both lanes load and run at runtime over the fixture (offline)", () => {
-    // reaching here means importing the lanes did not throw (no trading-signals
-    // landmine) and both produce results offline.
+  it("both wired lanes load and run at runtime over the fixture", () => {
     expect(() => runTechnicalLane(loadOhlcv())).not.toThrow();
     expect(() => runPatternLane(loadOhlcv())).not.toThrow();
   });

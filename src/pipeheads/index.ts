@@ -26,6 +26,7 @@ export type {
 export {
   technicalLane,
   runTechnicalLane,
+  canonicalIndicatorEngine,
   TECHNICAL_LANE_ID,
   TECHNICAL_LANE_PIPEHEAD_ID,
   TECHNICAL_INDICATOR_NOTE,

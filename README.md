@@ -127,10 +127,17 @@ Droids operate the machinery (validate → five-lane fan-out → normalize → s
 receipt → audit); the deterministic **afi-core Froggy trend-pullback UWR scorer is
 invoked, never replaced**, and remains the source of truth.
 
-- **Five analysis lanes:** `technical-indicators` and `pattern-recognition` are wired
+- **Five analysis lanes (architecture unchanged):** `technical-indicators` and `pattern-recognition` are wired
   (real deterministic math); `news`, `social`, and `ai-ml` are clearly-labeled provisional fixtures.
+- **Canonical validation & indicators (District One Hardening):** DR-001 is resolved — schema
+  validation is the canonical `validateUsignalV11` (ajv + afi-config `usignal/v1_1` schemas);
+  DR-002 is resolved — the technical lane runs the canonical `computeTechnicalEnrichment` /
+  `trading-signals` v7 indicator kernel through its injectable engine seam. Scoring remains 100% afi-core.
 - **Replayable audit:** every run emits a content-hashed `AuditRecord` (sha256);
   identical input ⇒ identical `outputHash` (runtime timestamps are excluded from hashing).
+  The golden `bundleHash` was re-pinned for DR-002 only (canonical Wilder-smoothed RSI/ATR and
+  streaming EMA differ numerically from the former offline helper); `inputHash` / `outputHash` /
+  `uwrScore` are unchanged.
 - **Governance:** governed by `AFI_DROID_CHARTER.v0.1.md` and
   `AFI_DROID_PIPEHEAD_ADDENDUM.v0.1.md`; introduces **no** changes to `afi-core`, `afi-math`, or `afi-config`.
 
@@ -148,8 +155,10 @@ bash scripts/esm-check-pipeheads.sh  # ESM invariants
 npm test -- --maxWorkers=2           # full Jest suite (includes pipehead tests)
 ```
 
-Full design, the pipehead model, and the two offline Decision Records (DR-001
-structural USS validation, DR-002 offline EMA/RSI/ATR helper) are documented in
+Full design, the pipehead model, and the two Decision Records — **both now
+resolved** (DR-001 canonical `validateUsignalV11` validation, DR-002 canonical
+`computeTechnicalEnrichment` / `trading-signals` v7 indicators) — are documented,
+along with the remaining POC limitations, in
 [`docs/PIPEHEAD_SYSTEM.md`](docs/PIPEHEAD_SYSTEM.md).
 
 ---

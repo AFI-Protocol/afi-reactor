@@ -1,20 +1,18 @@
 /**
- * Self-contained OFFLINE technical-indicator helper (Decision Record DR-002).
+ * Self-contained OFFLINE technical-indicator helper (Decision Record DR-002 —
+ * NOW RESOLVED; this helper is NO LONGER the technical lane's default engine).
  *
- * This is NOT the canonical AFI indicator kernel. The canonical chain
- * (`src/enrichment/technicalIndicators.ts` -> `src/indicator/froggyProfile.ts`
- * -> `src/indicator/indicatorKernel.ts`) hard-imports the `trading-signals`
- * package, which is not installed and is uninstallable offline (a RUNTIME-only
- * landmine invisible to scoped `tsc`, since `indicatorKernel.ts` is
- * `@ts-nocheck`). So this module re-implements EMA/RSI/ATR with deterministic,
- * dependency-free arithmetic that mirrors the repo's OWN deprecated pure
- * `calculateEMA` / `calculateRSI` / `calculateATR` formulas (read as a blueprint
- * only; that module is never imported).
+ * This is NOT the canonical AFI indicator kernel. It re-implements EMA/RSI/ATR
+ * with deterministic, dependency-free arithmetic mirroring the repo's OWN
+ * deprecated pure `calculateEMA` / `calculateRSI` / `calculateATR` formulas
+ * (simple-averaged RSI, SMA ATR, batch-seeded EMA), and was the lane's default
+ * while `trading-signals` was unavailable offline.
  *
- * CLEAN SEAM: `computeOfflineTechnicalIndicators` conforms to the
- * {@link OfflineIndicatorEngine} signature so a future mission can swap in the
- * canonical indicator kernel once `trading-signals` is available, without
- * changing the technical lane.
+ * DR-002 is resolved: `trading-signals` v7 is installed and the technical lane
+ * now defaults to `canonicalIndicatorEngine` (`technicalLane.ts`), which wraps
+ * canonical `computeTechnicalEnrichment`. This module is retained ONLY as a
+ * non-default, injectable alternative engine proving the
+ * {@link OfflineIndicatorEngine} seam stays honored (see lanes.test.ts).
  *
  * Pure & deterministic: output is a function of the candle input only. No
  * `Math.random`, no `Date.now`, no network, no filesystem.
