@@ -1,157 +1,165 @@
 /**
- * Schema-validation pipehead — self-contained OFFLINE structural USS v1.1
- * validator (Decision Record DR-001).
+ * Schema-validation pipehead — CANONICAL USS v1.1 validation (Decision Record
+ * DR-001 RESOLVED).
  *
- * This is NOT the canonical validator. The canonical `validateUsignalV11`
- * (`src/uss/ussValidator.ts`) is unusable in this offline mission: its
- * module-level `import { Ajv } from "ajv"` throws because `ajv`/`ajv-formats`
- * are not installed/resolvable and the afi-config schemas are absent. So this
- * module implements a minimal STRUCTURAL validator that enforces the same
- * minimum USS v1.1 rules and returns the same `{ ok, errors:[{field,message}] }`
- * contract behind a CLEAN SEAM: a future mission can swap `validateUssV11Structural`
- * for canonical `validateUsignalV11` without changing any caller.
+ * This pipehead now delegates to the canonical `validateUsignalV11`
+ * (`src/uss/ussValidator.ts`): ajv (v8) + ajv-formats compiled over the
+ * canonical afi-config schemas (`schemas/usignal/v1_1/{core,index}.schema.json`,
+ * afi-config is installed as `file:../afi-config`). The former self-contained
+ * STRUCTURAL validator this module used to carry has been replaced at the
+ * clean seam that DR-001 reserved for exactly this swap — no caller changed.
  *
- * The result self-labels as structural / POC / demo-only / non-canonical and is
- * explicitly NOT a replacement for canonical USS validation. Output is purely a
- * function of the input (deterministic); timestamps come from `ctx.clock()` and
- * never affect the result.
+ * Public result contract (unchanged): `{ ok, errors: [{ field, message }] }`
+ * with `errors` ALWAYS present as an array (empty when `ok`) so callers never
+ * branch on `undefined`. Canonical ajv errors are normalized:
+ *   - required-property errors map `field` to the MISSING KEY's dotted path
+ *     (e.g. `provenance.signalId`), never just the parent object;
+ *   - other instance-path errors become dotted paths (`/facts/direction` ->
+ *     `facts.direction`);
+ *   - document-root errors (empty instancePath) map to `(root)`.
+ *
+ * Output is purely a function of the input (deterministic); timestamps come
+ * from `ctx.clock()` and never affect the result. Malformed input yields a
+ * structured `status: 'failed'` result — never an uncaught throw.
  *
  * ESM: relative imports use `.js`.
  */
 
+import { validateUsignalV11 } from "../uss/ussValidator.js";
 import type { Pipehead, PipeheadContext, PipeheadExecutionResult } from "./types.js";
 
-export interface StructuralValidationError {
+export interface UssValidationError {
   field: string;
   message: string;
 }
 
 /**
- * Same result contract as the canonical `validateUsignalV11` (ussValidator.ts),
- * with `errors` always present as an array (empty when `ok`) so callers never
- * branch on `undefined`. This is the clean seam for a future canonical swap.
+ * Same result contract the structural validator honored, now produced by the
+ * canonical validator: `errors` is always present as an array (empty when
+ * `ok`) so callers never branch on `undefined`.
  */
-export interface StructuralUssValidationResult {
+export interface UssValidationResult {
   ok: boolean;
-  errors: StructuralValidationError[];
+  errors: UssValidationError[];
 }
 
 export const USS_V11_SCHEMA_CONST = "afi.usignal.v1.1";
 
-/** Required provenance fields, each of which must be present AND a string. */
-const REQUIRED_PROVENANCE_STRING_FIELDS = ["source", "providerId", "signalId"] as const;
-
 export const SCHEMA_VALIDATION_PIPEHEAD_ID = "schema-validation";
 
 /**
- * Human-readable self-label attached to every validation result. Makes the
- * structural / demo-only / non-canonical nature explicit and points at the
- * deferred canonical-validation work (DR-001).
+ * Human-readable self-label attached to every validation result. DR-001 is
+ * resolved: this is the canonical ajv-based USS v1.1 validation, no longer the
+ * structural stand-in.
  */
-export const STRUCTURAL_VALIDATOR_NOTE =
-  "Structural USS v1.1 validator (POC / demo-only / non-canonical). " +
-  "It is NOT a replacement for canonical USS validation (validateUsignalV11); " +
-  "canonical ajv-based USS validation is deferred to future work (DR-001).";
+export const CANONICAL_VALIDATOR_NOTE =
+  "Canonical USS v1.1 validation (DR-001 resolved): ajv-based validateUsignalV11 " +
+  "compiled over the canonical afi-config schemas (usignal/v1_1 core+index) with " +
+  "ajv-formats. Errors are normalized to { field, message } with required-property " +
+  "errors mapped to the missing key; `errors` is always an array.";
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+/** Matches ajv's required-keyword message, capturing the missing property key. */
+const REQUIRED_PROPERTY_RE = /must have required property '([^']+)'/;
+
+/** `/provenance/signalId` -> `provenance.signalId`; `/` or `` -> ``. */
+function dottedPath(instancePath: string): string {
+  return instancePath.split("/").filter(Boolean).join(".");
 }
 
 /**
- * Structural USS v1.1 validation enforcing the minimum canonical rules:
- *  - top-level is an object with required keys `schema` and `provenance`
- *  - `schema` const === "afi.usignal.v1.1"
- *  - `provenance` is an object with required `source`, `providerId`, `signalId`,
- *    each present AND of type string
+ * Normalize one canonical-validator error into the pipehead contract.
  *
- * Pure: identical input always yields a deeply-equal result.
+ * `validateUsignalV11` maps each ajv error to
+ * `{ field: instancePath || schemaPath || "unknown", message }`. An empty
+ * instancePath therefore surfaces as a schemaPath (starts with `#`) or
+ * `"unknown"` — both meaning the error is about the document root.
  */
-export function validateUssV11Structural(payload: unknown): StructuralUssValidationResult {
-  const errors: StructuralValidationError[] = [];
+function normalizeCanonicalError(error: { field: string; message: string }): UssValidationError {
+  const { field, message } = error;
+  const hasInstancePath = field.startsWith("/");
 
-  if (!isPlainObject(payload)) {
-    return {
-      ok: false,
-      errors: [
-        {
-          field: "(root)",
-          message: "USS payload must be a JSON object",
-        },
-      ],
-    };
+  const required = REQUIRED_PROPERTY_RE.exec(message);
+  if (required) {
+    const parent = hasInstancePath ? dottedPath(field) : "";
+    return { field: parent ? `${parent}.${required[1]}` : required[1], message };
   }
 
-  if (!("schema" in payload)) {
-    errors.push({
-      field: "schema",
-      message: 'missing required top-level property "schema"',
-    });
-  } else if (typeof payload.schema !== "string") {
-    errors.push({
-      field: "schema",
-      message: `"schema" must be a string equal to "${USS_V11_SCHEMA_CONST}"`,
-    });
-  } else if (payload.schema !== USS_V11_SCHEMA_CONST) {
-    errors.push({
-      field: "schema",
-      message: `"schema" must equal the const "${USS_V11_SCHEMA_CONST}" (received "${payload.schema}")`,
-    });
+  if (hasInstancePath) {
+    const dotted = dottedPath(field);
+    return { field: dotted === "" ? "(root)" : dotted, message };
   }
 
-  if (!("provenance" in payload)) {
-    errors.push({
-      field: "provenance",
-      message: 'missing required top-level property "provenance"',
-    });
-  } else if (!isPlainObject(payload.provenance)) {
-    errors.push({
-      field: "provenance",
-      message: '"provenance" must be a JSON object',
-    });
-  } else {
-    const provenance = payload.provenance;
-    for (const field of REQUIRED_PROVENANCE_STRING_FIELDS) {
-      const path = `provenance.${field}`;
-      if (!(field in provenance)) {
-        errors.push({
-          field: path,
-          message: `missing required property "${path}"`,
-        });
-      } else if (typeof provenance[field] !== "string") {
-        errors.push({
-          field: path,
-          message: `"${path}" must be a string (received ${typeof provenance[field]})`,
-        });
-      }
-    }
+  // Initialization sentinel from ussValidator (afi-config/ajv unavailable).
+  if (field === "validator") {
+    return { field, message };
   }
 
-  return { ok: errors.length === 0, errors };
+  return { field: "(root)", message };
 }
 
 /**
- * The validation pipehead. `provisional: true` + `notes` carry the structural /
- * demo-only / non-canonical self-label independently of any downstream artifact.
- * Returns `status: 'ok'` for a well-formed signal and `status: 'failed'`
- * carrying the structured errors for malformed input — never an uncaught throw.
+ * Canonical USS v1.1 validation behind the DR-001 seam. Calls
+ * `validateUsignalV11` and normalizes its result into the stable
+ * `{ ok, errors: UssValidationError[] }` contract (errors always an array,
+ * non-empty whenever `ok === false`).
+ *
+ * Pure & deterministic: identical input always yields a deeply-equal result.
  */
-export const schemaValidationPipehead: Pipehead<unknown, StructuralUssValidationResult> = {
+export function validateUssV11Canonical(payload: unknown): UssValidationResult {
+  const result = validateUsignalV11(payload);
+  if (result.ok) {
+    return { ok: true, errors: [] };
+  }
+  const errors = (result.errors ?? []).map(normalizeCanonicalError);
+  return {
+    ok: false,
+    errors:
+      errors.length > 0
+        ? errors
+        : [{ field: "(root)", message: "USS v1.1 payload failed canonical validation" }],
+  };
+}
+
+/**
+ * The validation pipehead. `provisional: false` — validation is canonical now
+ * (DR-001 resolved); the note carries the canonical self-label. Returns
+ * `status: 'ok'` for a well-formed signal and `status: 'failed'` carrying the
+ * structured errors for malformed input — never an uncaught throw.
+ */
+export const schemaValidationPipehead: Pipehead<unknown, UssValidationResult> = {
   id: SCHEMA_VALIDATION_PIPEHEAD_ID,
   kind: "validation",
   async execute(
     input: unknown,
     ctx: PipeheadContext
-  ): Promise<PipeheadExecutionResult<StructuralUssValidationResult>> {
+  ): Promise<PipeheadExecutionResult<UssValidationResult>> {
     const startedAt = ctx.clock();
-    const result = validateUssV11Structural(input);
+    let result: UssValidationResult;
+    try {
+      result = validateUssV11Canonical(input);
+    } catch (err: unknown) {
+      // Defensive: canonical validation should never throw; keep the
+      // structured-failure contract regardless.
+      result = {
+        ok: false,
+        errors: [
+          {
+            field: "(root)",
+            message: `canonical validation threw unexpectedly: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          },
+        ],
+      };
+    }
     const finishedAt = ctx.clock();
     return {
       pipeheadId: this.id,
       kind: this.kind,
       status: result.ok ? "ok" : "failed",
-      provisional: true,
+      provisional: false,
       output: result,
-      notes: [STRUCTURAL_VALIDATOR_NOTE],
+      notes: [CANONICAL_VALIDATOR_NOTE],
       startedAt,
       finishedAt,
     };

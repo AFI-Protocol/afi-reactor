@@ -14,18 +14,19 @@ export {
 export type { CanonicalizeOptions, ScoringProjection } from "./canonicalHash.js";
 export {
   schemaValidationPipehead,
-  validateUssV11Structural,
+  validateUssV11Canonical,
   SCHEMA_VALIDATION_PIPEHEAD_ID,
-  STRUCTURAL_VALIDATOR_NOTE,
+  CANONICAL_VALIDATOR_NOTE,
   USS_V11_SCHEMA_CONST,
 } from "./schemaValidationPipehead.js";
 export type {
-  StructuralUssValidationResult,
-  StructuralValidationError,
+  UssValidationResult,
+  UssValidationError,
 } from "./schemaValidationPipehead.js";
 export {
   technicalLane,
   runTechnicalLane,
+  canonicalIndicatorEngine,
   TECHNICAL_LANE_ID,
   TECHNICAL_LANE_PIPEHEAD_ID,
   TECHNICAL_INDICATOR_NOTE,

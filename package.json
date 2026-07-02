@@ -34,12 +34,16 @@
   },
   "dependencies": {
     "@types/mongodb": "^4.0.6",
+    "afi-config": "file:../afi-config",
     "afi-core": "file:../afi-core",
     "afi-factory": "file:../afi-factory",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "commander": "^14.0.0",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "mongodb": "^6.18.0",
+    "trading-signals": "^7.4.3",
     "uuid": "^11.1.0",
     "zod": "^4.0.14"
   }

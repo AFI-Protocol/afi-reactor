@@ -16,8 +16,8 @@
  *
  * Exit codes (VAL-CLI-001 / VAL-CLI-010):
  *   0  success over a valid fixture
- *   2  the fixture failed structural schema validation (structured error, no
- *      downstream artifacts emitted)
+ *   2  the fixture failed canonical USS v1.1 schema validation (structured
+ *      error, no downstream artifacts emitted)
  *   1  any other failure (e.g. a fixture file is missing/unparseable) surfaced
  *      as a STRUCTURED error block, never an uncaught stack trace.
  *
@@ -126,7 +126,7 @@ async function main(): Promise<number> {
     emitError({
       stage: result.stage,
       errors: result.errors,
-      message: "Signal failed structural USS v1.1 validation; pipeline halted before scoring/audit.",
+      message: "Signal failed canonical USS v1.1 validation; pipeline halted before scoring/audit.",
     });
     return 2;
   }

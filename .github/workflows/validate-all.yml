@@ -63,6 +63,20 @@ jobs:
           npm ci
           npm run build
 
+      # afi-config is a file:../afi-config dependency of afi-reactor, so
+      # afi-reactor's `npm ci` triggers afi-config's `prepare` (tsc build).
+      # On a bare checkout afi-config has no node_modules, so that hook's `tsc`
+      # resolves to an ambient/newer TypeScript on the runner, which
+      # hard-errors (TS5107) on afi-config's deprecated
+      # `moduleResolution: "Node"` (node10). Install afi-config's own locked
+      # toolchain first (mirrors the afi-core step above) so the prepare hook
+      # resolves afi-config/node_modules/.bin/tsc, which builds it cleanly.
+      - name: Install and build afi-config
+        working-directory: afi-config
+        run: |
+          npm ci
+          npm run build
+
       - name: Install afi-reactor dependencies
         working-directory: afi-reactor
         run: npm ci
