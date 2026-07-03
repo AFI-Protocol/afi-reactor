@@ -414,12 +414,15 @@ describe("D2 boundary: reference-implementation language (no canonical-pipeline 
   /**
    * Negated self-labels ("not the canonical AFI pipeline", "never the
    * canonical AFI pipeline") are the REQUIRED language — strip them before
-   * scanning so only positive canonical-status claims are flagged.
+   * scanning so only positive canonical-status claims are flagged. Text is
+   * whitespace-normalized first (markdown wraps phrases across quoted lines).
    */
   function stripNegatedSelfLabels(text: string): string {
     return text
-      .replace(/not the canonical afi pipeline/gi, "")
-      .replace(/never the canonical afi pipeline/gi, "");
+      .replace(/^\s*>\s?/gm, "") // markdown blockquote prefixes
+      .replace(/[*_`]/g, "") // markdown emphasis
+      .replace(/\s+/g, " ") // collapse line wraps
+      .replace(/(not|never)( presented as)? the canonical afi pipeline/gi, "");
   }
 
   const BANNED_PHRASES = [
