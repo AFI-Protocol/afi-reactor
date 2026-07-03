@@ -24,8 +24,8 @@
  *  - The projection affects the HASH PREIMAGE ONLY. Emitted artifacts keep
  *    their schema-conformant JSON numbers.
  *  - Decimal representations are plain-notation shortest round-trip decimal
- *    strings ("0.1875", "42000.5") — NEVER scaled base-unit integers (no
- *    float-times-1e18 style encoding).
+ *    strings ("0.1875", "42000.5") — NEVER scaled base-unit integer
+ *    encodings (0.1875 projects to "0.1875", not a wei-style shifted value).
  *
  * ESM: relative imports use `.js`.
  */

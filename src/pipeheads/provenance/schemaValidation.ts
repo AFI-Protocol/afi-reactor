@@ -15,15 +15,28 @@
  * ESM: relative imports use `.js`.
  */
 
-import { Ajv } from "ajv";
+import AjvImport from "ajv";
 import * as ajvFormatsModule from "ajv-formats";
 import { readFileSync } from "fs";
 import { join } from "path";
 
 import type { ValidateFunction } from "ajv";
 
-// Extract default export from ajv-formats (ESM/CJS compatibility, mirrors ussValidator).
-const addFormats = (ajvFormatsModule as { default?: unknown }).default ?? ajvFormatsModule;
+/** Minimal structural view of the Ajv v8 surface this adapter uses. */
+interface AjvLike {
+  addSchema(schema: object): unknown;
+  addVocabulary(vocabulary: string[]): unknown;
+  compile(schema: object): ValidateFunction;
+}
+
+// ESM/CJS interop (mirrors ussValidator): resolve the Ajv class and the
+// ajv-formats function regardless of how the CJS packages surface under the
+// active module resolution.
+type AjvCtor = new (options: Record<string, unknown>) => AjvLike;
+const AjvClass = ((AjvImport as unknown as { default?: unknown }).default ??
+  AjvImport) as AjvCtor;
+const addFormats = ((ajvFormatsModule as { default?: unknown }).default ??
+  ajvFormatsModule) as (ajv: AjvLike) => unknown;
 
 /** Structured field-level validation error (same contract as the USS validator). */
 export interface D2ValidationError {
@@ -96,14 +109,14 @@ try {
     "node_modules/afi-config/schemas/provenance/v1"
   );
 
-  const ajv = new Ajv({
+  const ajv = new AjvClass({
     strict: true,
     allowUnionTypes: true,
     strictRequired: false,
     allErrors: true,
     verbose: false,
   });
-  (addFormats as (a: Ajv) => Ajv)(ajv);
+  addFormats(ajv);
   ajv.addVocabulary(X_AFI_VOCABULARY);
 
   const loaded = new Map<D2ArtifactKind, Record<string, unknown>>();
