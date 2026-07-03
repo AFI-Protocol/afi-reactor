@@ -90,11 +90,12 @@ export const ENRICHED_VIEW_SCHEMA_REF =
 /** Self-label carried on emitted ProvenanceRecord notes. */
 export const REFERENCE_IMPLEMENTATION_NOTE =
   "Reference implementation / implementation profile: one example " +
-  "signal-evaluation path emitting a D2-compatible artifact surface. Not the " +
-  "canonical AFI pipeline — canonical status belongs to the merged afi-config " +
-  "schemas, validation rules, and hash doctrine only. The ingestion/" +
-  "normalization method used here is a reference adapter/profile; USS v1.1 " +
-  "compatibility (not this normalization method) is the canonical requirement.";
+  "signal-evaluation path emitting a D2-compatible artifact surface. " +
+  "Not the canonical AFI pipeline — canonical status belongs to the merged " +
+  "afi-config schemas, validation rules, and hash doctrine only. The " +
+  "ingestion/normalization method used here is a reference adapter/profile; " +
+  "USS v1.1 compatibility (not this normalization method) is the canonical " +
+  "requirement.";
 
 /** Fixture-backed evidence source ids (reference implementation profile). */
 export const FIXTURE_SOURCE_IDS = {
@@ -597,9 +598,9 @@ export function computeScoredOutputHash(
 /**
  * Generalized per-pass ProvenanceRecord v1 binding input, enrichment, and
  * output through CanonicalHash v1 digests. Carries NO storage profile (this
- * path persists nothing), no anchoring, no claims, and no validator-decision
- * fields. Built AFTER the ScoredSignal projection so the output commitment is
- * one-directional (no hash cycle — see module header).
+ * path persists nothing), no on-chain commitments, no claims, and no
+ * validator-decision fields. Built AFTER the ScoredSignal projection so the
+ * output commitment is one-directional (no hash cycle — see module header).
  */
 export function buildProvenanceRecord(
   input: ProvenanceRecordBuildInput

@@ -165,8 +165,8 @@ export const PROVENANCE_RECORD_SCHEMA = "afi.provenance-record.v1" as const;
 
 /**
  * ProvenanceRecord v1 — per-pass provenance record
- * (provenance-record.schema.json). Carries no anchoring, no claims, no
- * validator-decision fields, and no runtime/storage timestamps.
+ * (provenance-record.schema.json). Carries no on-chain commitments, no
+ * claims, no validator-decision fields, and no runtime/storage timestamps.
  */
 export interface ProvenanceRecordV1 {
   schema: typeof PROVENANCE_RECORD_SCHEMA;

@@ -1,18 +1,20 @@
 /**
- * Tests for the full-DAG harness (m2-harness-full-assembly), covering
+ * Tests for the full-DAG harness (District 2 M2 surface), covering
  * VAL-PIPEHEAD-001, VAL-PIPEHEAD-002, VAL-HARNESS-001, VAL-HARNESS-002,
  * VAL-SCHEMA-001 and VAL-SCHEMA-005.
  *
  * The harness wires the pipeheads in the fixed order
- * validate -> fan-out -> normalize -> score -> receipt -> audit and returns a
- * single aggregate {bundle, scored, receipt, audit}. On a schema-validation
- * failure it short-circuits gracefully (structured failure surfaced as a value,
- * no uncaught throw) and emits NO downstream scored/audit artifacts.
+ * validate -> fan-out -> normalize -> envelope -> score -> provenance and
+ * returns a single aggregate whose OUTWARD artifacts are D2-native:
+ * { envelope, scoredSignal, provenanceRecord, replayProfile } (+ clearly
+ * marked internal intermediates for tests). On a schema-validation failure it
+ * short-circuits gracefully (structured failure surfaced as a value, no
+ * uncaught throw) and emits NO downstream artifacts.
  *
  * Runtime note (mirrors scoring.test.ts): Jest's resolver cannot load the
  * afi-core `./analysts/*` VALUE subpath, so these tests inject a deterministic
- * stub scorer. The REAL afi-core scorer is exercised end-to-end by a
- * `node --loader ts-node/esm` driver (the same resolution path as the CLI).
+ * stub scorer. The REAL afi-core scorer is exercised end-to-end by the
+ * spawned-CLI suites (the same resolution path as the CLI).
  */
 
 import { describe, it, expect } from "@jest/globals";
@@ -22,30 +24,33 @@ import type { AfiCandle } from "../../src/types/AfiCandle.js";
 import type { FroggyTrendPullbackScore } from "afi-core/analysts/froggy.trend_pullback_v1.js";
 import type {
   AnalysisLaneResult,
-  DemoScoredSignal,
+  InternalScoringResult,
   PipeheadContext,
 } from "../../src/pipeheads/types.js";
 import { createFrozenClock, FROZEN_CLOCK_ISO } from "../../src/pipeheads/clock.js";
-import {
-  canonicalHash,
-  canonicalize,
-  buildScoringProjection,
-} from "../../src/pipeheads/canonicalHash.js";
 import { schemaValidationPipehead } from "../../src/pipeheads/schemaValidationPipehead.js";
 import { fanOut } from "../../src/pipeheads/fanOut.js";
 import { normalizePipehead, normalizeToBundle } from "../../src/pipeheads/normalizePipehead.js";
 import {
   createScoringPipehead,
-  buildDemoScoredSignal,
+  buildInternalScoringResult,
   type FroggyScorer,
 } from "../../src/pipeheads/scoringPipehead.js";
-import { reputationReceiptPipehead } from "../../src/pipeheads/reputationReceipt.js";
-import { auditPipehead } from "../../src/pipeheads/auditPipehead.js";
 import { technicalLane } from "../../src/pipeheads/lanes/technicalLane.js";
 import { patternLane } from "../../src/pipeheads/lanes/patternLane.js";
 import { newsLane } from "../../src/pipeheads/lanes/newsLane.js";
 import { socialLane } from "../../src/pipeheads/lanes/socialLane.js";
 import { aimlLane } from "../../src/pipeheads/lanes/aimlLane.js";
+import {
+  envelopePipehead,
+  buildEnvelopeFromBundle,
+} from "../../src/pipeheads/provenance/envelopePipehead.js";
+import { provenancePipehead } from "../../src/pipeheads/provenance/provenancePipehead.js";
+import {
+  computeEnrichmentHash,
+  computeInputHash,
+  computeScoredOutputHash,
+} from "../../src/pipeheads/provenance/builders.js";
 import {
   runPipeheadHarness,
   isHarnessFailure,
@@ -56,7 +61,7 @@ import {
 const HEX_64 = /^[0-9a-f]{64}$/;
 const SIGNAL_ID = "btc-usdt-perp-4h-0001";
 
-type UwrAxes = DemoScoredSignal["uwrAxes"];
+type UwrAxes = InternalScoringResult["uwrAxes"];
 const STUB_AXES: UwrAxes = { structure: 0.15, execution: 0, risk: 0.2, insight: 0.4 };
 
 function mean(axes: UwrAxes): number {
@@ -78,9 +83,10 @@ function loadOhlcv(): AfiCandle[] {
 /**
  * Deterministic stub afi-core score result, so the FULL aggregate is byte-stable
  * across runs even though the real scorer embeds its own wall-clock `scoredAt`
- * (which the harness carries verbatim and the hashes exclude). `embeddedScoredAt`
- * models that afi-core-injected wall-clock so a test can vary it independently of
- * our fixed clock and prove it is excluded from every content hash.
+ * (which the internal carrier holds verbatim and the hashes exclude).
+ * `embeddedScoredAt` models that afi-core-injected wall-clock so a test can vary
+ * it independently of our fixed clock and prove it is excluded from every
+ * content hash.
  */
 function fakeScoreResult(
   axes: UwrAxes = STUB_AXES,
@@ -133,56 +139,84 @@ async function runOkWith(scorer: FroggyScorer, iso?: string): Promise<HarnessAgg
     { clock: createFrozenClock(iso), scorer }
   );
   if (isHarnessFailure(result)) {
-    throw new Error("expected a successful harness aggregate");
+    throw new Error(`expected a successful harness aggregate: ${JSON.stringify(result)}`);
   }
   return result;
 }
 
+/** The four OUTWARD D2 artifacts of an aggregate (order-stable serialization). */
+function outwardArtifacts(agg: HarnessAggregate): unknown[] {
+  return [agg.envelope, agg.scoredSignal, agg.provenanceRecord, agg.replayProfile];
+}
+
 describe("harness — full-DAG assembly (VAL-HARNESS-001, VAL-SCHEMA-001)", () => {
-  it("VAL-SCHEMA-001: a valid fixture proceeds end-to-end producing bundle + scored + audit", async () => {
+  it("VAL-SCHEMA-001: a valid fixture proceeds end-to-end producing the D2 artifact set", async () => {
     const agg = await runOk();
     expect(agg.ok).toBe(true);
     expect(agg.validation.ok).toBe(true);
-    expect(agg.bundle).toBeDefined();
-    expect(agg.scored).toBeDefined();
-    expect(agg.receipt).toBeDefined();
-    expect(agg.audit).toBeDefined();
+    expect(agg.envelope).toBeDefined();
+    expect(agg.scoredSignal).toBeDefined();
+    expect(agg.provenanceRecord).toBeDefined();
+    expect(agg.replayProfile).toBeDefined();
+    // internal intermediates are present and clearly segregated
+    expect(agg.internal.bundle).toBeDefined();
+    expect(agg.internal.scored).toBeDefined();
   });
 
-  it("VAL-HARNESS-001: one call returns all four artifacts", async () => {
+  it("VAL-HARNESS-001: one call returns all four outward D2 artifacts", async () => {
     const agg = await runOk();
     expect(Object.keys(agg)).toEqual(
-      expect.arrayContaining(["bundle", "scored", "receipt", "audit"])
+      expect.arrayContaining([
+        "envelope",
+        "scoredSignal",
+        "provenanceRecord",
+        "replayProfile",
+        "internal",
+      ])
     );
+    // schema self-identification
+    expect(agg.envelope.schema).toBe("afi.analyst-input-envelope.v1");
+    expect(agg.scoredSignal.schema).toBe("afi.scored-signal.v1");
+    expect(agg.provenanceRecord.schema).toBe("afi.provenance-record.v1");
+    expect(agg.replayProfile.schema).toBe("afi.replay-profile.v1");
   });
 
   it("VAL-HARNESS-001: artifacts share one signalId", async () => {
     const agg = await runOk();
-    expect(agg.bundle.signalId).toBe(SIGNAL_ID);
-    expect(agg.scored.signalId).toBe(SIGNAL_ID);
-    expect(agg.receipt.signalId).toBe(SIGNAL_ID);
-    expect(agg.audit.signalId).toBe(SIGNAL_ID);
+    expect(agg.envelope.signalId).toBe(SIGNAL_ID);
+    expect(agg.scoredSignal.signalId).toBe(SIGNAL_ID);
+    expect(agg.provenanceRecord.signalId).toBe(SIGNAL_ID);
+    expect(agg.internal.bundle.signalId).toBe(SIGNAL_ID);
+    expect(agg.internal.scored.signalId).toBe(SIGNAL_ID);
   });
 
-  it("VAL-HARNESS-001: audit hashes reference the prior steps (input/bundle/output linkage)", async () => {
+  it("VAL-HARNESS-001: provenance hashes reference the prior steps (input/enrichment/output linkage)", async () => {
     const agg = await runOk();
-    expect(agg.audit.inputHash).toBe(agg.bundle.provenance?.inputHash);
-    expect(agg.audit.inputHash).toBe(canonicalHash(loadRawUss()));
-    expect(agg.audit.bundleHash).toBe(canonicalHash(agg.bundle));
-    expect(agg.audit.outputHash).toBe(canonicalHash(buildScoringProjection(agg.scored)));
-    expect(agg.audit.inputHash).toMatch(HEX_64);
-    expect(agg.audit.bundleHash).toMatch(HEX_64);
-    expect(agg.audit.outputHash).toMatch(HEX_64);
+    const record = agg.provenanceRecord;
+    expect(record.inputHash.value).toBe(agg.internal.bundle.provenance?.inputHash);
+    expect(record.inputHash).toEqual(computeInputHash(loadRawUss()));
+    expect(record.enrichmentHash).toEqual(computeEnrichmentHash(agg.internal.bundle));
+    expect(record.outputHash).toEqual(computeScoredOutputHash(agg.scoredSignal));
+    expect(record.inputHash.value).toMatch(HEX_64);
+    expect(record.enrichmentHash?.value).toMatch(HEX_64);
+    expect(record.outputHash.value).toMatch(HEX_64);
+    // domain separation across the three surfaces
+    expect(record.inputHash.domainTag).toBe("afi.d2.signal-input");
+    expect(record.enrichmentHash?.domainTag).toBe("afi.d2.enrichment-bundle");
+    expect(record.outputHash.domainTag).toBe("afi.d2.scored-output");
   });
 
-  it("VAL-HARNESS-001: the echoed uwrScore is consistent across scored/receipt/audit", async () => {
+  it("VAL-HARNESS-001: scoring values are consistent across the internal carrier and the outward projection", async () => {
     const agg = await runOk();
-    expect(agg.receipt.uwrScore).toBe(agg.scored.uwrScore);
-    expect(agg.audit.uwrScore).toBe(agg.scored.uwrScore);
-    expect(agg.audit.uwrAxes).toEqual(agg.scored.uwrAxes);
-    expect(agg.bundle.provisionalLanes).toEqual(["news", "social", "ai-ml"]);
-    expect(agg.receipt.provisionalLanes).toEqual(agg.bundle.provisionalLanes);
-    expect(agg.audit.provisionalLanes).toEqual(agg.bundle.provisionalLanes);
+    expect(agg.scoredSignal.uwrScore).toBe(agg.internal.scored.uwrScore);
+    expect(agg.scoredSignal.uwrAxes).toEqual(agg.internal.scored.uwrAxes);
+    expect(agg.envelope.strategyLocalView).toEqual(agg.internal.bundle.enrichedView);
+    expect(agg.internal.bundle.provisionalLanes).toEqual(["news", "social", "ai-ml"]);
+    // envelope lane provenance mirrors the wired/provisional split
+    const provisional = (agg.envelope.enrichmentProvenance ?? [])
+      .filter((lane) => lane.provisional)
+      .map((lane) => lane.laneId);
+    expect(provisional).toEqual(["news", "social", "ai-ml"]);
   });
 
   it("exposes a stable harness id", () => {
@@ -218,12 +252,13 @@ describe("harness — structured-failure short-circuit (VAL-PIPEHEAD-002, VAL-SC
         expect(typeof e.message).toBe("string");
         expect(e.message.length).toBeGreaterThan(0);
       }
-      // VAL-SCHEMA-005: no scored/bundle/audit artifact present on a failure
+      // VAL-SCHEMA-005: no downstream D2 artifact present on a failure
       const asAny = result as unknown as Record<string, unknown>;
-      expect(asAny.bundle).toBeUndefined();
-      expect(asAny.scored).toBeUndefined();
-      expect(asAny.receipt).toBeUndefined();
-      expect(asAny.audit).toBeUndefined();
+      expect(asAny.envelope).toBeUndefined();
+      expect(asAny.scoredSignal).toBeUndefined();
+      expect(asAny.provenanceRecord).toBeUndefined();
+      expect(asAny.replayProfile).toBeUndefined();
+      expect(asAny.internal).toBeUndefined();
     });
   }
 
@@ -236,51 +271,49 @@ describe("harness — structured-failure short-circuit (VAL-PIPEHEAD-002, VAL-SC
 
 describe("harness — full-aggregate determinism (VAL-HARNESS-002)", () => {
   // VAL-HARNESS-002 part (a): with the SAME fixed clock AND a DETERMINISTIC stub
-  // scorer (injected because Jest's resolver cannot load the afi-core
-  // `./analysts/*` value subpath), two harness runs over the canonical fixture
-  // produce a deeply-equal FULL aggregate — bundle, scored, receipt, AND audit —
-  // not merely identical hashes.
+  // scorer, two harness runs over the canonical fixture produce a deeply-equal
+  // FULL aggregate — outward artifacts AND internal intermediates.
   it("part (a): two same-fixed-clock runs with a deterministic scorer yield a deeply-equal full aggregate", async () => {
     const a = await runOk(FROZEN_CLOCK_ISO);
     const b = await runOk(FROZEN_CLOCK_ISO);
-    // each of the four artifacts is deeply equal...
-    expect(a.bundle).toEqual(b.bundle);
-    expect(a.scored).toEqual(b.scored);
-    expect(a.receipt).toEqual(b.receipt);
-    expect(a.audit).toEqual(b.audit);
-    // ...and the whole four-artifact aggregate is byte-identical when serialized.
+    expect(a.envelope).toEqual(b.envelope);
+    expect(a.scoredSignal).toEqual(b.scoredSignal);
+    expect(a.provenanceRecord).toEqual(b.provenanceRecord);
+    expect(a.replayProfile).toEqual(b.replayProfile);
+    expect(a.internal).toEqual(b.internal);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
-  // VAL-HARNESS-002 part (b): two runs under DIFFERENT clocks keep all three
-  // content hashes (inputHash/bundleHash/outputHash) byte-equal while the
-  // human-facing timestamps differ — proving timestamps are excluded from hashing.
-  it("part (b): different clocks ⇒ byte-equal content hashes but differing human timestamps", async () => {
+  // VAL-HARNESS-002 part (b) — STRONGER under the D2 surface: the outward
+  // artifacts carry NO runtime timestamps at all, so runs under DIFFERENT
+  // clocks are byte-identical outward, not merely hash-equal. Only the
+  // internal carrier's clock-derived scoredAt differs.
+  it("part (b): different clocks ⇒ byte-identical OUTWARD D2 artifacts", async () => {
     const frozen = await runOk(FROZEN_CLOCK_ISO);
     const future = await runOk("2099-12-31T23:59:59.000Z");
-    expect(future.audit.inputHash).toBe(frozen.audit.inputHash);
-    expect(future.audit.bundleHash).toBe(frozen.audit.bundleHash);
-    expect(future.audit.outputHash).toBe(frozen.audit.outputHash);
-    // human-facing timestamps DO differ across clocks
-    expect(frozen.scored.scoredAt).toBe(FROZEN_CLOCK_ISO);
-    expect(future.scored.scoredAt).toBe("2099-12-31T23:59:59.000Z");
-    expect(future.scored.scoredAt).not.toBe(frozen.scored.scoredAt);
-    expect(future.receipt.issuedAt).not.toBe(frozen.receipt.issuedAt);
+    expect(JSON.stringify(outwardArtifacts(future))).toBe(
+      JSON.stringify(outwardArtifacts(frozen))
+    );
+    // internal clock-derived timestamps DO differ across clocks...
+    expect(frozen.internal.scored.scoredAt).toBe(FROZEN_CLOCK_ISO);
+    expect(future.internal.scored.scoredAt).toBe("2099-12-31T23:59:59.000Z");
+    // ...but never leak outward: no volatile timestamp key appears in any artifact.
+    const outwardJson = JSON.stringify(outwardArtifacts(frozen));
+    for (const volatileKey of ["scoredAt", "createdAt", "updatedAt", "storedAt", "processedAt", "ingestedAt", "startedAt", "finishedAt"]) {
+      expect(outwardJson).not.toContain(`"${volatileKey}"`);
+    }
   });
 
-  // VAL-HARNESS-002 (documented exclusion): the REAL afi-core scorer embeds its
-  // OWN wall-clock `analystScore.scoredAt` VERBATIM in the scored output.
-  // afi-core is read-only, so our injected fixed clock CANNOT reach that field —
-  // it is the single field that may vary run-to-run on the real-scorer path.
-  // It is, however, EXCLUDED from every content hash: `scoredAt` is in
-  // EXCLUDED_TIMESTAMP_KEYS (stripped recursively before hashing) and `outputHash`
-  // commits to buildScoringProjection(), which omits scoredAt entirely. We prove
-  // the exclusion here by running the harness with two stub scorers that differ
-  // ONLY in their embedded analystScore.scoredAt and asserting all three content
-  // hashes stay byte-equal. Full REAL-scorer determinism is proven end-to-end at
-  // the CLI level under VAL-CROSS-007/009 (where the real afi-core scorer loads),
-  // not in Jest.
-  it("embedded analystScore.scoredAt is a wall-clock field EXCLUDED from every content hash", async () => {
+  // The REAL afi-core scorer embeds its OWN wall-clock `analystScore.scoredAt`
+  // VERBATIM in the internal carrier. afi-core is read-only, so our injected
+  // fixed clock CANNOT reach that field. It is, however, EXCLUDED from every
+  // content hash (afi.hash.v1 volatile-timestamp policy) and the outward
+  // ScoredSignal v1 projection omits it entirely. We prove the exclusion here
+  // by running the harness with two stub scorers that differ ONLY in their
+  // embedded analystScore.scoredAt and asserting the outward artifacts stay
+  // byte-equal. Full REAL-scorer determinism is proven end-to-end at the CLI
+  // level under VAL-CROSS-007/009 (where the real afi-core scorer loads).
+  it("embedded analystScore.scoredAt is a wall-clock field EXCLUDED from every outward artifact and hash", async () => {
     const early = await runOkWith(
       stubScorerWithEmbeddedScoredAt("2001-01-01T00:00:00.000Z"),
       FROZEN_CLOCK_ISO
@@ -292,23 +325,19 @@ describe("harness — full-aggregate determinism (VAL-HARNESS-002)", () => {
 
     // The afi-core-injected wall-clock really does differ in the carried-through
     // analystScore (our fixed clock did NOT control it).
-    const earlyScoredAt = (early.scored.analystScore as Record<string, unknown>).scoredAt;
-    const lateScoredAt = (late.scored.analystScore as Record<string, unknown>).scoredAt;
+    const earlyScoredAt = (early.internal.scored.analystScore as Record<string, unknown>).scoredAt;
+    const lateScoredAt = (late.internal.scored.analystScore as Record<string, unknown>).scoredAt;
     expect(earlyScoredAt).toBe("2001-01-01T00:00:00.000Z");
     expect(lateScoredAt).toBe("2099-12-31T23:59:59.000Z");
     expect(earlyScoredAt).not.toBe(lateScoredAt);
 
-    // ...yet NONE of the three content hashes move, because scoredAt is excluded.
-    expect(late.audit.inputHash).toBe(early.audit.inputHash);
-    expect(late.audit.bundleHash).toBe(early.audit.bundleHash);
-    expect(late.audit.outputHash).toBe(early.audit.outputHash);
-
-    // The projection outputHash commits to never carries scoredAt at all...
-    expect(buildScoringProjection(early.scored)).not.toHaveProperty("scoredAt");
-    // ...and the canonical form of the scored object strips the embedded wall-clock,
-    // so the two differ ONLY in that one excluded field.
-    expect(canonicalize(early.scored)).toBe(canonicalize(late.scored));
-    expect(canonicalHash(early.scored)).toBe(canonicalHash(late.scored));
+    // ...yet the outward artifacts are byte-identical (hashes included).
+    expect(JSON.stringify(outwardArtifacts(late))).toBe(
+      JSON.stringify(outwardArtifacts(early))
+    );
+    expect(late.provenanceRecord.outputHash).toEqual(early.provenanceRecord.outputHash);
+    // The outward projection never carries scoredAt at all.
+    expect(Object.keys(early.scoredSignal)).not.toContain("scoredAt");
   });
 });
 
@@ -318,7 +347,8 @@ describe("pipehead typed contract — purity for identical (input, ctx) (VAL-PIP
     const candles = loadOhlcv();
     const laneResults: AnalysisLaneResult[] = await fanOut({ candles }, ctx(rawUss));
     const bundle = normalizeToBundle(laneResults, rawUss);
-    const scored = buildDemoScoredSignal(fakeScoreResult(), SIGNAL_ID, FROZEN_CLOCK_ISO);
+    const envelope = buildEnvelopeFromBundle(bundle, candles, rawUss);
+    const scored = buildInternalScoringResult(fakeScoreResult(), SIGNAL_ID, FROZEN_CLOCK_ISO);
 
     const cases: Array<{ name: string; run: (c: PipeheadContext) => Promise<unknown> }> = [
       { name: "schema-validation", run: (c) => schemaValidationPipehead.execute(rawUss, c) },
@@ -328,16 +358,12 @@ describe("pipehead typed contract — purity for identical (input, ctx) (VAL-PIP
       { name: "social lane", run: (c) => socialLane.execute(undefined, c) },
       { name: "ai-ml lane", run: (c) => aimlLane.execute(undefined, c) },
       { name: "normalize", run: (c) => normalizePipehead.execute(laneResults, c) },
-      { name: "scoring", run: (c) => createScoringPipehead(stubScorer()).execute(bundle, c) },
+      { name: "envelope", run: (c) => envelopePipehead.execute({ bundle, candles }, c) },
+      { name: "scoring", run: (c) => createScoringPipehead(stubScorer()).execute(envelope, c) },
       {
-        name: "reputation",
-        run: (c) =>
-          reputationReceiptPipehead.execute(
-            { scored, provisionalLanes: bundle.provisionalLanes },
-            c
-          ),
+        name: "provenance",
+        run: (c) => provenancePipehead.execute({ bundle, envelope, scored }, c),
       },
-      { name: "audit", run: (c) => auditPipehead.execute({ bundle, scored }, c) },
     ];
 
     for (const { name, run } of cases) {

@@ -31,7 +31,7 @@
  *     as strings and never coerced.
  *
  * BOUNDARY: this module computes digests only. It performs no I/O, reads no
- * clock, and defines no anchoring/economic behavior of any kind.
+ * clock, and defines no on-chain or economic behavior of any kind.
  *
  * ESM: relative imports use `.js`.
  */
