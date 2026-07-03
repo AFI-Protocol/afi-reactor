@@ -1,27 +1,40 @@
 /**
- * Full-DAG harness for the AFI Signal Evaluation Pipehead System
- * (non-production POC). Wires the pipeheads in the fixed order
+ * Full-DAG harness for the AFI Signal Evaluation Pipehead System — a pre-live
+ * REFERENCE IMPLEMENTATION / implementation profile of one signal-evaluation
+ * path with a D2-native outward artifact surface. Wires the pipeheads in the
+ * fixed order
  *
- *   validate -> fan-out -> normalize -> score -> receipt -> audit
+ *   validate -> fan-out -> normalize -> envelope -> score -> provenance
  *
- * and returns a single aggregate `{ bundle, scored, receipt, audit }` from one
- * pass over a fixture (architecture.md §3, validation-contract VAL-HARNESS-001).
+ * and returns a single aggregate whose OUTWARD artifacts are D2-native:
  *
- * Short-circuit (VAL-PIPEHEAD-002 / VAL-SCHEMA-005): a schema-validation failure
- * is surfaced as a STRUCTURED VALUE (`{ ok:false, stage:'validation', errors }`),
- * never an uncaught throw, and NO downstream artifact (bundle/scored/receipt/
- * audit) is produced for an invalid input.
+ *   - AnalystInputEnvelope v1 (opaque, declared, hash-pinned strategy view)
+ *   - ScoredSignal v1 projection (afi-core scoring values verbatim)
+ *   - ProvenanceRecord v1 (input/enrichment/output CanonicalHash v1 digests)
+ *   - ReplayProfile v1 (deterministic replay pins)
  *
- * Determinism (VAL-HARNESS-002): given a fixture and an injected fixed clock the
- * aggregate is byte-stable across runs. The only timestamps (`scoredAt`,
- * `issuedAt`, `startedAt`, `finishedAt`) come from `ctx.clock()` and are
- * excluded from every content hash; identical input ⇒ identical hashes.
+ * The pre-D2 POC artifacts (AnalysisBundle as an outward block,
+ * DemoScoredSignal, DemoReputationReceipt, AuditRecord) are RETIRED from the
+ * outward surface. The normalized bundle and the raw scoring carrier remain
+ * available under `internal` — clearly-marked in-process intermediates for
+ * tests only, never outward artifacts.
  *
- * BOUNDARY (binding): the harness only COMPOSES the existing pipeheads. Scoring
- * is performed solely by the afi-core scorer (bound in scoringPipehead.ts);
- * this module never touches scoring/UWR/reputation math, mutates state, or
- * performs I/O. The scorer is injectable so tests can supply a deterministic
- * stub (the afi-core value subpath is only resolvable under
+ * Short-circuit (VAL-PIPEHEAD-002 / VAL-SCHEMA-005): a schema-validation
+ * failure is surfaced as a STRUCTURED VALUE (`{ ok:false, stage:'validation',
+ * errors }`), never an uncaught throw, and NO downstream artifact is produced
+ * for an invalid input. A D2 artifact-validation failure surfaces the same
+ * way under `stage: 'artifact-validation'`.
+ *
+ * Determinism (VAL-HARNESS-002): given a fixture the four OUTWARD D2
+ * artifacts are byte-stable across runs — even under DIFFERENT clocks,
+ * because they carry no runtime timestamps at all. Clock values only appear
+ * on internal carriers and are excluded from every content hash.
+ *
+ * BOUNDARY (binding): the harness only COMPOSES the existing pipeheads.
+ * Scoring is performed solely by the afi-core scorer (bound in
+ * scoringPipehead.ts); this module never touches scoring/UWR math, mutates
+ * state, or performs I/O. The scorer is injectable so tests can supply a
+ * deterministic stub (the afi-core value subpath is only resolvable under
  * `node --loader ts-node/esm`).
  *
  * ESM: relative imports use `.js`.
@@ -31,9 +44,7 @@ import type { AfiCandle } from "../types/AfiCandle.js";
 import type {
   AnalysisBundle,
   AnalysisLaneResult,
-  AuditRecord,
-  DemoReputationReceipt,
-  DemoScoredSignal,
+  InternalScoringResult,
   PipeheadContext,
 } from "./types.js";
 import type { Clock } from "./clock.js";
@@ -50,8 +61,17 @@ import {
   scoringPipehead,
   type FroggyScorer,
 } from "./scoringPipehead.js";
-import { reputationReceiptPipehead } from "./reputationReceipt.js";
-import { auditPipehead } from "./auditPipehead.js";
+import { envelopePipehead } from "./provenance/envelopePipehead.js";
+import {
+  provenancePipehead,
+  type D2ArtifactValidationError,
+} from "./provenance/provenancePipehead.js";
+import type {
+  AnalystInputEnvelopeV1,
+  ProvenanceRecordV1,
+  ReplayProfileV1,
+  ScoredSignalV1,
+} from "./provenance/types.js";
 
 export const HARNESS_ID = "pipehead-harness";
 
@@ -67,27 +87,47 @@ export interface HarnessOptions {
   scorer?: FroggyScorer;
 }
 
-/** The four-artifact aggregate produced by a successful end-to-end run. */
+/** In-process intermediates exposed for tests only — never outward artifacts. */
+export interface HarnessInternalArtifacts {
+  bundle: AnalysisBundle;
+  scored: InternalScoringResult;
+}
+
+/** The D2-native aggregate produced by a successful end-to-end run. */
 export interface HarnessAggregate {
   ok: true;
   validation: UssValidationResult;
-  bundle: AnalysisBundle;
-  scored: DemoScoredSignal;
-  receipt: DemoReputationReceipt;
-  audit: AuditRecord;
+  envelope: AnalystInputEnvelopeV1;
+  scoredSignal: ScoredSignalV1;
+  provenanceRecord: ProvenanceRecordV1;
+  replayProfile: ReplayProfileV1;
+  /** Clearly-marked INTERNAL intermediates (tests only; not outward surface). */
+  internal: HarnessInternalArtifacts;
 }
 
 /**
- * The structured short-circuit value returned when schema validation fails. It
- * carries the field-level errors and deliberately contains NO downstream
- * artifact (VAL-SCHEMA-005).
+ * The structured short-circuit value returned when USS schema validation
+ * fails. It carries the field-level errors and deliberately contains NO
+ * downstream artifact (VAL-SCHEMA-005).
  */
-export interface HarnessFailure {
+export interface HarnessValidationFailure {
   ok: false;
   stage: "validation";
   validation: UssValidationResult;
   errors: UssValidationError[];
 }
+
+/**
+ * The structured value returned when a GENERATED artifact fails D2 schema
+ * validation (defensive; should not occur for well-formed fixtures).
+ */
+export interface HarnessArtifactFailure {
+  ok: false;
+  stage: "artifact-validation";
+  errors: D2ArtifactValidationError[];
+}
+
+export type HarnessFailure = HarnessValidationFailure | HarnessArtifactFailure;
 
 export type HarnessResult = HarnessAggregate | HarnessFailure;
 
@@ -97,9 +137,10 @@ export function isHarnessFailure(result: HarnessResult): result is HarnessFailur
 }
 
 /**
- * Run the full pipehead DAG once over a fixture. Returns the four-artifact
- * aggregate on success, or a structured validation failure (no throw, no
- * downstream artifacts) when the input is rejected by schema validation.
+ * Run the full pipehead DAG once over a fixture. Returns the D2-native
+ * aggregate on success, or a structured failure (no throw, no downstream
+ * artifacts) when the input is rejected by USS validation or a generated
+ * artifact fails D2 validation.
  */
 export async function runPipeheadHarness(
   input: HarnessInput,
@@ -120,25 +161,42 @@ export async function runPipeheadHarness(
   // 2. fan-out across the five lanes (error-isolated; always five results).
   const laneResults: AnalysisLaneResult[] = await fanOut({ candles: input.candles }, ctx);
 
-  // 3. normalize → AnalysisBundle (+ FroggyEnrichedView, provenance binding).
+  // 3. normalize -> INTERNAL AnalysisBundle (reference adapter/profile).
   const bundle = (await normalizePipehead.execute(laneResults, ctx)).output;
 
-  // 4. score — invokes the afi-core deterministic scorer (or an injected stub).
+  // 4. envelope -> AnalystInputEnvelope v1 (the analyst-input boundary).
+  const envelope = (
+    await envelopePipehead.execute({ bundle, candles: input.candles }, ctx)
+  ).output;
+
+  // 5. score — invokes the afi-core deterministic scorer (or an injected stub)
+  //    over the envelope's opaque strategy-local view.
   const scoringHead = options.scorer
     ? createScoringPipehead(options.scorer)
     : scoringPipehead;
-  const scored = (await scoringHead.execute(bundle, ctx)).output;
+  const scored = (await scoringHead.execute(envelope, ctx)).output;
 
-  // 5. reputation receipt — demo-only, mutates no reputation state.
-  const receipt = (
-    await reputationReceiptPipehead.execute(
-      { scored, provisionalLanes: bundle.provisionalLanes },
-      ctx
-    )
+  // 6. provenance -> ScoredSignal v1 + ReplayProfile v1 + ProvenanceRecord v1
+  //    (validated in-process against the merged afi-config schemas).
+  const provenanceResult = (
+    await provenancePipehead.execute({ bundle, envelope, scored }, ctx)
   ).output;
+  if (provenanceResult.ok === false) {
+    return {
+      ok: false,
+      stage: "artifact-validation",
+      errors: provenanceResult.errors,
+    };
+  }
 
-  // 6. audit — content-hashed record binding input/bundle/output.
-  const audit = (await auditPipehead.execute({ bundle, scored }, ctx)).output;
-
-  return { ok: true, validation, bundle, scored, receipt, audit };
+  const { scoredSignal, replayProfile, provenanceRecord } = provenanceResult.artifacts;
+  return {
+    ok: true,
+    validation,
+    envelope,
+    scoredSignal,
+    provenanceRecord,
+    replayProfile,
+    internal: { bundle, scored },
+  };
 }
