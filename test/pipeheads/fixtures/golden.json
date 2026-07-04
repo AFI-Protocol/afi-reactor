@@ -1,5 +1,5 @@
 {
-  "_note": "Committed golden replay values for the canonical USS fixture (signal.uss.json + ohlcv.json). uwrScore/uwrAxes/direction/riskBucket/conviction are produced VERBATIM by the afi-core scorer scoreFroggyTrendPullbackFromEnriched with defaultUwrConfig UNCHANGED (four equal 0.25 weights => uwrScore == mean(axes)); established by m2-scoring-pipehead-afi-core. inputHash/bundleHash/outputHash are canonical sha256 digests (recursive key-sorted, runtime timestamps stripped) over the rawUss, the normalized AnalysisBundle, and the deterministic scoring projection respectively; established by m2-audit-pipehead-hashing. Committed intentionally as a replay anchor: a recompute that diverges signals nondeterminism or an unreviewed scoring/canonicalization change.",
+  "_note": "Committed golden replay values for the canonical USS fixture (signal.uss.json + ohlcv.json). uwrScore/uwrAxes/direction/riskBucket/conviction are produced VERBATIM by the afi-core scorer scoreFroggyTrendPullbackFromEnriched with defaultUwrConfig UNCHANGED (four equal 0.25 weights => uwrScore == mean(axes)); they are byte-identical to the pre-District-2 goldens (District 2 M2 changed the artifact surface, NEVER the scoring math). The hash pins were re-pinned for District 2 M2: digests are now afi.hash.v1 CanonicalHash v1 values (sha256 over the domain-separated preimage 'afi.hash.v1\\n<domainTag>\\n<canonicalJson>', recursive key sorting, volatile runtime timestamps excluded, declared numeric fields projected to canonical decimal strings). inputHash = signal-input domain digest of the raw USS; enrichmentHash = enrichment-bundle domain digest of the normalized bundle material (bundle minus its provenance block); outputHash = scored-output domain digest of the emitted ScoredSignal v1 projection; strategyLocalViewHash = strategy-local-view domain pin of the opaque enriched view. Committed intentionally as a replay anchor: a recompute that diverges signals nondeterminism or an unreviewed scoring/canonicalization change.",
   "analystId": "froggy",
   "strategyId": "trend_pullback_v1",
   "direction": "neutral",
@@ -12,7 +12,8 @@
     "risk": 0.2,
     "insight": 0.4
   },
-  "inputHash": "92258c5bea8c613238c1f2f7f746c99084251510195682cbaf4cf39884e2422d",
-  "bundleHash": "6e2c91560da14bfca98bb49d83581db9519bd15962b80cf7142b65d1255da948",
-  "outputHash": "4b6dd610cba2b64831b0aa2a9e27707908affdf8134ca77d1083535de78ad8dc"
+  "inputHash": "975b96041176936b8cb73337675ec7dcb20075d3f23540321605cf89d4e4f71e",
+  "enrichmentHash": "af44cc2d9c0c340a0d4a85025a577866eae2be28356c8871d6452c14110a94c2",
+  "outputHash": "27e9e97a3562179f81d3bb1db7d044e2cf6910ac5e3586d9f562a29b29b42b30",
+  "strategyLocalViewHash": "b228e3fdce322bdb708abfa84a265d06ce69de3272471b665fb26678c27b5a30"
 }

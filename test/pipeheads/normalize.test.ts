@@ -17,7 +17,10 @@ import type {
 } from "../../src/pipeheads/types.js";
 import { ANALYSIS_LANE_IDS } from "../../src/pipeheads/types.js";
 import { createFrozenClock } from "../../src/pipeheads/clock.js";
-import { canonicalHash } from "../../src/pipeheads/canonicalHash.js";
+import {
+  computeEnrichmentHash,
+  computeInputHash,
+} from "../../src/pipeheads/provenance/builders.js";
 import { fanOut, DEFAULT_LANE_RUNNERS, type LaneRunner } from "../../src/pipeheads/fanOut.js";
 import {
   normalizeToBundle,
@@ -133,15 +136,15 @@ describe("normalize pipehead — AnalysisBundle fan-in (VAL-BUNDLE-001..008)", (
     expect(enriched.pattern?.patternName ?? null).toBe(pattern.patternName ?? null);
   });
 
-  it("VAL-BUNDLE-006: bundle (and bundleHash) is deterministic across runs for a fixed fixture", async () => {
+  it("VAL-BUNDLE-006: bundle (and its enrichment digest) is deterministic across runs for a fixed fixture", async () => {
     const a = normalizeToBundle(await laneResults(), loadRawUss());
     const b = normalizeToBundle(await laneResults(), loadRawUss());
     expect(a).toEqual(b);
-    expect(canonicalHash(a)).toBe(canonicalHash(b));
+    expect(computeEnrichmentHash(a).value).toBe(computeEnrichmentHash(b).value);
     // a different injected clock must not change the bundle content/hash
     const resultsAltClock = await fanOut({ candles: loadOhlcv() }, ctx(loadRawUss(), "2099-12-31T23:59:59.000Z"));
     const c = normalizeToBundle(resultsAltClock, loadRawUss());
-    expect(canonicalHash(c)).toBe(canonicalHash(a));
+    expect(computeEnrichmentHash(c).value).toBe(computeEnrichmentHash(a).value);
   });
 
   it("VAL-BUNDLE-007: identity fields equal the validated USS fixture facts (not fabricated)", async () => {
@@ -164,7 +167,7 @@ describe("normalize pipehead — AnalysisBundle fan-in (VAL-BUNDLE-001..008)", (
     const bundle = normalizeToBundle(await laneResults(), rawUss);
     const provenance = (rawUss.provenance ?? {}) as Record<string, unknown>;
     expect(bundle.provenance?.signalId).toBe(provenance.signalId);
-    expect(bundle.provenance?.inputHash).toBe(canonicalHash(rawUss));
+    expect(bundle.provenance?.inputHash).toBe(computeInputHash(rawUss).value);
     expect(bundle.provenance?.inputHash).toMatch(/^[0-9a-f]{64}$/);
   });
 });
@@ -208,7 +211,7 @@ describe("normalize helpers and pipehead", () => {
     expect(a.pipeheadId).toBe(NORMALIZE_PIPEHEAD_ID);
     expect(a.kind).toBe("normalize");
     expect(a.status).toBe("ok");
-    expect(canonicalHash(a.output)).toBe(canonicalHash(b.output));
+    expect(computeEnrichmentHash(a.output).value).toBe(computeEnrichmentHash(b.output).value);
     expect(a.output.lanes["social"]).toBeDefined();
   });
 

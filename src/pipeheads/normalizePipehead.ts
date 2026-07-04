@@ -1,11 +1,22 @@
 /**
- * Normalize pipehead for the AFI Signal Evaluation Pipehead System
- * (non-production POC). Fans-in the five {@link AnalysisLaneResult}s into a
- * single {@link AnalysisBundle} (architecture.md §4) whose `lanes` record ALWAYS
- * carries the five canonical keys and whose `enrichedView` is a
- * `FroggyEnrichedView` projection the afi-core scorer consumes verbatim.
+ * Normalize pipehead — a REFERENCE ADAPTER / implementation profile, not the
+ * canonical AFI normalization process. Fans-in the five
+ * {@link AnalysisLaneResult}s into a single INTERNAL {@link AnalysisBundle}
+ * whose `lanes` record ALWAYS carries the five lane keys of this reference
+ * profile and whose `enrichedView` is a strategy-local `FroggyEnrichedView`
+ * projection the afi-core scorer consumes verbatim.
  *
- * Mapping (architecture.md §2 / §4, validation-contract VAL-BUNDLE-001..008):
+ * NORMALIZATION BOUNDARY (District 2): USS v1.1 COMPATIBILITY is the
+ * canonical requirement; the method used here to adapt validated USS +
+ * lane results into a bundle/enriched view is an implementation-profile /
+ * adapter choice. Other analysts, providers, validators, and AFI-compatible
+ * agents may use different parsers, mappers, and normalization methods as
+ * long as they emit valid USS objects, preserve required provenance, expose
+ * evidence/source references where required, satisfy the D2 hash/disclosure/
+ * replay requirements, and do not falsify or silently discard material
+ * signal intent.
+ *
+ * Mapping (validation-contract VAL-BUNDLE-001..008; reference profile):
  *  - WIRED `technical-indicators` -> `enrichedView.technical` (emaDistancePct +
  *    EMA/RSI/ATR `indicators`).
  *  - WIRED `pattern-recognition` -> `enrichedView.pattern` (patternName /
@@ -17,11 +28,12 @@
  * Identity (signalId/symbol/market/timeframe) is carried THROUGH from the
  * validated USS fixture (never fabricated): `signalId` from `provenance`,
  * `symbol`/`market`/`timeframe` from `facts`. `provenance` binds the bundle to
- * the validated input via the canonical `inputHash` of the rawUss.
+ * the validated input via the afi.hash.v1 signal-input digest of the rawUss.
  *
  * Pure & deterministic given `(laneResults, rawUss)`: no `Math.random`, no
  * `Date.now`, no network, no DB, no filesystem. Execution timestamps come from
- * `ctx.clock()` and are excluded from every content hash by `canonicalHash`.
+ * `ctx.clock()` and are excluded from every content hash (afi.hash.v1
+ * timestamp policy).
  *
  * ESM: relative imports use `.js`; the afi-core `FroggyEnrichedView` is a
  * TYPE-only import (erased at runtime; scoring stays 100% in afi-core).
@@ -37,7 +49,7 @@ import type {
   PipeheadContext,
   PipeheadExecutionResult,
 } from "./types.js";
-import { canonicalHash } from "./canonicalHash.js";
+import { computeCanonicalHashV1, D2_DOMAIN_TAGS } from "./provenance/canonicalHashV1.js";
 import {
   indexLaneResults,
   isDegradedLaneResult,
@@ -325,7 +337,9 @@ export function normalizeToBundle(
   const enrichedView = buildEnrichedView(identity, lanes);
   const provenance: BundleProvenance = {
     signalId: identity.signalId,
-    inputHash: canonicalHash(rawUss),
+    inputHash: computeCanonicalHashV1(rawUss, {
+      domainTag: D2_DOMAIN_TAGS.signalInput,
+    }).value,
   };
 
   return {

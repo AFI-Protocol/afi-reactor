@@ -8,9 +8,10 @@ import {
   type Pipehead,
   type AnalysisLaneResult,
   type AnalysisBundle,
-  type DemoScoredSignal,
-  type DemoReputationReceipt,
-  type AuditRecord,
+  type InternalScoringResult,
+  type ScoredSignalV1,
+  type ProvenanceRecordV1,
+  type ReplayProfileV1,
 } from "../../src/pipeheads/index.js";
 import { createFrozenClock } from "../../src/pipeheads/clock.js";
 
@@ -83,40 +84,51 @@ describe("core contracts are constructible to the §4 shapes", () => {
     expect(Object.keys(bundle.lanes).sort()).toEqual([...ANALYSIS_LANE_IDS].sort());
   });
 
-  it("builds demo-only / provisional output records", () => {
-    const scored: DemoScoredSignal = {
+  it("builds the internal scoring carrier (never emitted outward)", () => {
+    const scored: InternalScoringResult = {
       signalId: "btc-4h-1",
       uwrScore: 0.5,
       uwrAxes: { structure: 0.5, execution: 0.5, risk: 0.5, insight: 0.5 },
       analystScore: { analystId: "froggy" },
-      provisional: true,
-      demoOnly: true,
       scoredAt: "2025-01-01T00:00:00.000Z",
     };
-    const receipt: DemoReputationReceipt = {
-      signalId: "btc-4h-1",
-      uwrScore: 0.5,
-      receiptKind: "demo-only",
-      provisionalLanes: ["news", "social", "ai-ml"],
-      mutatesReputationState: false,
-      note: "non-canonical; does not mutate reputation state",
-      issuedAt: "2025-01-01T00:00:00.000Z",
+    expect(scored.uwrScore).toBe(0.5);
+    // the internal carrier is a plain runtime type: no demo/outward flags
+    expect("demoOnly" in scored).toBe(false);
+    expect("provisional" in scored).toBe(false);
+  });
+
+  it("builds D2-native outward artifact shapes (ScoredSignal/ProvenanceRecord/ReplayProfile)", () => {
+    const hash = {
+      algorithm: "sha256" as const,
+      canonicalizationVersion: "afi.hash.v1" as const,
+      domainTag: "afi.d2.signal-input",
+      value: "0".repeat(64),
     };
-    const audit: AuditRecord = {
+    const scoredSignal: ScoredSignalV1 = {
+      schema: "afi.scored-signal.v1",
       signalId: "btc-4h-1",
-      algo: "sha256",
-      inputHash: "0".repeat(64),
-      bundleHash: "0".repeat(64),
-      outputHash: "0".repeat(64),
+      analystId: "froggy",
+      strategyId: "trend_pullback_v1",
+      direction: "neutral",
       uwrScore: 0.5,
-      uwrAxes: { structure: 0.5, execution: 0.5, risk: 0.5, insight: 0.5 },
-      provisionalLanes: ["news", "social", "ai-ml"],
-      scoredAtExcluded: true,
-      demoOnly: true,
+      provenanceRecordRef: "provenance-record:btc-4h-1",
     };
-    expect(scored.demoOnly).toBe(true);
-    expect(receipt.mutatesReputationState).toBe(false);
-    expect(audit.algo).toBe("sha256");
+    const record: ProvenanceRecordV1 = {
+      schema: "afi.provenance-record.v1",
+      signalId: "btc-4h-1",
+      canonicalizationVersion: "afi.hash.v1",
+      inputHash: hash,
+      outputHash: { ...hash, domainTag: "afi.d2.scored-output" },
+    };
+    const replay: ReplayProfileV1 = {
+      schema: "afi.replay-profile.v1",
+      replayabilityLevel: "deterministic",
+      factsRequired: true,
+    };
+    expect(scoredSignal.schema).toBe("afi.scored-signal.v1");
+    expect(record.canonicalizationVersion).toBe("afi.hash.v1");
+    expect(replay.factsRequired).toBe(true);
   });
 
   it("Pipehead and PipeheadContext/PipeheadKind compose", () => {

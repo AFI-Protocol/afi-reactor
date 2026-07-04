@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "start:demo": "node dist/src/server.js",
     "simulate-signal": "node dist/ops/runner/simulate-full-pipeline.js",
     "simulate-from-vault": "node dist/ops/runner/simulate-full-pipeline.js --from-vault",

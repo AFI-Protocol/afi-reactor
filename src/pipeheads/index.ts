@@ -1,17 +1,127 @@
 /**
- * Barrel exports for the pipehead system (partial; later features extend this).
+ * Barrel exports for the pipehead system — the D2-native reference
+ * implementation surface (District 2 M2).
  */
 
 export * from "./types.js";
 export { createFrozenClock, FROZEN_CLOCK_ISO } from "./clock.js";
 export type { Clock } from "./clock.js";
 export {
-  canonicalize,
-  canonicalHash,
-  buildScoringProjection,
-  EXCLUDED_TIMESTAMP_KEYS,
-} from "./canonicalHash.js";
-export type { CanonicalizeOptions, ScoringProjection } from "./canonicalHash.js";
+  canonicalizeV1,
+  canonicalPreimageV1,
+  computeCanonicalHashV1,
+  assertValidDomainTag,
+  CanonicalHashPolicyError,
+  AFI_HASH_V1,
+  HASH_ALGORITHM_SHA256,
+  DOMAIN_TAG_PATTERN,
+  VOLATILE_TIMESTAMP_KEYS,
+  EVIDENCE_TIMESTAMP_KEYS,
+  D2_DOMAIN_TAGS,
+} from "./provenance/canonicalHashV1.js";
+export type {
+  CanonicalHashV1,
+  CanonicalHashPolicyReason,
+  CanonicalizeV1Options,
+  ComputeCanonicalHashV1Options,
+  VolatileTimestampPolicy,
+} from "./provenance/canonicalHashV1.js";
+export {
+  toCanonicalDecimalString,
+  projectDecimalFieldsForHash,
+  SCORE_DECIMAL_KEYS,
+  ENRICHMENT_DECIMAL_KEYS,
+  OHLCV_DECIMAL_KEYS,
+} from "./provenance/hashProjection.js";
+export type {
+  AnalystInputEnvelopeV1,
+  EvidenceRefV1,
+  SourceDisclosureProfileV1,
+  EnrichmentProvenanceV1,
+  ProvenanceRecordV1,
+  ReplayProfileV1,
+  ScoredSignalV1,
+  ReplayabilityLevel,
+  SourceClass,
+  DisclosureLevel,
+  EnrichmentLaneStatus,
+} from "./provenance/types.js";
+export {
+  ANALYST_INPUT_ENVELOPE_SCHEMA,
+  SCORED_SIGNAL_SCHEMA,
+  PROVENANCE_RECORD_SCHEMA,
+  REPLAY_PROFILE_SCHEMA,
+} from "./provenance/types.js";
+export {
+  validateD2Artifact,
+  validateCanonicalHashV1,
+  validateEvidenceRefV1,
+  validateSourceDisclosureProfileV1,
+  validateEnrichmentProvenanceV1,
+  validateAnalystInputEnvelopeV1,
+  validateScoredSignalV1,
+  validateProvenanceRecordV1,
+  validateReplayProfileV1,
+  validateTradePlanV1,
+  D2_ARTIFACT_KINDS,
+} from "./provenance/schemaValidation.js";
+export type {
+  D2ArtifactKind,
+  D2ValidationError,
+  D2ValidationResult,
+} from "./provenance/schemaValidation.js";
+export {
+  buildEvidenceRefs,
+  buildSourceDisclosureProfiles,
+  buildEnrichmentProvenance,
+  buildAnalystInputEnvelope,
+  buildScoredSignalProjection,
+  buildReplayProfile,
+  buildProvenanceRecord,
+  computeInputHash,
+  computeEnrichmentHash,
+  computeScoredOutputHash,
+  enrichmentBundleMaterial,
+  findForbiddenArtifactKeys,
+  provenanceRecordRefFor,
+  replayProfileRefFor,
+  FORBIDDEN_ARTIFACT_KEYS,
+  FIXTURE_SOURCE_IDS,
+  FIXTURE_DATASET_ID,
+  LANE_VERSIONS,
+  PIPEHEAD_ENGINE_ID,
+  PIPEHEAD_ENGINE_VERSION,
+  REFERENCE_ANALYST_ID,
+  REFERENCE_STRATEGY_ID,
+  REFERENCE_IMPLEMENTATION_NOTE,
+  STRATEGY_VIEW_TYPE,
+  ENRICHED_VIEW_SCHEMA_REF,
+} from "./provenance/builders.js";
+export type {
+  EvidenceBuildInput,
+  EnvelopeBuildInput,
+  ScoredSignalProjectionOptions,
+  ReplayProfileBuildInput,
+  ProvenanceRecordBuildInput,
+} from "./provenance/builders.js";
+export {
+  envelopePipehead,
+  buildEnvelopeFromBundle,
+  ENVELOPE_PIPEHEAD_ID,
+} from "./provenance/envelopePipehead.js";
+export type { EnvelopePipeheadInput } from "./provenance/envelopePipehead.js";
+export {
+  provenancePipehead,
+  buildD2Artifacts,
+  deriveEvaluatedAt,
+  PROVENANCE_PIPEHEAD_ID,
+} from "./provenance/provenancePipehead.js";
+export type {
+  ProvenancePipeheadInput,
+  ProvenancePipeheadOutput,
+  D2ArtifactSet,
+  D2ArtifactValidationError,
+} from "./provenance/provenancePipehead.js";
 export {
   schemaValidationPipehead,
   validateUssV11Canonical,
@@ -106,26 +216,11 @@ export type {
 export {
   scoringPipehead,
   createScoringPipehead,
-  buildDemoScoredSignal,
+  buildInternalScoringResult,
   froggyScorer,
   SCORING_PIPEHEAD_ID,
 } from "./scoringPipehead.js";
 export type { FroggyScorer } from "./scoringPipehead.js";
-export {
-  reputationReceiptPipehead,
-  createReputationReceiptPipehead,
-  buildReputationReceipt,
-  REPUTATION_RECEIPT_PIPEHEAD_ID,
-  REPUTATION_RECEIPT_NOTE,
-} from "./reputationReceipt.js";
-export type { ReputationReceiptInput } from "./reputationReceipt.js";
-export {
-  auditPipehead,
-  createAuditPipehead,
-  buildAuditRecord,
-  AUDIT_PIPEHEAD_ID,
-} from "./auditPipehead.js";
-export type { AuditPipeheadInput } from "./auditPipehead.js";
 export {
   runPipeheadHarness,
   isHarnessFailure,
@@ -137,4 +232,7 @@ export type {
   HarnessResult,
   HarnessAggregate,
   HarnessFailure,
+  HarnessValidationFailure,
+  HarnessArtifactFailure,
+  HarnessInternalArtifacts,
 } from "./harness.js";

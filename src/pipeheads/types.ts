@@ -1,7 +1,13 @@
 /**
- * Mission-local contracts for the AFI Signal Evaluation Pipehead System
- * (non-production POC). These mirror architecture.md §4 verbatim in shape and
- * are intentionally distinct from the existing `src/dag` `Pipehead` type.
+ * Contracts for the AFI Signal Evaluation Pipehead System — a pre-live
+ * REFERENCE IMPLEMENTATION / implementation profile of one signal-evaluation
+ * path. These types are intentionally distinct from the existing `src/dag`
+ * `Pipehead` type.
+ *
+ * Outward artifacts are D2-native (District 2 M2): AnalystInputEnvelope v1,
+ * ScoredSignal v1 projection, ProvenanceRecord v1, ReplayProfile v1 (see
+ * `./provenance/types.js`). The types below marked INTERNAL are in-process
+ * intermediates and test surfaces only — they are never emitted outward.
  *
  * ESM: relative imports use `.js`; afi-core imports use the `afi-core/...`
  * package name.
@@ -26,9 +32,9 @@ export type PipeheadKind =
   | "validation"
   | "analysis-lane"
   | "normalize"
+  | "envelope"
   | "scoring"
-  | "reputation"
-  | "audit";
+  | "provenance";
 
 export interface PipeheadContext {
   signalId: string;
@@ -64,16 +70,22 @@ export interface AnalysisLaneResult<P = unknown> {
 }
 
 /**
- * Binds an AnalysisBundle to the validated input it was derived from so
- * downstream artifacts can tie output to a specific input (validation-contract
- * VAL-BUNDLE-008). `inputHash` equals the canonical hash of the validated
- * rawUss (the schema-validation step's inputHash).
+ * INTERNAL: binds an AnalysisBundle to the validated input it was derived
+ * from so downstream artifacts can tie output to a specific input
+ * (validation-contract VAL-BUNDLE-008). `inputHash` equals the afi.hash.v1
+ * signal-input digest of the validated rawUss.
  */
 export interface BundleProvenance {
   signalId: string;
   inputHash: string;
 }
 
+/**
+ * INTERNAL intermediate: the normalized fan-in of the five lane results.
+ * Never emitted outward — the outward analyst-input surface is the
+ * AnalystInputEnvelope v1 (which carries `enrichedView` as an OPAQUE,
+ * declared, hash-pinned strategy-local view).
+ */
 export interface AnalysisBundle {
   signalId: string;
   symbol: string;
@@ -81,39 +93,23 @@ export interface AnalysisBundle {
   timeframe: string;
   lanes: Record<AnalysisLaneId, AnalysisLaneResult>; // all 5 keys ALWAYS present
   provisionalLanes: AnalysisLaneId[]; // explicit, e.g. ['news','social','ai-ml']
-  enrichedView: unknown; // FroggyEnrichedView projection consumed by afi-core scorer
+  enrichedView: unknown; // strategy-local view consumed by the afi-core scorer
   provenance?: BundleProvenance; // binds the bundle to the validated input (signalId + inputHash)
 }
 
-export interface DemoScoredSignal {
+/**
+ * INTERNAL scoring carrier: holds the afi-core scorer output VERBATIM between
+ * the scoring step and the D2 projection builders. Never emitted outward —
+ * the outward scored surface is the ScoredSignal v1 projection.
+ * `scoredAt` comes from the injected clock and is volatile runtime metadata,
+ * excluded from every content hash and never emitted.
+ *
+ * @internal
+ */
+export interface InternalScoringResult {
   signalId: string;
   uwrScore: number;
   uwrAxes: { structure: number; execution: number; risk: number; insight: number };
   analystScore: unknown; // afi-core AnalystScoreTemplate (verbatim)
-  provisional: true;
-  demoOnly: true;
-  scoredAt: string; // EXCLUDED from hashes
-}
-
-export interface DemoReputationReceipt {
-  signalId: string;
-  uwrScore: number;
-  receiptKind: "demo-only";
-  provisionalLanes: AnalysisLaneId[];
-  mutatesReputationState: false; // invariant: never true
-  note: string; // e.g. "non-canonical; does not mutate reputation state"
-  issuedAt: string; // EXCLUDED from hashes
-}
-
-export interface AuditRecord {
-  signalId: string;
-  algo: "sha256";
-  inputHash: string; // canonical hash of rawUss
-  bundleHash: string; // canonical hash of bundle (timestamps stripped)
-  outputHash: string; // canonical hash of deterministic scoring projection
-  uwrScore: number;
-  uwrAxes: { structure: number; execution: number; risk: number; insight: number };
-  provisionalLanes: AnalysisLaneId[];
-  scoredAtExcluded: true; // invariant marker
-  demoOnly: true;
+  scoredAt: string; // volatile; EXCLUDED from all hashes; never emitted
 }
