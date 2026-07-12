@@ -13,6 +13,23 @@
 import type { AnalystScoreTemplate } from "afi-core/analyst";
 
 /**
+ * UWR profile stamp (PR-UWR-STAMP, uwr-profile-pin-v0.1.md §7).
+ *
+ * Traceability metadata only: records which governed, version-pinned UWR
+ * profile the scoring configuration is value-identical to (UP-2/UP-5).
+ * It does NOT indicate runtime registry consumption, qualification,
+ * reward eligibility, or mint wiring — each remains separately authorized.
+ */
+export interface UwrProfileStamp {
+  /** Pinned profile id (e.g. "uwr-weighted-lifts-v0.1"). */
+  profileId: string;
+  /** Governance status of the pinned profile. */
+  status: "testnet-provisional";
+  /** Decision that pinned the profile. */
+  decisionRef: string;
+}
+
+/**
  * Reactor Scored Signal V1 (Response Contract)
  *
  * This is what Reactor returns from ingestion endpoints.
@@ -105,6 +122,14 @@ export interface ReactorScoredSignalDocument {
       halfLifeMinutes: number;
       greeksTemplateId: string;
     } | null;
+
+    /**
+     * UWR profile stamp (PR-UWR-STAMP). Present only when the scorer
+     * identity is the one the profile is recognized for (UP-10); absent on
+     * documents persisted before this field existed and on documents from
+     * unrecognized scorer identities. Never null.
+     */
+    uwrProfile?: UwrProfileStamp;
   };
 
   /** Strategy metadata */
