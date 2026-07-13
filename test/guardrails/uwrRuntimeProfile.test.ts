@@ -16,8 +16,10 @@
  *   5. scoring is bit-identical under either source (UP-5 golden anchor).
  *
  * Scope framing: this suite tests source RESOLUTION only. Persisted-stamp
- * semantics stay value-identity metadata (PR-UWR-STAMP-SEMANTICS is still
- * unauthorized — its §7 row is "No"); reward/mint/settlement stay untouched.
+ * semantics (the RC-6 discriminator fed by the resolved source this suite
+ * exercises) live in PR-UWR-STAMP-SEMANTICS — §7 row flipped via
+ * afi-governance PR #13 — and are tested in uwrProfileStamp.test.ts and
+ * uwrStampSemantics.test.ts; reward/mint/settlement stay untouched.
  */
 
 import { describe, it, expect, jest, beforeAll, afterAll, beforeEach, afterEach } from "@jest/globals";
@@ -436,10 +438,18 @@ describe("PR-UWR-RUNTIME-READ: plugin call-site equivalence (the changed consume
     const viaPlugin = await froggyAnalystPlugin.run(enriched);
     const reference = scoreFroggyTrendPullbackFromEnriched(enrichedFixture());
     expect(normalized(viaPlugin.analysis)).toEqual(normalized(reference));
-    // No response-contract leakage: output shape = enriched + analysis only.
+    // No response-contract leakage: output shape = enriched + analysis +
+    // uwrResolvedSource only. (uwrResolvedSource was added by
+    // PR-UWR-STAMP-SEMANTICS — uwr-runtime-consumption-v0.1.md §7 row
+    // flipped via afi-governance PR #13 — to propagate the RC-6 source to
+    // the vault-write stamp; froggyDemoService copies enumerated fields
+    // into the response contract, so this plugin-boundary field never
+    // reaches ReactorScoredSignalV1.)
     expect(Object.keys(viaPlugin).sort()).toEqual(
-      [...Object.keys(enriched), "analysis"].sort()
+      [...Object.keys(enriched), "analysis", "uwrResolvedSource"].sort()
     );
+    // RC-6 propagation: builtin resolution flows to the stamp as-is.
+    expect(viaPlugin.uwrResolvedSource).toBe("builtin");
     // Stamp inputs unchanged: same UP-10 identity flows to uwrProfileStampFor.
     expect(viaPlugin.analysis.analystScore.analystId).toBe("froggy");
     expect(viaPlugin.analysis.analystScore.strategyId).toBe("trend_pullback_v1");
@@ -454,6 +464,9 @@ describe("PR-UWR-RUNTIME-READ: plugin call-site equivalence (the changed consume
       const viaPlugin = await froggyAnalystPlugin.run(enrichedFixture());
       const reference = scoreFroggyTrendPullbackFromEnriched(enrichedFixture());
       expect(normalized(viaPlugin.analysis)).toEqual(normalized(reference));
+      // RC-6 propagation: a successful registry resolution — and only a
+      // successful one; failure throws before scoring — flows to the stamp.
+      expect(viaPlugin.uwrResolvedSource).toBe("registry");
     }
   );
 });

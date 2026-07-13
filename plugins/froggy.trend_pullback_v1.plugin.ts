@@ -19,12 +19,24 @@ import { buildFroggyTrendPullbackInputFromEnriched } from "afi-core/analysts/fro
 import { scoreFroggyTrendPullback } from "afi-core/analysts/froggy.trend_pullback_v1.js";
 import type { FroggyTrendPullbackScore } from "afi-core/analysts/froggy.trend_pullback_v1.js";
 import { getUwrRuntimeConfigOnce } from "../src/config/uwrRuntimeProfile.js";
+import type { UwrProfileSource } from "../src/config/uwrRuntimeProfile.js";
 
 /**
- * Output schema: enriched signal + Froggy analysis.
+ * Output schema: enriched signal + Froggy analysis + the UWR config source
+ * the analysis was actually scored with.
  */
 interface FroggyAnalyzedSignal extends FroggyEnrichedView {
   analysis: FroggyTrendPullbackScore;
+  /**
+   * PR-UWR-STAMP-SEMANTICS (RC-6): the resolved source of the UWR config
+   * this analysis was scored with, propagated explicitly to the vault-write
+   * stamp site. Set only after a SUCCESSFUL (fail-closed, RC-4) resolution —
+   * a failed resolution throws above, so this field can never carry a source
+   * that did not actually score. Not part of any response contract: the
+   * vault-write service persists it inside pipeline.uwrProfile.source and
+   * nowhere else.
+   */
+  uwrResolvedSource: UwrProfileSource;
 }
 
 /**
@@ -50,10 +62,14 @@ async function run(enriched: FroggyEnrichedView): Promise<FroggyAnalyzedSignal> 
   const input = buildFroggyTrendPullbackInputFromEnriched(enriched);
   const analysis = scoreFroggyTrendPullback(input, uwrRuntime.config, enriched);
 
-  // Attach analysis to enriched signal
+  // Attach analysis + the resolved config source to the enriched signal.
+  // PR-UWR-STAMP-SEMANTICS (RC-6): uwrResolvedSource propagates the source
+  // that ACTUALLY scored this signal to the persistence stamp — the stamp
+  // site must never re-read the environment or infer the source later.
   const analyzed: FroggyAnalyzedSignal = {
     ...enriched,
     analysis,
+    uwrResolvedSource: uwrRuntime.source,
   };
 
   return analyzed;

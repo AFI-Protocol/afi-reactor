@@ -41,10 +41,12 @@
  * silently scores). The `registryPath` override exists for tests (and for a
  * future authorized cleanup to cwd-independence).
  *
- * Boundaries: the persisted stamp (src/config/uwrProfilePin.ts) is NOT
- * changed by this module — stamp semantics remain value-identity metadata
- * until PR-UWR-STAMP-SEMANTICS is separately authorized (its §7 row is
- * still "No"). Nothing here wires qualification, reward, mint, or
+ * Boundaries: this module resolves { source, config } and nothing else.
+ * The persisted stamp (src/config/uwrProfilePin.ts) consumes the resolved
+ * source by EXPLICIT propagation through the composition path
+ * (PR-UWR-STAMP-SEMANTICS, §7 row flipped via afi-governance PR #13,
+ * merge 6b3638b; RC-6) — the stamp site never calls back into this module
+ * or re-reads the flag. Nothing here wires qualification, reward, mint, or
  * settlement; nothing changes scoring outputs (value identity is enforced,
  * not assumed); UP-8 stays open; everything is testnet-provisional.
  */

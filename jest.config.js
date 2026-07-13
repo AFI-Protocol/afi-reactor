@@ -34,6 +34,7 @@ export default {
     "**/test/froggyWebhookService.test.ts",
     "**/test/guardrails/uwrProfileStamp.test.ts",
     "**/test/guardrails/uwrRuntimeProfile.test.ts",
+    "**/test/guardrails/uwrStampSemantics.test.ts",
     "**/test/guardrails/no-legacy-ingest.test.ts",
     "**/test/state-management.test.ts",
     "**/test/integration/state-lifecycle.test.ts",
