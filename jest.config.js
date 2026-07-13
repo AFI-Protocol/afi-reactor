@@ -15,7 +15,15 @@ export default {
   },
   moduleNameMapper: {
     // Map relative imports with .js extension to .ts source files
-    '^(\\.{1,2}/.*)\\.js$': '$1'
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+    // PR-UWR-RUNTIME-READ: jest cannot resolve afi-core's package-exports
+    // value subpaths (the reason scoringPipehead's scorer import is dynamic).
+    // Map the validators + analysts subpaths to the file:-linked TypeScript
+    // source so the runtime profile module, the froggy plugin, and their
+    // guardrail tests load under jest; transformIgnorePatterns already opts
+    // afi-core into ts-jest transform.
+    '^afi-core/validators/(.*)\\.js$': '<rootDir>/node_modules/afi-core/validators/$1.ts',
+    '^afi-core/analysts/(.*)\\.js$': '<rootDir>/node_modules/afi-core/analysts/$1.ts'
   },
   transformIgnorePatterns: [
     'node_modules/(?!(afi-core)/)'
@@ -25,6 +33,7 @@ export default {
     "**/test/dagConfigShape.test.ts",
     "**/test/froggyWebhookService.test.ts",
     "**/test/guardrails/uwrProfileStamp.test.ts",
+    "**/test/guardrails/uwrRuntimeProfile.test.ts",
     "**/test/guardrails/no-legacy-ingest.test.ts",
     "**/test/state-management.test.ts",
     "**/test/integration/state-lifecycle.test.ts",
