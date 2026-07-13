@@ -3,17 +3,22 @@
  * Froggy Trend Pullback v1 Plugin - Dev/Demo Only
  * 
  * Purpose: Wrap Froggy's actual analyst logic from afi-core.
- * 
- * This plugin imports and calls afi-core's scoreFroggyTrendPullbackFromEnriched
- * function, which implements the full UWR-based scoring logic for Froggy's
- * trend_pullback_v1 strategy.
+ *
+ * PR-UWR-RUNTIME-READ: this plugin composes afi-core's public exports —
+ * buildFroggyTrendPullbackInputFromEnriched + scoreFroggyTrendPullback(input,
+ * resolvedConfig, enriched) — which is exactly what
+ * scoreFroggyTrendPullbackFromEnriched does internally, except the UWR config
+ * is resolved explicitly at the composition root (flag-gated; builtin default
+ * IS afi-core's defaultUwrConfig, so default behavior is bit-identical).
  * 
  * Part of: canonical scored-only Froggy pipeline (USS ingest → telemetry derive → enrichment → froggy-analyst UWR score → vault write)
  */
 
 import type { FroggyEnrichedView } from "afi-core/analysts/froggy.enrichment_adapter.js";
-import { scoreFroggyTrendPullbackFromEnriched } from "afi-core/analysts/froggy.trend_pullback_v1.js";
+import { buildFroggyTrendPullbackInputFromEnriched } from "afi-core/analysts/froggy.enrichment_adapter.js";
+import { scoreFroggyTrendPullback } from "afi-core/analysts/froggy.trend_pullback_v1.js";
 import type { FroggyTrendPullbackScore } from "afi-core/analysts/froggy.trend_pullback_v1.js";
+import { getUwrRuntimeConfigOnce } from "../src/config/uwrRuntimeProfile.js";
 
 /**
  * Output schema: enriched signal + Froggy analysis.
@@ -32,8 +37,18 @@ interface FroggyAnalyzedSignal extends FroggyEnrichedView {
  * @returns FroggyAnalyzedSignal with analysis attached
  */
 async function run(enriched: FroggyEnrichedView): Promise<FroggyAnalyzedSignal> {
-  // Call afi-core's Froggy analyst
-  const analysis = scoreFroggyTrendPullbackFromEnriched(enriched);
+  // PR-UWR-RUNTIME-READ: resolve the UWR config at the composition root
+  // (flag-gated; "builtin" default IS afi-core's defaultUwrConfig, so this
+  // path is bit-identical to the previous scoreFroggyTrendPullbackFromEnriched
+  // call, which does exactly build-input + scoreFroggyTrendPullback with
+  // defaultUwrConfig). In registry mode the config passed here has been
+  // RC-5-verified value-identical, and a failed resolve throws before any
+  // scoring happens (fail-closed, no fallback).
+  const uwrRuntime = getUwrRuntimeConfigOnce();
+
+  // Call afi-core's Froggy analyst with the explicitly resolved config.
+  const input = buildFroggyTrendPullbackInputFromEnriched(enriched);
+  const analysis = scoreFroggyTrendPullback(input, uwrRuntime.config, enriched);
 
   // Attach analysis to enriched signal
   const analyzed: FroggyAnalyzedSignal = {
@@ -47,4 +62,3 @@ async function run(enriched: FroggyEnrichedView): Promise<FroggyAnalyzedSignal> 
 export default {
   run,
 };
-// @ts-nocheck

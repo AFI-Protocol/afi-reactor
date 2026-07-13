@@ -132,12 +132,15 @@ describe("PR-UWR-STAMP: source guardrails", () => {
     expect(src).toMatch(/uwrProfile \? \{ uwrProfile \} : \{\}/);
   });
 
-  it("runtime does not read the uwr-profiles registry (UP-12 boundary)", () => {
-    // The registry path must not appear anywhere under src/ — the pin is a
-    // hardcoded constant; registry consumption is separately authorized.
+  it("only the authorized loader module references the uwr-profiles registry (UP-12 boundary, RC-7 grant 1)", () => {
+    // PR-UWR-RUNTIME-READ (uwr-runtime-consumption-v0.1.md §7 row flipped
+    // 2026-07-13; RC-7 grant 1): the single authorized loader module may
+    // reference the registry path; everywhere else under src/ stays banned.
+    // The stamp pin itself (uwrProfilePin.ts) remains a hardcoded constant.
+    const AUTHORIZED_LOADER_MODULE = "src/config/uwrRuntimeProfile.ts";
     const offenders = scanTree(path.resolve(REPO_ROOT, "src"), content =>
       content.includes("registries/uwr-profiles")
-    );
+    ).filter(rel => rel !== AUTHORIZED_LOADER_MODULE);
     expect(offenders).toEqual([]);
   });
 
