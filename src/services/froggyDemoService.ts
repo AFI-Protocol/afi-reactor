@@ -25,6 +25,7 @@ import type { ReactorScoredSignalV1, ReactorScoredSignalDocument } from "../type
 import { FROGGY_TREND_PULLBACK_PIPELINE } from "../config/froggyPipeline.js";
 import { runPipelineDag, type PipelineContext } from "./pipelineRunner.js";
 import { pickDecayParamsForAnalystScore } from "afi-core/decay";
+import { uwrProfileStampFor } from "../config/uwrProfilePin.js";
 import { mapTradingViewToUssV11 } from "../uss/tradingViewMapper.js";
 
 // Import plugins directly (for now - will be replaced by dynamic loading in future DAG engine)
@@ -302,6 +303,16 @@ async function runFroggyTrendPullbackDagInternal(
               greeksTemplateId: decayParams.greeksTemplateId,
             }
           : null,
+        // PR-UWR-STAMP: profile-id traceability for persisted records.
+        // Conditional spread — the field is OMITTED (not null) when the
+        // scorer identity is not the UP-10-recognized one. Hardcoded pin;
+        // no registry is read at runtime (UP-12).
+        ...(() => {
+          const uwrProfile = uwrProfileStampFor(
+            analyzedSignal.analysis.analystScore
+          );
+          return uwrProfile ? { uwrProfile } : {};
+        })(),
       },
       strategy: {
         name: strategy,
