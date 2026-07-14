@@ -1,6 +1,13 @@
 /**
  * PR-UWR-STAMP tests (uwr-profile-pin-v0.1.md §7).
  *
+ * Stamp-shape and wiring assertions amended by PR-UWR-STAMP-SEMANTICS
+ * exactly per RC-7 grant (2) (uwr-runtime-consumption-v0.1.md §7 row flipped
+ * by owner merge of afi-governance PR #13, merge commit 6b3638b): the stamp
+ * now carries the RC-6 source discriminator, propagated explicitly from the
+ * composition path. The registry-path ban (RC-7 grant 1 form), the
+ * pipehead/CLI bans, and the test-only sibling cross-check are UNCHANGED.
+ *
  * Verifies the UWR profile stamp that froggyDemoService writes into
  * persisted ReactorScoredSignalDocument records:
  *   1. the pinned constants match the governed profile (UP-2);
@@ -10,8 +17,9 @@
  *      to the afi-config registry instance — WITHOUT any runtime registry
  *      read: this cross-check lives in tests only (UP-12);
  *   4. source guardrails: the stamp is wired at the vault-write construction
- *      site and stays OUT of the D2 pipehead surface, whose goldens must
- *      remain byte-stable (UP-5/UP-11).
+ *      site — with the RC-6 source propagated, never re-derived there — and
+ *      stays OUT of the D2 pipehead surface, whose goldens must remain
+ *      byte-stable (UP-5/UP-11).
  *
  * Scope framing: stamping is traceability metadata only. It does not wire
  * the qualification gate, create reward eligibility, or touch mint paths —
@@ -59,43 +67,59 @@ describe("PR-UWR-STAMP: pinned constants", () => {
 });
 
 describe("PR-UWR-STAMP: uwrProfileStampFor (UP-10 conditionality)", () => {
-  it("stamps the recognized scorer identity", () => {
-    const stamp = uwrProfileStampFor({ ...RECOGNIZED });
+  // RC-7 grant (2): the exact-shape stamp equality is UPDATED to reflect the
+  // RC-6 source discriminator (the stamp now carries `source`, and the
+  // builder now takes the resolved source). The remaining UP-10
+  // conditionality cases are unchanged in intent — only the required source
+  // argument is threaded through (a mechanical signature adaptation). The
+  // richer RC-6 coverage (both discriminator values, cross-source identity,
+  // the throw-on-unknown-source condition, and the plugin propagation) lives
+  // in the slot's own file test/guardrails/uwrStampSemantics.test.ts, so
+  // this RC-7-governed file changes only what the grant names.
+  it("stamps the recognized scorer identity (exact shape, incl. RC-6 source)", () => {
+    const stamp = uwrProfileStampFor({ ...RECOGNIZED }, "builtin");
     expect(stamp).toEqual({
       profileId: "uwr-weighted-lifts-v0.1",
       status: "testnet-provisional",
       decisionRef: "afi-governance/decisions/uwr-profile-pin-v0.1.md",
+      source: "builtin-value-identity",
     });
   });
 
   it("stamps when extra analyst-score fields are present (e.g. strategyVersion)", () => {
-    const stamp = uwrProfileStampFor({
-      ...RECOGNIZED,
-      strategyVersion: "1.0.0",
-      uwrScore: 0.5,
-    } as any);
+    const stamp = uwrProfileStampFor(
+      {
+        ...RECOGNIZED,
+        strategyVersion: "1.0.0",
+        uwrScore: 0.5,
+      } as any,
+      "builtin"
+    );
     expect(stamp?.profileId).toBe(UWR_PROFILE_ID);
   });
 
   it("does NOT stamp a different analystId — recognition was never granted (UP-10)", () => {
     expect(
-      uwrProfileStampFor({ ...RECOGNIZED, analystId: "other-analyst" })
+      uwrProfileStampFor({ ...RECOGNIZED, analystId: "other-analyst" }, "builtin")
     ).toBeUndefined();
   });
 
   it("does NOT stamp a different strategyId", () => {
     expect(
-      uwrProfileStampFor({ ...RECOGNIZED, strategyId: "other_strategy_v9" })
+      uwrProfileStampFor(
+        { ...RECOGNIZED, strategyId: "other_strategy_v9" },
+        "builtin"
+      )
     ).toBeUndefined();
   });
 
   it("does NOT stamp missing/absent identities", () => {
-    expect(uwrProfileStampFor(null)).toBeUndefined();
-    expect(uwrProfileStampFor(undefined)).toBeUndefined();
-    expect(uwrProfileStampFor({})).toBeUndefined();
-    expect(uwrProfileStampFor({ analystId: "froggy" })).toBeUndefined();
+    expect(uwrProfileStampFor(null, "builtin")).toBeUndefined();
+    expect(uwrProfileStampFor(undefined, "builtin")).toBeUndefined();
+    expect(uwrProfileStampFor({}, "builtin")).toBeUndefined();
+    expect(uwrProfileStampFor({ analystId: "froggy" }, "builtin")).toBeUndefined();
     expect(
-      uwrProfileStampFor({ strategyId: "trend_pullback_v1" })
+      uwrProfileStampFor({ strategyId: "trend_pullback_v1" }, "builtin")
     ).toBeUndefined();
   });
 });
@@ -124,12 +148,24 @@ describe("PR-UWR-STAMP: source guardrails", () => {
   const read = (rel: string) =>
     readFileSync(path.resolve(REPO_ROOT, rel), "utf8");
 
-  it("vault-write construction site wires the stamp conditionally", () => {
+  it("vault-write construction site wires the stamp conditionally, with the RC-6 source PROPAGATED (never re-derived)", () => {
     const src = read("src/services/froggyDemoService.ts");
     expect(src).toContain('from "../config/uwrProfilePin.js"');
     expect(src).toContain("uwrProfileStampFor(");
     // Conditional spread: absent field, never a persisted null.
     expect(src).toMatch(/uwrProfile \? \{ uwrProfile \} : \{\}/);
+    // RC-6 (PR-UWR-STAMP-SEMANTICS): the resolved source reaches the stamp
+    // by explicit propagation from the froggy-analyst composition path...
+    expect(src).toMatch(
+      /uwrProfileStampFor\(\s*analyzedSignal\.analysis\.analystScore,\s*analyzedSignal\.uwrResolvedSource\s*\)/
+    );
+    // ...and is NEVER re-derived at the stamp site: the service must not
+    // read the flag, re-resolve the runtime config, or consult the
+    // environment to decide what the stamp claims.
+    expect(src).not.toContain("AFI_UWR_PROFILE_SOURCE");
+    expect(src).not.toContain("getUwrRuntimeConfigOnce");
+    expect(src).not.toContain("resolveUwrRuntimeConfig");
+    expect(src).not.toContain("process.env");
   });
 
   it("only the authorized loader module references the uwr-profiles registry (UP-12 boundary, RC-7 grant 1)", () => {

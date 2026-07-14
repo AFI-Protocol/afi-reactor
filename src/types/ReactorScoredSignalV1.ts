@@ -13,12 +13,34 @@
 import type { AnalystScoreTemplate } from "afi-core/analyst";
 
 /**
- * UWR profile stamp (PR-UWR-STAMP, uwr-profile-pin-v0.1.md §7).
+ * RC-6 source discriminator (PR-UWR-STAMP-SEMANTICS,
+ * uwr-runtime-consumption-v0.1.md §7 row flipped by owner merge of
+ * afi-governance PR #13, merge commit 6b3638b).
+ *
+ * - "builtin-value-identity": the record was scored with afi-core's builtin
+ *   `defaultUwrConfig` (the RC-3 flag selected `builtin`, the default). The
+ *   stamp remains VALUE-IDENTITY metadata: the config is value-identical to
+ *   the registered profile by construction (UP-2/UP-5), but the registry was
+ *   not read.
+ * - "registry-consumed": the record was scored with the profile actually
+ *   READ from the afi-config registry and validated under the RC-5 identity
+ *   predicate (RC-4 fail-closed — a failed read/validation refuses to score,
+ *   so no record and no stamp can exist for a failed resolution).
+ */
+export type UwrProfileStampSource =
+  | "builtin-value-identity"
+  | "registry-consumed";
+
+/**
+ * UWR profile stamp (PR-UWR-STAMP, uwr-profile-pin-v0.1.md §7;
+ * source discriminator added by PR-UWR-STAMP-SEMANTICS per RC-6).
  *
  * Traceability metadata only: records which governed, version-pinned UWR
- * profile the scoring configuration is value-identical to (UP-2/UP-5).
- * It does NOT indicate runtime registry consumption, qualification,
- * reward eligibility, or mint wiring — each remains separately authorized.
+ * profile the scoring configuration corresponds to (UP-2/UP-5) and — via
+ * `source` — whether that configuration was the builtin value-identical
+ * stub or the registry document actually consumed at runtime. It does NOT
+ * indicate qualification, reward eligibility, or mint wiring — each remains
+ * separately authorized.
  */
 export interface UwrProfileStamp {
   /** Pinned profile id (e.g. "uwr-weighted-lifts-v0.1"). */
@@ -27,6 +49,22 @@ export interface UwrProfileStamp {
   status: "testnet-provisional";
   /** Decision that pinned the profile. */
   decisionRef: string;
+  /**
+   * RC-6 source discriminator. **Optional by design, not by accident.**
+   *
+   * Every stamp WRITTEN from PR-UWR-STAMP-SEMANTICS onward populates it —
+   * `uwrProfileStampFor` always sets it and refuses to stamp an unknown
+   * source — so new persisted records always carry it. But this same
+   * interface also types records READ BACK from the vault
+   * (ReactorScoredSignalDocument.pipeline.uwrProfile), and records persisted
+   * during the PR-UWR-STAMP era carry a stamp WITHOUT this field. RC-6 is
+   * explicit that those records are not rewritten and that "absence of the
+   * discriminator identifies the pre-program era" — so a read-side consumer
+   * must treat a missing `source` as exactly that (pre-program), never
+   * assume it is present. Typing it required here would assert a guarantee
+   * stored pre-program documents do not have.
+   */
+  source?: UwrProfileStampSource;
 }
 
 /**

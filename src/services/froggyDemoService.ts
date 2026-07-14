@@ -305,11 +305,15 @@ async function runFroggyTrendPullbackDagInternal(
           : null,
         // PR-UWR-STAMP: profile-id traceability for persisted records.
         // Conditional spread — the field is OMITTED (not null) when the
-        // scorer identity is not the UP-10-recognized one. Hardcoded pin;
-        // no registry is read at runtime (UP-12).
+        // scorer identity is not the UP-10-recognized one.
+        // PR-UWR-STAMP-SEMANTICS (RC-6): the stamp now carries the source
+        // discriminator. The resolved source is propagated EXPLICITLY from
+        // the froggy-analyst composition path (uwrResolvedSource) — this
+        // stamp site never reads the environment or re-resolves the source.
         ...(() => {
           const uwrProfile = uwrProfileStampFor(
-            analyzedSignal.analysis.analystScore
+            analyzedSignal.analysis.analystScore,
+            analyzedSignal.uwrResolvedSource
           );
           return uwrProfile ? { uwrProfile } : {};
         })(),
