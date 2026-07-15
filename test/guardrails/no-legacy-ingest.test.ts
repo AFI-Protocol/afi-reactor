@@ -102,8 +102,8 @@ describe("Guardrail: legacy demo pipeline is purged", () => {
     }
   });
 
-  it("froggyDemoService.ts imports no legacy plugin", () => {
-    const service = readIfExists(join(REACTOR_ROOT, "src/services/froggyDemoService.ts"));
+  it("froggyScoringService.ts imports no legacy plugin", () => {
+    const service = readIfExists(join(REACTOR_ROOT, "src/services/froggyScoringService.ts"));
     if (service === null) return;
     for (const name of LEGACY_PLUGIN_NAMES) {
       expect(service).not.toMatch(new RegExp(`import[^\\n]*${name}`, "i"));

@@ -10,14 +10,13 @@
  * 3. Froggy Enrichment (Sentiment+News) → adds sentiment and news enrichment (parallel)
  * 4. Froggy Enrichment Adapter → merges enrichment legos + adds AI/ML (Tiny Brains optional)
  * 5. Froggy Analyst → runs trend_pullback_v1 strategy from afi-core, computes UWR score
- * 6. Reactor Vault Write (internal) → persists scored signal to MongoDB
  *
  * NOT Reactor's responsibility:
  * - Validator certification (moved to external certification layer)
  * - Execution (moved to consumer/adapter layer)
  * - Minting/emissions (moved to afi-mint)
  *
- * @module froggyDemoService
+ * @module froggyScoringService
  */
 
 import type { ReactorScoredSignalV1 } from "../types/ReactorScoredSignalV1.js";

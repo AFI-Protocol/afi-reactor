@@ -641,7 +641,7 @@ async function run(signal: StructuredSignal | any): Promise<FroggyEnrichedView> 
   (enriched as any).lenses = lenses;
 
   // Attach price source metadata as a separate property (not part of afi-core's FroggyEnrichedView)
-  // This will be read by froggyDemoService for TSSD vault persistence
+  // This will be read by froggyScoringService for TSSD vault persistence
   // PROVENANCE REQUIREMENT: These fields are REQUIRED for TSSD vault writes
   (enriched as any)._priceFeedMetadata = {
     priceSource: actualPriceSource,  // Use actual source (may be "demo" if fallback occurred)

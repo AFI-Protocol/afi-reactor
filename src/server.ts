@@ -35,7 +35,7 @@ import {
   runFroggyTrendPullbackFromTradingView,
   runFroggyTrendPullbackFromCanonicalUss,
   type TradingViewAlertPayload,
-} from "./services/froggyDemoService.js";
+} from "./services/froggyScoringService.js";
 import { validateUsignalV11 } from "./uss/ussValidator.js";
 import { mapTradingViewToUssV11 } from "./uss/tradingViewMapper.js";
 import { validateCpjV01 } from "./cpj/cpjValidator.js";

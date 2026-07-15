@@ -74,7 +74,7 @@ export interface PipelineStage {
  * Froggy analyst workflow: derive telemetry → parallel enrichment → analyze → score.
  *
  * This is the canonical stage order used by:
- * - src/services/froggyDemoService.ts
+ * - src/services/froggyScoringService.ts
  *
  * Stage sequence (with parallel enrichment branches):
  * 1. uss-telemetry-deriver: Extract routing/debug fields from context.rawUss into context.telemetry

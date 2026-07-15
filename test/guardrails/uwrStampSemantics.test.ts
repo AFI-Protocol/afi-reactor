@@ -73,8 +73,10 @@ function enrichedFixture(): FroggyEnrichedView {
   };
 }
 
-/** Mirror of the vault-write stamp construction in froggyDemoService.ts:
- * stampFor(analystScore, propagated source), conditional-spread contract. */
+/** Mirrors how a stamp site consumes the composition path's output:
+ * stampFor(analystScore, PROPAGATED source) — never re-derived here. (The legacy
+ * vault-write stamp site was deleted with the legacy store; the canonical
+ * evidence stamp site is wired under the afi-config uwrProfile contract.) */
 function stampFromPluginOutput(analyzed: {
   analysis: { analystScore: { analystId?: string; strategyId?: string } };
   uwrResolvedSource: "builtin" | "registry";
