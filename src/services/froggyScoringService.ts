@@ -202,7 +202,23 @@ async function runFroggyTrendPullbackDagInternal(
     throw new Error("Froggy analyst stage did not produce analystScore");
   }
 
-  // Compute decay parameters (reused in result and vault doc)
+  // RC-6: the UWR source the analyst ACTUALLY scored with, propagated verbatim
+  // from the composition path. Never re-derived downstream (the canonical-evidence
+  // stamp site consumes this; it must not re-read the flag or the environment).
+  // Resolution is fail-closed (RC-4): a failed/invalid resolution throws inside
+  // the analyst stage before any scoring, so reaching here means it succeeded.
+  if (
+    analyzedSignal.uwrResolvedSource !== "builtin" &&
+    analyzedSignal.uwrResolvedSource !== "registry"
+  ) {
+    throw new Error(
+      `Froggy analyst stage did not propagate a recognized uwrResolvedSource ` +
+        `(got ${JSON.stringify(analyzedSignal.uwrResolvedSource)}) — refusing to ` +
+        `produce a scored signal whose UWR provenance cannot be stamped honestly.`
+    );
+  }
+
+  // Compute decay parameters
   const decayParams = pickDecayParamsForAnalystScore(analyzedSignal.analysis.analystScore);
 
   // Compute scoredAt (canonical timestamp when analystScore was produced)
@@ -237,6 +253,8 @@ async function runFroggyTrendPullbackDagInternal(
       patternSignals,
     },
     analystScore: analyzedSignal.analysis.analystScore,
+    // RC-6 provenance, propagated (never re-derived) to the evidence stamp site.
+    uwrResolvedSource: analyzedSignal.uwrResolvedSource,
     scoredAt,
     decayParams: decayParams
       ? {

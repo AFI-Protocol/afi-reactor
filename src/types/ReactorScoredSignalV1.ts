@@ -11,6 +11,7 @@
  */
 
 import type { AnalystScoreTemplate } from "afi-core/analyst";
+import type { UwrProfileSource } from "../config/uwrRuntimeProfile.js";
 
 /**
  * RC-6 source discriminator (PR-UWR-STAMP-SEMANTICS,
@@ -91,6 +92,19 @@ export interface ReactorScoredSignalV1 {
 
   /** Analyst score (canonical UWR score from afi-core) */
   analystScore: AnalystScoreTemplate;
+
+  /**
+   * The UWR runtime source the composition path ACTUALLY scored with, PROPAGATED
+   * verbatim from the froggy-analyst plugin (ResolvedUwrRuntimeConfig.source).
+   *
+   * Carried so the canonical-evidence stamp site can build the governed
+   * `uwrProfile` from the real resolution instead of re-deriving it (RC-6: a
+   * stamp site must never re-read the flag, re-resolve the config, or consult the
+   * environment). Resolution is fail-closed (RC-4), so a failed/invalid
+   * resolution throws before scoring — this field only ever describes a
+   * successful run.
+   */
+  uwrResolvedSource: UwrProfileSource;
 
   /** Timestamp when scoring was completed (ISO 8601) */
   scoredAt: string;

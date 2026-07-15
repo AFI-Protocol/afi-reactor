@@ -41,7 +41,7 @@
     "afi-config": "file:../afi-config",
     "afi-core": "file:../afi-core",
     "afi-factory": "file:../afi-factory",
-    "afi-infra": "git+https://github.com/AFI-Protocol/afi-infra.git#4378778ee937dd8f46b70f309cae54901e0cc86a",
+    "afi-infra": "git+https://github.com/AFI-Protocol/afi-infra.git#43aab585c6e82a8fe3105b9c72764cd08ab28c94",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "ccxt": "^4.5.63",

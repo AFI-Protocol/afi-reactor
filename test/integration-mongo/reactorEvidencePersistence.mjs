@@ -85,6 +85,14 @@ async function main() {
   const { default: app, shutdownReactor } = await import(COMPILED_SERVER);
   assert.equal(typeof shutdownReactor, "function", "compiled server exports shutdownReactor");
 
+  // Compiled UWR runtime-config surface: lets this proof exercise the real
+  // builtin / registry / failed-resolution modes against the compiled app
+  // (the resolution is memoized per process, so it must be reset between modes).
+  const { __resetUwrRuntimeConfigForTests, UWR_PROFILE_SOURCE_ENV } = await import(
+    pathToFileURL(path.resolve(process.cwd(), "dist/src/config/uwrRuntimeProfile.js")).href
+  );
+  assert.equal(typeof __resetUwrRuntimeConfigForTests, "function", "uwr runtime reset available");
+
   const tvSignalId = "it-tv-0001";
   const tvPayload = {
     signalId: tvSignalId,
@@ -177,7 +185,86 @@ async function main() {
     );
     ok("conflicting duplicate → honest 409, append-once (stored record unchanged)");
 
-    // 6. No dual-write: legacy collection never created. ---------------------
+    // 6. UWR stamp — builtin (default) persists builtin-value-identity. -------
+    // The tv/cpj records above were scored in the DEFAULT (builtin) mode.
+    for (const [label, rec] of [["tradingview", tvBack], ["cpj", cpjBack]]) {
+      assert.ok(rec.uwrProfile, `${label}: record must carry the governed stamp`);
+      assert.equal(
+        rec.uwrProfile.source,
+        "builtin-value-identity",
+        `${label}: builtin mode must persist builtin-value-identity`
+      );
+      assert.ok(rec.uwrProfile.profileId, `${label}: stamp profileId`);
+      assert.ok(rec.uwrProfile.status, `${label}: stamp status`);
+      assert.ok(rec.uwrProfile.decisionRef, `${label}: stamp decisionRef`);
+    }
+    ok("UWR stamp: builtin mode persists builtin-value-identity on BOTH endpoints");
+
+    // 7. UWR stamp — successful registry mode persists registry-consumed. -----
+    // Switch the runtime source and clear the memoized resolution, then score a
+    // fresh signal through the compiled endpoint.
+    process.env[UWR_PROFILE_SOURCE_ENV] = "registry";
+    __resetUwrRuntimeConfigForTests();
+    const regSignalId = "it-tv-registry-0001";
+    const regRes = await request(app)
+      .post("/api/webhooks/tradingview")
+      .send({ ...tvPayload, signalId: regSignalId });
+    assert.equal(
+      regRes.status,
+      200,
+      `registry-mode score must persist (got ${regRes.status}: ${JSON.stringify(regRes.body)})`
+    );
+    assert.equal(regRes.body.persistence?.outcome, "inserted", "registry-mode inserted");
+    const regBack = await store.getBySignalId(regSignalId);
+    assertGovernedRecord(regBack, regSignalId);
+    assert.equal(
+      regBack.uwrProfile.source,
+      "registry-consumed",
+      "a successful registry resolution must persist registry-consumed"
+    );
+    // Only `source` differs — the profile identity metadata is identical, and the
+    // scoring VALUES are unchanged across sources (consumption is provenance,
+    // not behavior).
+    assert.equal(regBack.uwrProfile.profileId, tvBack.uwrProfile.profileId, "same profileId");
+    assert.equal(regBack.uwrProfile.status, tvBack.uwrProfile.status, "same status");
+    assert.equal(regBack.uwrProfile.decisionRef, tvBack.uwrProfile.decisionRef, "same decisionRef");
+    assert.equal(
+      regBack.scoredSignal.uwrScore,
+      tvBack.scoredSignal.uwrScore,
+      "registry vs builtin: identical scoring output (only provenance differs)"
+    );
+    ok("UWR stamp: successful registry mode persists registry-consumed (scoring unchanged)");
+
+    // 8. UWR stamp — FAILED registry resolution produces NO score record. -----
+    // Fail-closed (RC-4): an invalid/unresolvable source refuses to score, so no
+    // evidence record — and therefore no stamp — can exist for a failed run.
+    process.env[UWR_PROFILE_SOURCE_ENV] = "fallback"; // ungoverned flag
+    __resetUwrRuntimeConfigForTests();
+    const failSignalId = "it-tv-failed-resolution-0001";
+    const failRes = await request(app)
+      .post("/api/webhooks/tradingview")
+      .send({ ...tvPayload, signalId: failSignalId });
+    assert.ok(
+      failRes.status >= 400,
+      `failed UWR resolution must NOT return success (got ${failRes.status})`
+    );
+    assert.equal(
+      await countFor(failSignalId),
+      0,
+      "failed UWR resolution must persist NO evidence record"
+    );
+    assert.equal(
+      await store.getBySignalId(failSignalId),
+      null,
+      "failed UWR resolution: nothing readable back"
+    );
+    ok(`UWR stamp: failed registry resolution → no score record (honest ${failRes.status})`);
+
+    // Restore the default runtime source for the remaining checks.
+    delete process.env[UWR_PROFILE_SOURCE_ENV];
+    __resetUwrRuntimeConfigForTests();
+
+    // 9. No dual-write: legacy collection never created. ---------------------
     const dbNames = (await client.db().admin().listDatabases()).databases.map((d) => d.name);
     for (const dbName of dbNames) {
       const cols = await client.db(dbName).listCollections({ name: LEGACY_COLLECTION }).toArray();
@@ -192,8 +279,9 @@ async function main() {
     );
     assert.equal(
       await client.db(DB_NAME).collection(EVIDENCE_COLLECTION).countDocuments({}),
-      2,
-      "exactly the two inserted canonical records (tv + cpj)"
+      3,
+      "exactly the three inserted canonical records (tv + cpj + registry-mode tv); " +
+        "the failed-resolution run persisted nothing"
     );
     ok("no dual-write: only the afi-infra evidence store was written (no reactor_scored_signals_v1)");
 
