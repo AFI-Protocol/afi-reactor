@@ -15,7 +15,11 @@
  * certify, qualify, or finalize (LIFE-GOV D-LIFE-3/D-LIFE-4).
  */
 
-import type { ReactorScoredSignalV1 } from "../types/ReactorScoredSignalV1.js";
+import type {
+  ReactorScoredSignalV1,
+  UwrProfileStamp,
+} from "../types/ReactorScoredSignalV1.js";
+import { uwrProfileStampFor } from "../config/uwrProfilePin.js";
 import type { InternalScoringResult } from "../pipeheads/types.js";
 import type { ProvenanceRecordV1, ScoredSignalV1 } from "../pipeheads/provenance/types.js";
 import { PROVENANCE_RECORD_SCHEMA } from "../pipeheads/provenance/types.js";
@@ -54,6 +58,15 @@ export interface ReactorEvidenceRecord {
   finalized: false;
   scoredSignal: ScoredSignalV1;
   provenanceRecord: ProvenanceRecordV1;
+  /**
+   * REQUIRED governed scoring-profile stamp (afi.scored-signal-evidence.v1):
+   * identifies the UWR profile that ACTUALLY produced the score and its exact
+   * source/provenance. Built from the source PROPAGATED by the composition path
+   * (never re-derived here). The governed contract is analyst-neutral; this
+   * Reactor emits only the profile it supports — an implementation limit, not a
+   * contract restriction.
+   */
+  uwrProfile: UwrProfileStamp;
 }
 
 /** A failure to construct the canonical evidence artifacts from a scored signal
@@ -124,6 +137,35 @@ export function buildReactorEvidenceRecord(
     );
   }
 
+  // Governed scoring-profile stamp, built from the source the composition path
+  // ACTUALLY scored with (propagated verbatim on the scored signal — never
+  // re-derived here, never read from the environment; RC-6). uwrProfileStampFor
+  // refuses to stamp an unrecognized profile identity (UP-10) or an unpropagated
+  // source, and the contract REQUIRES the stamp on every record — so an
+  // unstampable score fails CLOSED here rather than persisting unstamped
+  // evidence. (Which profiles this Reactor can emit is an implementation limit;
+  // the governed contract itself is analyst-neutral.)
+  let uwrProfile: UwrProfileStamp | undefined;
+  try {
+    uwrProfile = uwrProfileStampFor(analyst, scored.uwrResolvedSource);
+  } catch (err) {
+    throw new ReactorEvidenceConstructionError(
+      `Refusing to stamp the canonical evidence record for signalId '${scored.signalId}': ${(err as Error)?.message ?? String(err)}`,
+      scored.signalId,
+      err
+    );
+  }
+  if (!uwrProfile) {
+    throw new ReactorEvidenceConstructionError(
+      `No governed UWR profile stamp is available for signalId '${scored.signalId}' ` +
+        `(analystId '${analyst.analystId}', strategyId '${analyst.strategyId}' is not a ` +
+        `profile identity this Reactor is configured to stamp). The canonical contract ` +
+        `REQUIRES the scoring-profile stamp on every evidence record, so this score ` +
+        `cannot be persisted as canonical evidence.`,
+      scored.signalId
+    );
+  }
+
   let projection: ScoredSignalV1;
   let provenanceRecord: ProvenanceRecordV1;
   try {
@@ -151,5 +193,6 @@ export function buildReactorEvidenceRecord(
     finalized: false,
     scoredSignal: projection,
     provenanceRecord,
+    uwrProfile,
   };
 }

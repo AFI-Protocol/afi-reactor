@@ -47,6 +47,10 @@ function makeScored(overrides: Record<string, unknown> = {}): ReactorScoredSigna
       facts: { symbol: "BTCUSDT", timeframe: "1h", direction: "long", strategy: "trend_pullback_v1" },
     },
     analystScore,
+    // RC-6 source PROPAGATED from the composition path (default: builtin).
+    // `in` (not ??) so a test can force an explicitly-absent source.
+    uwrResolvedSource:
+      "uwrResolvedSource" in overrides ? overrides.uwrResolvedSource : "builtin",
     scoredAt: "2026-01-15T12:00:00Z",
     decayParams: null,
     meta: { symbol: "BTCUSDT", timeframe: "1h", strategy: "trend_pullback_v1", direction: "long", source: "test" },
@@ -103,6 +107,47 @@ describe("buildReactorEvidenceRecord", () => {
   it("rejects a score missing the strategyVersion triple member", () => {
     const scored = makeScored({ analystScore: { strategyVersion: undefined } });
     expect(() => buildReactorEvidenceRecord(scored)).toThrow(ReactorEvidenceConstructionError);
+  });
+
+  // Governed scoring-profile stamp (PR-UWR-STAMP / RC-6). The stamp is REQUIRED
+  // on every canonical evidence record and is built from the source the
+  // composition path ACTUALLY scored with — propagated, never re-derived.
+  it("stamps the governed profile, discriminating builtin as builtin-value-identity", () => {
+    const record = buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: "builtin" }));
+    expect(record.uwrProfile).toBeDefined();
+    expect(record.uwrProfile.source).toBe("builtin-value-identity");
+    expect(record.uwrProfile.profileId).toBeTruthy();
+    expect(record.uwrProfile.status).toBeTruthy();
+    expect(record.uwrProfile.decisionRef).toBeTruthy();
+  });
+
+  it("discriminates a registry-resolved score as registry-consumed", () => {
+    const record = buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: "registry" }));
+    expect(record.uwrProfile.source).toBe("registry-consumed");
+    // Only `source` differs — profile identity metadata is byte-identical.
+    const builtin = buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: "builtin" }));
+    expect(record.uwrProfile.profileId).toBe(builtin.uwrProfile.profileId);
+    expect(record.uwrProfile.status).toBe(builtin.uwrProfile.status);
+    expect(record.uwrProfile.decisionRef).toBe(builtin.uwrProfile.decisionRef);
+  });
+
+  it("FAILS CLOSED when the source was not propagated (never stamps unknown provenance)", () => {
+    // An unpropagated/unknown source must never be silently omitted or guessed:
+    // omission would masquerade as a pre-program record (RC-6).
+    expect(() =>
+      buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: undefined }))
+    ).toThrow(ReactorEvidenceConstructionError);
+    expect(() =>
+      buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: "fallback" }))
+    ).toThrow(ReactorEvidenceConstructionError);
+  });
+
+  it("FAILS CLOSED for a profile identity this Reactor cannot stamp (no unstamped evidence)", () => {
+    // The governed contract is analyst-neutral; this Reactor emits only the
+    // profile it supports. An unsupported identity cannot produce canonical
+    // evidence here — an implementation limit, surfaced honestly.
+    const other = makeScored({ analystScore: { analystId: "kestrel" } });
+    expect(() => buildReactorEvidenceRecord(other)).toThrow(ReactorEvidenceConstructionError);
   });
 });
 

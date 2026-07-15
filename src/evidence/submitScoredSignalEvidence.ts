@@ -85,6 +85,10 @@ type Logger = { info?: (...a: unknown[]) => void; error?: (...a: unknown[]) => v
 
 const HASH_VERSION = /^afi\.hash\.v[0-9]+$/;
 
+/** The governed RC-6 source discriminators — the ONLY fixed vocabulary on the
+ *  otherwise analyst-neutral scoring-profile stamp. */
+const GOVERNED_STAMP_SOURCES = ["builtin-value-identity", "registry-consumed"] as const;
+
 /** Structural validity of the evidence wrapper (schema-id, lifecycle/finality,
  *  the complete strategy triple, version). Sub-artifacts are validated separately
  *  against their governed schemas. */
@@ -97,6 +101,20 @@ function evidenceWrapperViolations(r: ReactorEvidenceRecord): string[] {
   if (!r.strategyId) v.push("strategyId missing");
   if (!r.strategyVersion) v.push("strategyVersion missing (complete triple required)");
   if (!HASH_VERSION.test(r.canonicalizationVersion)) v.push("canonicalizationVersion malformed");
+  // Governed scoring-profile stamp: REQUIRED on every canonical evidence record,
+  // with the RC-6 source discriminator (the only governed vocabulary). Proven
+  // here before submission; the afi-infra store re-validates authoritatively.
+  const stamp = r.uwrProfile;
+  if (!stamp) {
+    v.push("uwrProfile stamp missing (required on every canonical evidence record)");
+  } else {
+    if (!stamp.profileId) v.push("uwrProfile.profileId missing");
+    if (!stamp.status) v.push("uwrProfile.status missing");
+    if (!stamp.decisionRef) v.push("uwrProfile.decisionRef missing");
+    if (!GOVERNED_STAMP_SOURCES.includes(stamp.source as never)) {
+      v.push(`uwrProfile.source '${String(stamp.source)}' is not a governed RC-6 discriminator`);
+    }
+  }
   return v;
 }
 
