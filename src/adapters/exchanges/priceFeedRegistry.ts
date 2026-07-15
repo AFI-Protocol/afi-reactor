@@ -49,14 +49,32 @@ export function getPriceFeedAdapter(source: PriceSourceId): PriceFeedAdapter {
 
 /**
  * Get Default Price Source
- * 
- * Returns the default price source based on environment configuration.
- * Falls back to "demo" if AFI_PRICE_FEED_SOURCE is not set.
- * 
- * @returns Default price source ID
+ *
+ * Resolves the price source from AFI_PRICE_FEED_SOURCE. There is NO silent
+ * fallback to the synthetic "demo" feed for live requests: production runtime
+ * MUST select a real source explicitly (blofin | coinbase). If the variable is
+ * unset, this fails closed rather than silently scoring on synthetic data. The
+ * deterministic synthetic "demo" feed remains available but must be selected
+ * explicitly (AFI_PRICE_FEED_SOURCE=demo); as a strictly-test-code convenience it
+ * is the implicit source only under NODE_ENV=test.
+ *
+ * @returns Configured price source ID
+ * @throws Error in production runtime when AFI_PRICE_FEED_SOURCE is unset
  */
 export function getDefaultPriceSource(): PriceSourceId {
-  return (process.env.AFI_PRICE_FEED_SOURCE as PriceSourceId) || "demo";
+  const configured = process.env.AFI_PRICE_FEED_SOURCE as PriceSourceId | undefined;
+  if (configured) {
+    return configured;
+  }
+  if (process.env.NODE_ENV === "test") {
+    // Strictly test code: default to the deterministic synthetic feed.
+    return "demo";
+  }
+  throw new Error(
+    'AFI_PRICE_FEED_SOURCE is required for live scoring (e.g. "blofin" or "coinbase"). ' +
+      'The synthetic "demo" feed must be selected explicitly and never serves live ' +
+      "requests silently — set AFI_PRICE_FEED_SOURCE explicitly."
+  );
 }
 
 /**

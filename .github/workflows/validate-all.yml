@@ -43,6 +43,15 @@ jobs:
           repository: AFI-Protocol/afi-config
           path: afi-config
 
+      # afi-infra (the canonical evidence store the Reactor submits through) is
+      # consumed as a REPRODUCIBLE git-pinned package dependency
+      # (git+https://github.com/AFI-Protocol/afi-infra.git#<reviewed-sha>; see
+      # afi-reactor/package.json + package-lock.json, pinned to the reviewed
+      # merged commit). `npm ci` below clones that exact commit and runs its
+      # `prepare` build, so no separate checkout is needed. The git-over-HTTPS
+      # rewrite step makes that clone work on the keyless runner (public repo,
+      # anonymous HTTPS) even though the lockfile records the git+ssh form.
+
       - name: Setup Node.js 22.x
         uses: actions/setup-node@v4
         with:
@@ -77,6 +86,14 @@ jobs:
           npm ci
           npm run build
 
+      # The afi-infra dependency is pinned as a git URL; the lockfile records the
+      # git+ssh form. Rewrite GitHub SSH → HTTPS so `npm ci` clones the PUBLIC
+      # afi-infra repo anonymously on the keyless runner (no SSH deploy key).
+      - name: Configure git to fetch GitHub dependencies over HTTPS
+        run: |
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+
       - name: Install afi-reactor dependencies
         working-directory: afi-reactor
         run: npm ci
@@ -96,6 +113,75 @@ jobs:
           echo "🧪 Running AFI Reactor tests..."
           npm test
           echo "✅ Tests completed"
+
+      # Exercise the COMPILED build (dist/), not only Jest source mappings: prove
+      # both scored endpoints construct + validate the governed record and then
+      # fail HONESTLY with a 503 when the canonical store is unavailable (no
+      # MongoDB) — never a masked 200. Runs without a database.
+      - name: Compiled honest-unavailable smoke (no MongoDB)
+        working-directory: afi-reactor
+        timeout-minutes: 8
+        run: |
+          echo "🧪 Compiled build must fail honestly (503) when the canonical store is unavailable..."
+          npm run test:integration:unavailable
+          echo "✅ Honest-unavailable smoke passed"
+
+      # Provision REAL MongoDB as a single-node replica set (the production
+      # topology; transactions/supersession require a replica set). The Reactor's
+      # submit path itself needs only a standard collection + unique index, but
+      # the canonical store is exercised against a real replica set here.
+      - name: Start MongoDB (single-node replica set)
+        run: |
+          echo "🍃 Starting MongoDB replica set rs0..."
+          docker run -d --name afi-mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          echo "⏳ Waiting for mongod to accept connections..."
+          for i in $(seq 1 60); do
+            if docker exec afi-mongo mongosh --quiet --eval 'db.runCommand({ ping: 1 })' >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          echo "⚙️  Initiating replica set..."
+          docker exec afi-mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27017"}]})'
+          echo "⏳ Waiting for PRIMARY..."
+          for i in $(seq 1 60); do
+            if docker exec afi-mongo mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -q true; then
+              echo "✅ Replica set PRIMARY ready"; break
+            fi
+            sleep 2
+          done
+
+      # Real end-to-end persistence PROOF against the compiled build + the real,
+      # packaged afi-infra store + real MongoDB: both endpoints construct,
+      # validate, and persist afi.scored-signal-evidence.v1; read-back by
+      # signalId + identifier continuity; idempotent duplicate; conflicting
+      # duplicate (409); and NO dual-write to reactor_scored_signals_v1.
+      - name: Real-MongoDB canonical persistence integration (compiled build)
+        working-directory: afi-reactor
+        timeout-minutes: 12
+        env:
+          AFI_EVIDENCE_MONGODB_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0
+          AFI_EVIDENCE_DB_NAME: afi_scored_signal_evidence_it
+          # Deterministic, hermetic enrichment (demo is the default; pinned here
+          # so the proof never depends on a live price feed or a runner override).
+          AFI_PRICE_FEED_SOURCE: demo
+        run: |
+          echo "🧪 Proving both scored endpoints persist through the real afi-infra store on real MongoDB..."
+          npm run test:integration:mongo
+          echo "✅ Real-MongoDB persistence proof passed"
+
+      # Prove SIGTERM-compatible graceful shutdown on the COMPILED server: spawn
+      # it listening, connect the evidence store via a scored request, send
+      # SIGTERM, and require a prompt clean exit 0 (Cloud Run deployment path).
+      - name: SIGTERM graceful-shutdown proof (compiled build)
+        working-directory: afi-reactor
+        timeout-minutes: 5
+        env:
+          AFI_EVIDENCE_MONGODB_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0
+          AFI_EVIDENCE_DB_NAME: afi_scored_signal_evidence_shutdown_it
+          AFI_PRICE_FEED_SOURCE: demo
+        run: |
+          echo "🧪 Proving SIGTERM → graceful shutdown → exit 0 on the compiled server..."
+          npm run test:integration:shutdown
+          echo "✅ SIGTERM shutdown proof passed"
 
       - name: Ensure all log files exist
         if: always()

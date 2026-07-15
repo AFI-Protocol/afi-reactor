@@ -20,6 +20,9 @@
     "codex-lint": "node dist/ops/codexLint.js",
     "mentor-eval": "node dist/ops/mentorChain.js",
     "test": "jest",
+    "test:integration:unavailable": "node test/integration-mongo/reactorEvidenceUnavailable.mjs",
+    "test:integration:mongo": "node test/integration-mongo/reactorEvidencePersistence.mjs",
+    "test:integration:shutdown": "node test/integration-mongo/reactorShutdown.mjs",
     "validate-all": "npm run build && npm run codex-lint && npm run simulate-signal && npm run mentor-eval",
     "esm:check": "bash scripts/esm-check.sh"
   },
@@ -38,6 +41,7 @@
     "afi-config": "file:../afi-config",
     "afi-core": "file:../afi-core",
     "afi-factory": "file:../afi-factory",
+    "afi-infra": "git+https://github.com/AFI-Protocol/afi-infra.git#4378778ee937dd8f46b70f309cae54901e0cc86a",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "ccxt": "^4.5.63",

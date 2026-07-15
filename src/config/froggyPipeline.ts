@@ -2,8 +2,11 @@
  * Froggy Pipeline Configuration
  *
  * Single source of truth for Froggy's trend-pullback pipeline stages.
- * This config defines the DAG (Directed Acyclic Graph) of stages that process a signal
- * from TradingView webhook → TSSD vault persistence.
+ * This config defines the DAG (Directed Acyclic Graph) of stages that process a
+ * signal from a TradingView webhook (or CPJ ingest) through Froggy analyst
+ * scoring. Canonical persistence is NOT a pipeline stage — the governed
+ * afi.scored-signal-evidence.v1 record is submitted to the afi-infra store at
+ * the server seam after scoring.
  *
  * The pipeline uses parallel enrichment branches:
  * - Tech+Pattern enrichment and Sentiment+News enrichment run in parallel after structuring
@@ -68,10 +71,10 @@ export interface PipelineStage {
  * Froggy Trend-Pullback Pipeline (v1)
  *
  * DAG pipeline for processing canonical USS v1.1 signals through the
- * Froggy analyst workflow: derive telemetry → parallel enrichment → analyze → score → persist.
+ * Froggy analyst workflow: derive telemetry → parallel enrichment → analyze → score.
  *
  * This is the canonical stage order used by:
- * - src/services/froggyDemoService.ts
+ * - src/services/froggyScoringService.ts
  *
  * Stage sequence (with parallel enrichment branches):
  * 1. uss-telemetry-deriver: Extract routing/debug fields from context.rawUss into context.telemetry
@@ -79,13 +82,13 @@ export interface PipelineStage {
  * 3. froggy-enrichment-sentiment-news: Add sentiment + news enrichment (external APIs) [parallel branch 2]
  * 4. froggy-enrichment-adapter: Merge enrichment legos + add AI/ML (Tiny Brains optional) [joins both branches]
  * 5. froggy-analyst: Run trend_pullback_v1 strategy, compute UWR score
- * 6. tssd-vault-write: Persist scored signal to MongoDB (internal stage)
+ *    (Canonical persistence runs AFTER the pipeline at the server seam via the
+ *    afi-infra evidence store — it is not a pipeline stage.)
  *
  * Dependency graph:
  * - tech-pattern and sentiment-news both depend on uss-telemetry-deriver (parallel execution)
  * - enrichment-adapter depends on both tech-pattern and sentiment-news (multi-parent join)
  * - froggy-analyst depends on enrichment-adapter
- * - tssd-vault-write depends on froggy-analyst
  *
  * REMOVED STAGES:
  * - alpha-scout-ingest: Replaced by webhook-level USS validation
@@ -140,14 +143,6 @@ export const FROGGY_TREND_PULLBACK_PIPELINE: PipelineStage[] = [
     description: "Run trend_pullback_v1 strategy from afi-core, compute UWR score",
     category: "analyst",
     dependsOn: ["froggy-enrichment-adapter"],
-  },
-  {
-    id: "tssd-vault-write",
-    label: "Reactor Scored Signal Vault Write",
-    kind: "internal",
-    description: "Persist scored signal to MongoDB (Reactor-owned collection, isolated from afi-infra)",
-    category: "persistence",
-    dependsOn: ["froggy-analyst"],
   },
 ];
 

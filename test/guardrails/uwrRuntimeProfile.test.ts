@@ -442,7 +442,7 @@ describe("PR-UWR-RUNTIME-READ: plugin call-site equivalence (the changed consume
     // uwrResolvedSource only. (uwrResolvedSource was added by
     // PR-UWR-STAMP-SEMANTICS — uwr-runtime-consumption-v0.1.md §7 row
     // flipped via afi-governance PR #13 — to propagate the RC-6 source to
-    // the vault-write stamp; froggyDemoService copies enumerated fields
+    // the vault-write stamp; froggyScoringService copies enumerated fields
     // into the response contract, so this plugin-boundary field never
     // reaches ReactorScoredSignalV1.)
     expect(Object.keys(viaPlugin).sort()).toEqual(

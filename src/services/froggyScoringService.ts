@@ -10,22 +10,19 @@
  * 3. Froggy Enrichment (Sentiment+News) → adds sentiment and news enrichment (parallel)
  * 4. Froggy Enrichment Adapter → merges enrichment legos + adds AI/ML (Tiny Brains optional)
  * 5. Froggy Analyst → runs trend_pullback_v1 strategy from afi-core, computes UWR score
- * 6. Reactor Vault Write (internal) → persists scored signal to MongoDB
  *
  * NOT Reactor's responsibility:
  * - Validator certification (moved to external certification layer)
  * - Execution (moved to consumer/adapter layer)
  * - Minting/emissions (moved to afi-mint)
  *
- * @module froggyDemoService
+ * @module froggyScoringService
  */
 
-import { getTssdVaultService } from "./tssdVaultService.js";
-import type { ReactorScoredSignalV1, ReactorScoredSignalDocument } from "../types/ReactorScoredSignalV1.js";
+import type { ReactorScoredSignalV1 } from "../types/ReactorScoredSignalV1.js";
 import { FROGGY_TREND_PULLBACK_PIPELINE } from "../config/froggyPipeline.js";
 import { runPipelineDag, type PipelineContext } from "./pipelineRunner.js";
 import { pickDecayParamsForAnalystScore } from "afi-core/decay";
-import { uwrProfileStampFor } from "../config/uwrProfilePin.js";
 import { mapTradingViewToUssV11 } from "../uss/tradingViewMapper.js";
 
 // Import plugins directly (for now - will be replaced by dynamic loading in future DAG engine)
@@ -185,14 +182,6 @@ async function runFroggyTrendPullbackDagInternal(
     return derivedSignal;
   });
 
-  // Reactor vault write handler (internal stage)
-  internalHandlers.set("tssd-vault-write", async (payload: any, ctx: PipelineContext) => {
-    // This handler is called after froggy-analyst stage
-    // Payload at this point is the analyzed signal
-    // The actual vault write logic will be handled after pipeline execution
-    return payload;
-  });
-
   // Execute pipeline through all stages using DAG runner
   const pipelineResult = await runPipelineDag(
     FROGGY_TREND_PULLBACK_PIPELINE,
@@ -264,72 +253,12 @@ async function runFroggyTrendPullbackDagInternal(
     },
   };
 
-  // Reactor Vault Integration
-  // Persist the scored signal to MongoDB (if enabled)
-  const vaultService = getTssdVaultService();
-  if (vaultService) {
-    // PROVENANCE GUARDRAIL: Enforce priceSource and venueType for all vault writes
-    // These fields are required for audit trail and data provenance tracking
-    if (!priceSource || !venueType) {
-      const errorMsg = `❌ Reactor Vault Write BLOCKED: Missing provenance metadata for signal ${signalId}. ` +
-        `priceSource=${priceSource}, venueType=${venueType}. ` +
-        `All price-based pipelines MUST attach _priceFeedMetadata in enrichment stage.`;
-      console.error(errorMsg);
-      throw new Error(errorMsg);
-    }
-
-    const reactorDoc: ReactorScoredSignalDocument = {
-      signalId,
-      createdAt: new Date(),
-      source,
-      market: {
-        symbol,
-        timeframe,
-        market: marketType || "spot",
-        priceSource,
-        venueType,
-      },
-      lenses: lenses.length > 0 ? lenses : undefined,
-      _priceFeedMetadata: {
-        technicalIndicators,
-        patternSignals,
-      },
-      pipeline: {
-        analystScore: analyzedSignal.analysis.analystScore,
-        scoredAt,
-        decayParams: decayParams
-          ? {
-              halfLifeMinutes: decayParams.halfLifeMinutes,
-              greeksTemplateId: decayParams.greeksTemplateId,
-            }
-          : null,
-        // PR-UWR-STAMP: profile-id traceability for persisted records.
-        // Conditional spread — the field is OMITTED (not null) when the
-        // scorer identity is not the UP-10-recognized one.
-        // PR-UWR-STAMP-SEMANTICS (RC-6): the stamp now carries the source
-        // discriminator. The resolved source is propagated EXPLICITLY from
-        // the froggy-analyst composition path (uwrResolvedSource) — this
-        // stamp site never reads the environment or re-resolves the source.
-        ...(() => {
-          const uwrProfile = uwrProfileStampFor(
-            analyzedSignal.analysis.analystScore,
-            analyzedSignal.uwrResolvedSource
-          );
-          return uwrProfile ? { uwrProfile } : {};
-        })(),
-      },
-      strategy: {
-        name: strategy,
-        direction,
-      },
-      rawUss: context.rawUss,
-      rawPayload: context.rawUss || derivedTelemetry,
-      version: "v1.0",
-    };
-
-    await vaultService.insertSignalDocument(reactorDoc);
-  }
-
+  // Canonical persistence (the ONLY reactor persistence path) flows through the
+  // afi-infra canonical evidence store: the governed afi.scored-signal-evidence.v1
+  // record is built and submitted at the server seam
+  // (src/evidence/submitScoredSignalEvidence), never written here. The legacy
+  // Reactor-owned scored-signal vault write has been deleted entirely (no
+  // dual-write; MONGO-GOV D-MONGO-3 single write boundary).
   return result;
 }
 // @ts-nocheck

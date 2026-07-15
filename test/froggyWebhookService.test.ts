@@ -2,7 +2,6 @@ import { describe, it, expect, jest } from "@jest/globals";
 import http from "http";
 import express from "express";
 import { mapTradingViewToUssV11 } from "../src/uss/tradingViewMapper.js";
-import { getTssdVaultService } from "../src/services/tssdVaultService.js";
 
 const mockResult = {
   signalId: "sig-123",
@@ -74,19 +73,6 @@ describe("Reactor scored-only surface", () => {
       expect(body.receiptProvenance).toBeUndefined();
       expect(body.mode).toBeUndefined();
     });
-  });
-
-  it("default vault config points to scored-only collection", () => {
-    const originalUri = process.env.AFI_MONGO_URI;
-    process.env.AFI_MONGO_URI = "mongodb://example:27017";
-    delete process.env.AFI_MONGO_DB_NAME;
-    delete process.env.AFI_MONGO_COLLECTION_SCORED;
-
-    const svc = getTssdVaultService() as any;
-    expect(svc?.config?.dbName).toBe("afi_reactor");
-    expect(svc?.config?.collectionName).toBe("reactor_scored_signals_v1");
-
-    process.env.AFI_MONGO_URI = originalUri;
   });
 
   it("maps TradingView payload to canonical USS v1.1", () => {

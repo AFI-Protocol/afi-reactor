@@ -75,6 +75,18 @@ export const OHLCV_DECIMAL_KEYS = [
 ] as const;
 
 /**
+ * Known numeric keys carried on the USS signal-input surface that is committed
+ * by the input hash. The CPJ→USS mapper records the parser's confidence — a
+ * fractional 0..1 value — at `provenance.cpjParseConfidence`; declaring it here
+ * projects it to a canonical decimal STRING (afi.hash.v1-compatible), exactly as
+ * the score/enrichment/OHLCV surfaces already handle their numbers, instead of
+ * the strict canonicalizer failing closed on a raw non-integer float. A raw
+ * decimal under any UNDECLARED USS key still fails closed. (TradingView-mapped
+ * USS carries no numeric fields, so this is a structural no-op there.)
+ */
+export const USS_INPUT_DECIMAL_KEYS = ["cpjParseConfidence"] as const;
+
+/**
  * Deterministically convert a finite number to its canonical decimal string:
  * the ECMAScript shortest round-trip decimal representation, expanded to
  * PLAIN notation (no exponent). `0.1875 -> "0.1875"`, `0 -> "0"`,

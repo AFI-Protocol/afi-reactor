@@ -12,6 +12,7 @@
 import request from "supertest";
 import app from "../../src/server.js";
 import { shutdownDedupeCache } from "../../src/services/ingestDedupeService.js";
+import { setEvidenceStore, resetEvidenceStore } from "../../src/evidence/index.js";
 
 // Set NODE_ENV to test to prevent server from auto-starting
 process.env.NODE_ENV = "test";
@@ -19,8 +20,19 @@ process.env.NODE_ENV = "test";
 const CPJ_TESTS_ENABLED = process.env.CPJ_TESTS_ENABLED === "true";
 
 (CPJ_TESTS_ENABLED ? describe : describe.skip)("CPJ Ingestion Integration", () => {
+  // Canonical persistence is a required step of the endpoint now — inject an
+  // in-memory evidence store so the scored path can complete (the Reactor is a
+  // submitter; production binds the afi-infra store at runtime).
+  beforeAll(() => {
+    setEvidenceStore({
+      async submit(record) {
+        return { outcome: "inserted", signalId: record.signalId, recordVersion: 1 };
+      },
+    });
+  });
   // Cleanup dedupe cache after all tests to prevent Jest hanging
   afterAll(() => {
+    resetEvidenceStore();
     shutdownDedupeCache();
   });
   describe("POST /api/ingest/cpj", () => {

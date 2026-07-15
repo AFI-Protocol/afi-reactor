@@ -35,21 +35,56 @@ import {
   runFroggyTrendPullbackFromTradingView,
   runFroggyTrendPullbackFromCanonicalUss,
   type TradingViewAlertPayload,
-} from "./services/froggyDemoService.js";
+} from "./services/froggyScoringService.js";
 import { validateUsignalV11 } from "./uss/ussValidator.js";
 import { mapTradingViewToUssV11 } from "./uss/tradingViewMapper.js";
 import { validateCpjV01 } from "./cpj/cpjValidator.js";
 import { mapCpjToUssV11 } from "./uss/cpjMapper.js";
+import type { Server as HttpServer } from "http";
 import {
   initDedupeCache,
   checkDuplicate,
   recordIngest,
+  shutdownDedupeCache,
 } from "./services/ingestDedupeService.js";
+import {
+  getEvidenceStore,
+  submitScoredSignalEvidence,
+  ReactorEvidencePersistenceError,
+  closeEvidenceStore,
+} from "./evidence/index.js";
 import { startTelegramCollector } from "./collectors/telegram/telegramCollector.js";
 import { createMtprotoClientFromEnv } from "./collectors/telegram_mtproto/mtprotoClient.js";
 import { startMtprotoCollector } from "./collectors/telegram_mtproto/mtprotoCollector.js";
 
 const app = express();
+
+/**
+ * Honest failure response. A canonical-persistence failure NEVER returns a
+ * success: it maps to its first-class HTTP status (409 conflict / 503 store
+ * unavailable / 500 internal) and reports `persisted: false`. Logs carry only
+ * the signalId + category/code — never the full record or payload.
+ */
+function respondWithFailure(res: Response, err: unknown, context: string): Response {
+  if (err instanceof ReactorEvidencePersistenceError) {
+    console.error(`❌ ${context}: canonical persistence failed`, {
+      signalId: err.signalId,
+      category: err.category,
+      code: (err.cause as { code?: string } | undefined)?.code,
+    });
+    return res.status(err.httpStatus).json({
+      error: `evidence_persistence_${err.category}`,
+      message: err.message,
+      signalId: err.signalId,
+      persisted: false,
+    });
+  }
+  console.error(`❌ ${context}:`, (err as Error)?.message ?? String(err));
+  return res.status(500).json({
+    error: "internal_error",
+    message: (err as Error)?.message || "Unknown error",
+  });
+}
 
 // Initialize dedupe cache if enabled
 initDedupeCache();
@@ -233,14 +268,15 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
       uwrScore: result.analystScore.uwrScore,
     });
 
-    // Return result
-    return res.status(200).json(result);
+    // Canonical evidence persistence is a REQUIRED step of the scoring run
+    // (MONGO-GOV D-MONGO-3): submit the governed record through the afi-infra
+    // interface. A persistence failure is a first-class, honestly-reported
+    // failure — never a masked 200.
+    const persistence = await submitScoredSignalEvidence(result, getEvidenceStore());
+
+    return res.status(200).json({ ...result, persistence });
   } catch (err: any) {
-    console.error(`❌ Error processing TradingView webhook:`, err);
-    return res.status(500).json({
-      error: "internal_error",
-      message: err.message || "Unknown error",
-    });
+    return respondWithFailure(res, err, "Error processing TradingView webhook");
   }
 });
 
@@ -400,6 +436,9 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
       uwrScore: pipelineResult.analystScore.uwrScore,
     });
 
+    // Canonical evidence persistence (REQUIRED; failure is first-class).
+    const persistence = await submitScoredSignalEvidence(pipelineResult, getEvidenceStore());
+
     // Return result
     return res.status(200).json({
       ok: true,
@@ -408,13 +447,10 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
       ingestHash: canonicalUss.provenance.ingestHash,
       uss: canonicalUss,
       pipelineResult,
+      persistence,
     });
   } catch (err: any) {
-    console.error(`❌ Error processing CPJ ingestion:`, err);
-    return res.status(500).json({
-      error: "internal_error",
-      message: err.message || "Unknown error",
-    });
+    return respondWithFailure(res, err, "Error processing CPJ ingestion");
   }
 });
 
@@ -422,6 +458,24 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
 
 // Export the app for testing
 export default app;
+
+/**
+ * Graceful shutdown: stop accepting requests (close the HTTP server), then
+ * release every long-lived handle — the canonical afi-infra evidence store's
+ * MongoDB connection and the ingest dedupe cache — so the process exits
+ * naturally. This is SIGTERM-compatible for a Cloud Run deployment. Safe to call
+ * without a live server (compiled integration tests import the app but do not
+ * listen); passing no server just closes the store + cache.
+ */
+export async function shutdownReactor(server?: HttpServer): Promise<void> {
+  if (server) {
+    await new Promise<void>((resolve, reject) =>
+      server.close((err) => (err ? reject(err) : resolve()))
+    );
+  }
+  shutdownDedupeCache();
+  await closeEvidenceStore();
+}
 
 /**
  * Start server only when run directly (not when imported for tests).
@@ -434,7 +488,7 @@ export default app;
 if (process.env.NODE_ENV !== "test") {
   const PORT = parseInt(process.env.PORT || process.env.AFI_REACTOR_PORT || "8080", 10);
 
-  app.listen(PORT, async () => {
+  const server = app.listen(PORT, async () => {
     console.log(`🚀 AFI REACTOR - Scoring Pipeline`);
     console.log(`   Listening on http://localhost:${PORT}`);
     console.log(`   Endpoints:`);
@@ -443,7 +497,19 @@ if (process.env.NODE_ENV !== "test") {
     console.log(`     POST /api/ingest/cpj (CPJ v0.1 ingestion - Telegram/Discord signals)`);
     console.log(``);
     console.log(`   Returns: ReactorScoredSignalV1 (signalId, analystScore, scoredAt, decayParams, lenses, rawUss)`);
-    console.log(`   Price Feed: ${process.env.AFI_PRICE_FEED_SOURCE || "demo (mock data)"}`);
+    const priceSource = process.env.AFI_PRICE_FEED_SOURCE;
+    console.log(`   Price Feed: ${priceSource ?? "(unset)"}`);
+    if (!priceSource) {
+      console.warn(
+        `   ⚠️  AFI_PRICE_FEED_SOURCE is UNSET — live scoring will FAIL CLOSED ` +
+          `(no silent synthetic fallback). Set AFI_PRICE_FEED_SOURCE=blofin|coinbase.`
+      );
+    } else if (priceSource === "demo") {
+      console.warn(
+        `   ⚠️  AFI_PRICE_FEED_SOURCE=demo — SYNTHETIC, non-production market data. ` +
+          `Set AFI_PRICE_FEED_SOURCE=blofin|coinbase for real scoring in production.`
+      );
+    }
     console.log(``);
 
     // Start Telegram Bot API collector if enabled
@@ -466,4 +532,20 @@ if (process.env.NODE_ENV !== "test") {
       }
     }
   });
+
+  // SIGTERM-compatible graceful shutdown (Cloud Run sends SIGTERM).
+  const onSignal = (signal: string) => {
+    console.log(`\n📴 ${signal} received — shutting down AFI Reactor gracefully...`);
+    shutdownReactor(server)
+      .then(() => {
+        console.log("✅ Clean shutdown complete.");
+        process.exit(0);
+      })
+      .catch((err) => {
+        console.error("❌ Shutdown error:", err);
+        process.exit(1);
+      });
+  };
+  process.once("SIGTERM", () => onSignal("SIGTERM"));
+  process.once("SIGINT", () => onSignal("SIGINT"));
 }
