@@ -269,7 +269,7 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
     // (MONGO-GOV D-MONGO-3): submit the governed record through the afi-infra
     // interface. A persistence failure is a first-class, honestly-reported
     // failure — never a masked 200.
-    const persistence = await submitScoredSignalEvidence(result, await getEvidenceStore());
+    const persistence = await submitScoredSignalEvidence(result, getEvidenceStore());
 
     return res.status(200).json({ ...result, persistence });
   } catch (err: any) {
@@ -434,7 +434,7 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
     });
 
     // Canonical evidence persistence (REQUIRED; failure is first-class).
-    const persistence = await submitScoredSignalEvidence(pipelineResult, await getEvidenceStore());
+    const persistence = await submitScoredSignalEvidence(pipelineResult, getEvidenceStore());
 
     // Return result
     return res.status(200).json({

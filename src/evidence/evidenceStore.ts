@@ -1,27 +1,26 @@
 /**
  * MONGO-REACTOR-SUBMIT (Slot 3) — canonical evidence-store provider.
  *
- * Resolves the afi-infra canonical evidence-store interface the Reactor submits
- * through. The Reactor owns only the PORT; the concrete afi-infra
- * MongoScoredSignalEvidenceStore is bound purely at RUNTIME (a variable-specifier
- * dynamic import) so afi-infra's TypeScript source never enters the Reactor's
- * compile graph. Tests inject a fake via setEvidenceStore().
+ * Resolves the afi-infra canonical evidence store the Reactor submits through.
+ * The Reactor owns only the submit PORT (MONGO-GOV D-MONGO-3); the concrete
+ * store is afi-infra's `MongoScoredSignalEvidenceStore`, consumed as a NORMAL
+ * TYPED package dependency (afi-infra ships a consumable build with `.d.ts`).
+ * Tests inject a fake via setEvidenceStore().
  *
- * If the store cannot be loaded or is not configured (no AFI_EVIDENCE_MONGODB_URI),
- * submissions fail with a first-class PERSISTENCE_FAILURE → honest 503, never a
- * masked success. (Binding the live store additionally requires afi-infra to ship
- * a consumable build — see the PR's cross-slot integration note.)
+ * Store-unavailable and persistence failures are NEVER masked. The afi-infra
+ * store fails a submit with a typed PERSISTENCE_FAILURE when it is not
+ * configured for MongoDB (no AFI_EVIDENCE_MONGODB_URI) or cannot reach the
+ * server; submitScoredSignalEvidence surfaces that as an honest 503. Genuine
+ * store-unavailability is therefore reported faithfully by the real store — no
+ * placeholder/stub port is needed now that afi-infra is consumable.
  */
 
+import { MongoScoredSignalEvidenceStore } from "afi-infra";
+import type { ScoredSignalEvidenceRecord } from "afi-infra";
 import type { EvidenceStorePort } from "./submitScoredSignalEvidence.js";
 
 let injected: EvidenceStorePort | null = null;
 let cached: EvidenceStorePort | null = null;
-
-/** Default afi-infra store module (overridable via env for packaging changes). */
-const DEFAULT_STORE_MODULE =
-  process.env.AFI_EVIDENCE_STORE_MODULE ??
-  "afi-infra/src/evidence/MongoScoredSignalEvidenceStore.js";
 
 /** Inject a store (tests / composition root). Pass null to clear. */
 export function setEvidenceStore(store: EvidenceStorePort | null): void {
@@ -29,34 +28,31 @@ export function setEvidenceStore(store: EvidenceStorePort | null): void {
   cached = null;
 }
 
-/** A port that fails honestly when no canonical store is available. */
-function unavailableStore(reason: string): EvidenceStorePort {
-  return {
-    async submit() {
-      const err = new Error(
-        `Canonical evidence store unavailable: ${reason}`
-      ) as Error & { code: string };
-      err.code = "PERSISTENCE_FAILURE";
-      throw err;
-    },
-  };
-}
-
-/** Resolve the evidence store: injected override, else the lazily-bound afi-infra
- *  Mongo store, else an honest-failing port. */
-export async function getEvidenceStore(): Promise<EvidenceStorePort> {
+/**
+ * Resolve the evidence store: an injected override (tests / composition root),
+ * else the afi-infra canonical Mongo store, configured from the environment
+ * (AFI_EVIDENCE_MONGODB_URI + AFI_EVIDENCE_* db/collection overrides). The store
+ * fails submissions honestly when it is unconfigured or MongoDB is unreachable.
+ */
+export function getEvidenceStore(): EvidenceStorePort {
   if (injected) return injected;
-  if (cached) return cached;
-  try {
-    const spec = DEFAULT_STORE_MODULE;
-    const mod = (await import(spec)) as {
-      MongoScoredSignalEvidenceStore: new () => EvidenceStorePort;
+  if (!cached) {
+    const store = new MongoScoredSignalEvidenceStore();
+    // Anti-corruption bridge (the Reactor's single afi-infra submit boundary):
+    // the Reactor's port carries its own STRICT governed-record mirror
+    // (ReactorEvidenceRecord, keyed on the Reactor's District-2 provenance
+    // types); afi-infra's store takes the equivalent `ScoredSignalEvidenceRecord`.
+    // The two are the SAME governed afi.scored-signal-evidence.v1 record at
+    // runtime and differ only by the open `[k: string]: unknown` index signature
+    // afi-infra's ergonomic mirror types declare — a compile-time-only nominal
+    // gap. The store re-validates the FULL record against the authoritative
+    // governed afi-config JSON Schema on submit, so the runtime contract is
+    // enforced by afi-infra, not this cast.
+    cached = {
+      submit: (record) => store.submit(record as unknown as ScoredSignalEvidenceRecord),
     };
-    cached = new mod.MongoScoredSignalEvidenceStore();
-    return cached;
-  } catch (err) {
-    return unavailableStore(`afi-infra store module could not be loaded (${(err as Error)?.message ?? String(err)})`);
   }
+  return cached;
 }
 
 /** Reset provider state (tests). */

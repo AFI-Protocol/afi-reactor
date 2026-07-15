@@ -32,11 +32,16 @@ export const EVIDENCE_SCHEMA = "afi.scored-signal-evidence.v1" as const;
 export const REACTOR_LIFECYCLE_STATE = "SCORED" as const;
 
 /**
- * The governed `afi.scored-signal-evidence.v1` record shape, mirrored locally.
- * The CANONICAL contract lives in afi-config; the afi-infra store validates the
- * full record authoritatively on submit. This Reactor-owned type keeps the
- * afi-infra TypeScript source out of the Reactor's compile graph (afi-infra
- * ships .ts only; the store is bound at the runtime submission boundary).
+ * The governed `afi.scored-signal-evidence.v1` record shape, as the Reactor
+ * builds it — a STRICT reactor-owned view keyed on the Reactor's own District-2
+ * provenance types (`ScoredSignalV1` / `ProvenanceRecordV1`), so the builder is
+ * fully type-checked against the exact projection/provenance shapes it emits.
+ * It is structurally the governed record; the canonical contract lives in
+ * afi-config and afi-infra's store re-validates the full record authoritatively
+ * against the governed JSON Schema on submit. The submit boundary bridges this
+ * to afi-infra's `ScoredSignalEvidenceRecord` (evidenceStore.ts): the two differ
+ * only by the open `[k: string]: unknown` index signature afi-infra's ergonomic
+ * mirror types declare — a compile-time-only nominal gap.
  */
 export interface ReactorEvidenceRecord {
   schema: typeof EVIDENCE_SCHEMA;
