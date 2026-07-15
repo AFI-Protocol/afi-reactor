@@ -120,6 +120,7 @@ jobs:
       # MongoDB) — never a masked 200. Runs without a database.
       - name: Compiled honest-unavailable smoke (no MongoDB)
         working-directory: afi-reactor
+        timeout-minutes: 8
         run: |
           echo "🧪 Compiled build must fail honestly (503) when the canonical store is unavailable..."
           npm run test:integration:unavailable
@@ -155,6 +156,7 @@ jobs:
       # duplicate (409); and NO dual-write to reactor_scored_signals_v1.
       - name: Real-MongoDB canonical persistence integration (compiled build)
         working-directory: afi-reactor
+        timeout-minutes: 12
         env:
           AFI_EVIDENCE_MONGODB_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0
           AFI_EVIDENCE_DB_NAME: afi_scored_signal_evidence_it

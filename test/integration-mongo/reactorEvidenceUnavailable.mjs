@@ -75,7 +75,12 @@ async function main() {
   console.log("\nPASS — compiled build fails honestly (503) when the canonical store is unavailable.");
 }
 
-main().catch((err) => {
-  console.error("\nFAIL — honest-unavailable smoke failed:\n", err);
-  process.exit(1);
-});
+// Force exit on success: importing the compiled app sets dedupe timers (and, in
+// the configured case, a store connection) that would otherwise keep the event
+// loop alive. The assertions above are the proof; exit deterministically.
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error("\nFAIL — honest-unavailable smoke failed:\n", err);
+    process.exit(1);
+  });

@@ -226,13 +226,27 @@ async function main() {
 
     console.log(`\nPASS — ${passed} real-MongoDB persistence checks green.`);
   } finally {
-    await store.close().catch(() => {});
-    await client.db(DB_NAME).dropDatabase().catch(() => {});
-    await client.close().catch(() => {});
+    // Bounded cleanup — never let connection teardown block process exit. The
+    // COMPILED app also holds its own afi-infra store connection we don't own; the
+    // assertions above are the proof, and `.then(process.exit)` terminates below.
+    await Promise.race([
+      (async () => {
+        await store.close().catch(() => {});
+        await client.db(DB_NAME).dropDatabase().catch(() => {});
+        await client.close().catch(() => {});
+      })(),
+      new Promise((r) => setTimeout(r, 5000)),
+    ]);
   }
 }
 
-main().catch((err) => {
-  console.error("\nFAIL — real-MongoDB persistence proof failed:\n", err);
-  process.exit(1);
-});
+// Force exit on success: the COMPILED app binds its own afi-infra Mongo store
+// (open connection + replica-set heartbeats) and initDedupeCache() sets timers,
+// none of which this script owns a handle to — so the event loop would never
+// drain. The assertions above are the proof; exit deterministically after them.
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error("\nFAIL — real-MongoDB persistence proof failed:\n", err);
+    process.exit(1);
+  });
