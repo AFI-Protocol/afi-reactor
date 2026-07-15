@@ -45,11 +45,43 @@ import {
   checkDuplicate,
   recordIngest,
 } from "./services/ingestDedupeService.js";
+import {
+  getEvidenceStore,
+  submitScoredSignalEvidence,
+  ReactorEvidencePersistenceError,
+} from "./evidence/index.js";
 import { startTelegramCollector } from "./collectors/telegram/telegramCollector.js";
 import { createMtprotoClientFromEnv } from "./collectors/telegram_mtproto/mtprotoClient.js";
 import { startMtprotoCollector } from "./collectors/telegram_mtproto/mtprotoCollector.js";
 
 const app = express();
+
+/**
+ * Honest failure response. A canonical-persistence failure NEVER returns a
+ * success: it maps to its first-class HTTP status (409 conflict / 503 store
+ * unavailable / 500 internal) and reports `persisted: false`. Logs carry only
+ * the signalId + category/code — never the full record or payload.
+ */
+function respondWithFailure(res: Response, err: unknown, context: string): Response {
+  if (err instanceof ReactorEvidencePersistenceError) {
+    console.error(`❌ ${context}: canonical persistence failed`, {
+      signalId: err.signalId,
+      category: err.category,
+      code: (err.cause as { code?: string } | undefined)?.code,
+    });
+    return res.status(err.httpStatus).json({
+      error: `evidence_persistence_${err.category}`,
+      message: err.message,
+      signalId: err.signalId,
+      persisted: false,
+    });
+  }
+  console.error(`❌ ${context}:`, (err as Error)?.message ?? String(err));
+  return res.status(500).json({
+    error: "internal_error",
+    message: (err as Error)?.message || "Unknown error",
+  });
+}
 
 // Initialize dedupe cache if enabled
 initDedupeCache();
@@ -233,14 +265,15 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
       uwrScore: result.analystScore.uwrScore,
     });
 
-    // Return result
-    return res.status(200).json(result);
+    // Canonical evidence persistence is a REQUIRED step of the scoring run
+    // (MONGO-GOV D-MONGO-3): submit the governed record through the afi-infra
+    // interface. A persistence failure is a first-class, honestly-reported
+    // failure — never a masked 200.
+    const persistence = await submitScoredSignalEvidence(result, await getEvidenceStore());
+
+    return res.status(200).json({ ...result, persistence });
   } catch (err: any) {
-    console.error(`❌ Error processing TradingView webhook:`, err);
-    return res.status(500).json({
-      error: "internal_error",
-      message: err.message || "Unknown error",
-    });
+    return respondWithFailure(res, err, "Error processing TradingView webhook");
   }
 });
 
@@ -400,6 +433,9 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
       uwrScore: pipelineResult.analystScore.uwrScore,
     });
 
+    // Canonical evidence persistence (REQUIRED; failure is first-class).
+    const persistence = await submitScoredSignalEvidence(pipelineResult, await getEvidenceStore());
+
     // Return result
     return res.status(200).json({
       ok: true,
@@ -408,13 +444,10 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
       ingestHash: canonicalUss.provenance.ingestHash,
       uss: canonicalUss,
       pipelineResult,
+      persistence,
     });
   } catch (err: any) {
-    console.error(`❌ Error processing CPJ ingestion:`, err);
-    return res.status(500).json({
-      error: "internal_error",
-      message: err.message || "Unknown error",
-    });
+    return respondWithFailure(res, err, "Error processing CPJ ingestion");
   }
 });
 

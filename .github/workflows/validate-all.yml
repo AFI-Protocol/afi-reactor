@@ -43,6 +43,12 @@ jobs:
           repository: AFI-Protocol/afi-config
           path: afi-config
 
+      # NOTE: afi-infra (the canonical evidence-store interface the Reactor
+      # submits through, file:../afi-infra) is PRIVATE and is NOT checked out
+      # here — the Reactor binds it at RUNTIME (variable-specifier dynamic
+      # import) and never imports it at compile/test time, so build + tests do
+      # not require it. `npm ci` tolerates the absent file: sibling.
+
       - name: Setup Node.js 22.x
         uses: actions/setup-node@v4
         with:

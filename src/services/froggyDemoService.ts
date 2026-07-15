@@ -265,8 +265,18 @@ async function runFroggyTrendPullbackDagInternal(
   };
 
   // Reactor Vault Integration
-  // Persist the scored signal to MongoDB (if enabled)
-  const vaultService = getTssdVaultService();
+  // ⛔ MONGO-REACTOR-SUBMIT (Slot 3): the legacy Reactor-owned
+  // `reactor_scored_signals_v1` write is REMOVED from the canonical execution
+  // path to prevent dual-writing (MONGO-GOV D-MONGO-3 single write boundary;
+  // D-MONGO-7 collection demoted from canonical). Canonical persistence now
+  // flows through the afi-infra canonical evidence store — the governed
+  // afi.scored-signal-evidence.v1 record is submitted at the server seam
+  // (src/evidence/submitScoredSignalEvidence). The heavy-document write below is
+  // retained but UNREACHABLE (vaultService forced null) and scheduled for a
+  // bounded deletion after Gateway convergence (MONGO-GATEWAY-BOUNDARY / Slot 4).
+  // Do NOT re-enable it — no dual-write.
+  const LEGACY_REACTOR_VAULT_WRITE_DISABLED = true;
+  const vaultService = LEGACY_REACTOR_VAULT_WRITE_DISABLED ? null : getTssdVaultService();
   if (vaultService) {
     // PROVENANCE GUARDRAIL: Enforce priceSource and venueType for all vault writes
     // These fields are required for audit trail and data provenance tracking
