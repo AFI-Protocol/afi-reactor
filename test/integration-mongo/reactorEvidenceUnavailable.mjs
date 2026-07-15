@@ -26,7 +26,7 @@ const COMPILED_SERVER = pathToFileURL(
 ).href;
 
 async function main() {
-  const { default: app } = await import(COMPILED_SERVER);
+  const { default: app, shutdownReactor } = await import(COMPILED_SERVER);
 
   const tv = await request(app).post("/api/webhooks/tradingview").send({
     signalId: "it-tv-unavailable-1",
@@ -73,14 +73,26 @@ async function main() {
   console.log("  ✅ POST /api/ingest/cpj (no Mongo) → honest 503, persisted:false");
 
   console.log("\nPASS — compiled build fails honestly (503) when the canonical store is unavailable.");
+  return shutdownReactor;
 }
 
-// Force exit on success: importing the compiled app sets dedupe timers (and, in
-// the configured case, a store connection) that would otherwise keep the event
-// loop alive. The assertions above are the proof; exit deterministically.
+// Bounded emergency guard, then NATURAL termination via shutdownReactor (no
+// unconditional process.exit(0)). If a handle leaks and the process hangs, the
+// guard fails loudly instead.
+const EMERGENCY_MS = 15000;
+const emergency = setTimeout(() => {
+  console.error(`EMERGENCY: process did not terminate within ${EMERGENCY_MS}ms after cleanup.`);
+  process.exit(1);
+}, EMERGENCY_MS);
+
 main()
-  .then(() => process.exit(0))
+  .then(async (shutdownReactor) => {
+    await shutdownReactor().catch(() => {});
+    clearTimeout(emergency);
+    console.log("Clean shutdown: all handles released; process exits naturally.");
+  })
   .catch((err) => {
     console.error("\nFAIL — honest-unavailable smoke failed:\n", err);
+    clearTimeout(emergency);
     process.exit(1);
   });

@@ -20,12 +20,10 @@
  * @module froggyDemoService
  */
 
-import { getTssdVaultService } from "./tssdVaultService.js";
-import type { ReactorScoredSignalV1, ReactorScoredSignalDocument } from "../types/ReactorScoredSignalV1.js";
+import type { ReactorScoredSignalV1 } from "../types/ReactorScoredSignalV1.js";
 import { FROGGY_TREND_PULLBACK_PIPELINE } from "../config/froggyPipeline.js";
 import { runPipelineDag, type PipelineContext } from "./pipelineRunner.js";
 import { pickDecayParamsForAnalystScore } from "afi-core/decay";
-import { uwrProfileStampFor } from "../config/uwrProfilePin.js";
 import { mapTradingViewToUssV11 } from "../uss/tradingViewMapper.js";
 
 // Import plugins directly (for now - will be replaced by dynamic loading in future DAG engine)
@@ -185,14 +183,6 @@ async function runFroggyTrendPullbackDagInternal(
     return derivedSignal;
   });
 
-  // Reactor vault write handler (internal stage)
-  internalHandlers.set("tssd-vault-write", async (payload: any, ctx: PipelineContext) => {
-    // This handler is called after froggy-analyst stage
-    // Payload at this point is the analyzed signal
-    // The actual vault write logic will be handled after pipeline execution
-    return payload;
-  });
-
   // Execute pipeline through all stages using DAG runner
   const pipelineResult = await runPipelineDag(
     FROGGY_TREND_PULLBACK_PIPELINE,
@@ -264,82 +254,12 @@ async function runFroggyTrendPullbackDagInternal(
     },
   };
 
-  // Reactor Vault Integration
-  // ⛔ MONGO-REACTOR-SUBMIT (Slot 3): the legacy Reactor-owned
-  // `reactor_scored_signals_v1` write is REMOVED from the canonical execution
-  // path to prevent dual-writing (MONGO-GOV D-MONGO-3 single write boundary;
-  // D-MONGO-7 collection demoted from canonical). Canonical persistence now
-  // flows through the afi-infra canonical evidence store — the governed
-  // afi.scored-signal-evidence.v1 record is submitted at the server seam
-  // (src/evidence/submitScoredSignalEvidence). The heavy-document write below is
-  // retained but UNREACHABLE (vaultService forced null) and scheduled for a
-  // bounded deletion after Gateway convergence (MONGO-GATEWAY-BOUNDARY / Slot 4).
-  // Do NOT re-enable it — no dual-write.
-  const LEGACY_REACTOR_VAULT_WRITE_DISABLED = true;
-  const vaultService = LEGACY_REACTOR_VAULT_WRITE_DISABLED ? null : getTssdVaultService();
-  if (vaultService) {
-    // PROVENANCE GUARDRAIL: Enforce priceSource and venueType for all vault writes
-    // These fields are required for audit trail and data provenance tracking
-    if (!priceSource || !venueType) {
-      const errorMsg = `❌ Reactor Vault Write BLOCKED: Missing provenance metadata for signal ${signalId}. ` +
-        `priceSource=${priceSource}, venueType=${venueType}. ` +
-        `All price-based pipelines MUST attach _priceFeedMetadata in enrichment stage.`;
-      console.error(errorMsg);
-      throw new Error(errorMsg);
-    }
-
-    const reactorDoc: ReactorScoredSignalDocument = {
-      signalId,
-      createdAt: new Date(),
-      source,
-      market: {
-        symbol,
-        timeframe,
-        market: marketType || "spot",
-        priceSource,
-        venueType,
-      },
-      lenses: lenses.length > 0 ? lenses : undefined,
-      _priceFeedMetadata: {
-        technicalIndicators,
-        patternSignals,
-      },
-      pipeline: {
-        analystScore: analyzedSignal.analysis.analystScore,
-        scoredAt,
-        decayParams: decayParams
-          ? {
-              halfLifeMinutes: decayParams.halfLifeMinutes,
-              greeksTemplateId: decayParams.greeksTemplateId,
-            }
-          : null,
-        // PR-UWR-STAMP: profile-id traceability for persisted records.
-        // Conditional spread — the field is OMITTED (not null) when the
-        // scorer identity is not the UP-10-recognized one.
-        // PR-UWR-STAMP-SEMANTICS (RC-6): the stamp now carries the source
-        // discriminator. The resolved source is propagated EXPLICITLY from
-        // the froggy-analyst composition path (uwrResolvedSource) — this
-        // stamp site never reads the environment or re-resolves the source.
-        ...(() => {
-          const uwrProfile = uwrProfileStampFor(
-            analyzedSignal.analysis.analystScore,
-            analyzedSignal.uwrResolvedSource
-          );
-          return uwrProfile ? { uwrProfile } : {};
-        })(),
-      },
-      strategy: {
-        name: strategy,
-        direction,
-      },
-      rawUss: context.rawUss,
-      rawPayload: context.rawUss || derivedTelemetry,
-      version: "v1.0",
-    };
-
-    await vaultService.insertSignalDocument(reactorDoc);
-  }
-
+  // Canonical persistence (the ONLY reactor persistence path) flows through the
+  // afi-infra canonical evidence store: the governed afi.scored-signal-evidence.v1
+  // record is built and submitted at the server seam
+  // (src/evidence/submitScoredSignalEvidence), never written here. The legacy
+  // Reactor-owned scored-signal vault write has been deleted entirely (no
+  // dual-write; MONGO-GOV D-MONGO-3 single write boundary).
   return result;
 }
 // @ts-nocheck

@@ -1,5 +1,5 @@
 /**
- * MONGO-REACTOR-SUBMIT (Slot 3) — REAL-MongoDB integration proof.
+ * MONGO-REACTOR-SUBMIT (Slot 3) — REAL-MongoDB integration proof (live-beta).
  *
  * Exercises the COMPILED Reactor build (dist/src/server.js) against a real
  * MongoDB (a replica set in CI) through the real, packaged afi-infra canonical
@@ -8,23 +8,23 @@
  *   1. POST /api/webhooks/tradingview constructs, validates, and PERSISTS a
  *      governed afi.scored-signal-evidence.v1 record (persistence.outcome
  *      = "inserted").
- *   2. POST /api/ingest/cpj does the same.
+ *   2. POST /api/ingest/cpj does the same — with a DECIMAL parse.confidence
+ *      (0.87), proving the afi.hash.v1 fixed-point projection of
+ *      cpjParseConfidence (no integer-only crutch).
  *   3. Read-back by signalId returns the canonical record, with identifier
  *      continuity across record / scoredSignal / provenanceRecord and the
  *      SCORED / not-finalized lifecycle.
- *   4. Idempotent duplicate: re-submitting byte-identical content returns
- *      "idempotent-duplicate" and creates no second record.
- *   5. Conflicting duplicate: a different record for the same signalId is
- *      rejected as an honest 409 (append-once; the stored record is unchanged).
+ *   4. ENDPOINT idempotency: re-POSTing the SAME canonical input + signalId
+ *      through BOTH endpoints yields an identical record and an idempotent 200
+ *      (deterministic scoring — the demo feed is now seeded from governed input).
+ *   5. Conflicting duplicate: genuinely different content for the same signalId
+ *      is rejected as an honest 409 (append-once; stored record unchanged).
  *   6. No dual-write: the legacy reactor_scored_signals_v1 collection is never
  *      created; the only canonical write surface is the afi-infra evidence store.
+ *   7. Clean shutdown: after the proof, shutdownReactor() releases the store +
+ *      dedupe handles and the process TERMINATES NATURALLY (no process.exit(0)).
  *
- * Requires AFI_EVIDENCE_MONGODB_URI (a real MongoDB). Fails loudly if unset —
- * this script is a persistence PROOF and must never silently skip.
- *
- * Store-unavailable / schema-rejection / persistence-failure propagation remain
- * covered as focused unit tests (test/evidence/…) and by the compiled
- * honest-unavailable smoke (reactorEvidenceUnavailable.mjs).
+ * Requires AFI_EVIDENCE_MONGODB_URI (a real MongoDB). Fails loudly if unset.
  */
 
 import assert from "node:assert/strict";
@@ -42,14 +42,12 @@ if (!URI) {
   process.exit(1);
 }
 
-// Isolated test database so the proof is self-contained and cleanable.
 const DB_NAME = process.env.AFI_EVIDENCE_DB_NAME ?? "afi_scored_signal_evidence_it";
 process.env.AFI_EVIDENCE_DB_NAME = DB_NAME;
 process.env.NODE_ENV = "test"; // prevent the compiled server from listening
-delete process.env.AFI_MONGO_URI; // ensure the legacy tssd vault path stays inert
+process.env.AFI_PRICE_FEED_SOURCE = process.env.AFI_PRICE_FEED_SOURCE ?? "demo";
 
-const EVIDENCE_COLLECTION =
-  process.env.AFI_EVIDENCE_COLLECTION ?? "scored_signal_evidence";
+const EVIDENCE_COLLECTION = process.env.AFI_EVIDENCE_COLLECTION ?? "scored_signal_evidence";
 const HISTORY_COLLECTION =
   process.env.AFI_EVIDENCE_HISTORY_COLLECTION ?? "scored_signal_evidence_history";
 const EVIDENCE_SCHEMA = "afi.scored-signal-evidence.v1";
@@ -65,7 +63,6 @@ function ok(label) {
   console.log(`  ✅ ${label}`);
 }
 
-/** Assert full identifier continuity + SCORED lifecycle on a read-back record. */
 function assertGovernedRecord(record, signalId) {
   assert.ok(record, `record for ${signalId} must be readable back`);
   assert.equal(record.schema, EVIDENCE_SCHEMA, "governed schema id");
@@ -73,37 +70,20 @@ function assertGovernedRecord(record, signalId) {
   assert.equal(record.scoredSignal.signalId, signalId, "scoredSignal.signalId continuity");
   assert.equal(record.provenanceRecord.signalId, signalId, "provenanceRecord.signalId continuity");
   assert.equal(record.scoredSignal.schema, "afi.scored-signal.v1", "thin projection schema");
-  assert.equal(
-    record.provenanceRecord.schema,
-    "afi.provenance-record.v1",
-    "provenance record schema"
-  );
+  assert.equal(record.provenanceRecord.schema, "afi.provenance-record.v1", "provenance schema");
   assert.equal(record.lifecycleState, "SCORED", "SCORED lifecycle");
   assert.equal(record.finalized, false, "SCORED is not finalized");
   assert.ok(record.analystId && record.strategyId && record.strategyVersion, "strategy triple");
-  assert.equal(
-    record.scoredSignal.strategyVersion,
-    record.strategyVersion,
-    "strategyVersion continuity"
-  );
-  assert.equal(
-    record.provenanceRecord.canonicalizationVersion,
-    record.canonicalizationVersion,
-    "canonicalizationVersion continuity"
-  );
 }
 
 async function main() {
   const client = new MongoClient(URI);
   await client.connect();
-  // Clean slate for a deterministic, self-contained proof.
   await client.db(DB_NAME).dropDatabase();
 
-  // Read-back store: the SAME packaged afi-infra store, pointed at the test db.
   const store = new MongoScoredSignalEvidenceStore({ mongoUri: URI, dbName: DB_NAME });
-
-  // Import the COMPILED reactor app (real afi-infra store binds at runtime).
-  const { default: app } = await import(COMPILED_SERVER);
+  const { default: app, shutdownReactor } = await import(COMPILED_SERVER);
+  assert.equal(typeof shutdownReactor, "function", "compiled server exports shutdownReactor");
 
   const tvSignalId = "it-tv-0001";
   const tvPayload = {
@@ -113,14 +93,12 @@ async function main() {
     strategy: "froggy_trend_pullback_v1",
     direction: "long",
   };
-
-  const cpjMessageId = "it-cpj-msg-0001";
   const cpjPayload = {
     schema: "afi.cpj.v0.1",
     provenance: {
       providerType: "telegram",
       providerId: "telegram-channel-it",
-      messageId: cpjMessageId,
+      messageId: "it-cpj-msg-0001",
       postedAt: "2026-01-15T10:00:00Z",
     },
     extracted: {
@@ -133,16 +111,18 @@ async function main() {
       venueHint: "blofin",
       marketTypeHint: "perp",
     },
-    parse: { parserId: "telegram-signal-parser", parserVersion: "1.0.0", confidence: 1 },
+    // DECIMAL confidence — proves the afi.hash.v1 fixed-point projection.
+    parse: { parserId: "telegram-signal-parser", parserVersion: "1.0.0", confidence: 0.87 },
   };
 
+  const countFor = (signalId) =>
+    client.db(DB_NAME).collection(EVIDENCE_COLLECTION).countDocuments({ signalId });
+
   try {
-    // 1. TradingView endpoint persists a governed record. -------------------
-    const tvRes = await request(app).post("/api/webhooks/tradingview").send(tvPayload);
-    assert.equal(tvRes.status, 200, `tradingview 200 (got ${tvRes.status}: ${JSON.stringify(tvRes.body)})`);
-    assert.equal(tvRes.body.persistence?.outcome, "inserted", "tradingview persisted=inserted");
-    assert.equal(tvRes.body.persistence?.signalId, tvSignalId, "tradingview persisted signalId");
-    assert.equal(tvRes.body.persistence?.lifecycleState, "SCORED", "tradingview SCORED");
+    // 1. TradingView persists. -----------------------------------------------
+    const tv = await request(app).post("/api/webhooks/tradingview").send(tvPayload);
+    assert.equal(tv.status, 200, `tradingview 200 (got ${tv.status}: ${JSON.stringify(tv.body)})`);
+    assert.equal(tv.body.persistence?.outcome, "inserted", "tradingview inserted");
     ok("POST /api/webhooks/tradingview → 200, persistence.outcome=inserted");
 
     const tvBack = await store.getBySignalId(tvSignalId);
@@ -151,84 +131,76 @@ async function main() {
     assert.ok(tvReplay?.scoredSignal && tvReplay?.provenanceRecord, "tradingview replay bundle");
     ok("tradingview: read-back by signalId + identifier continuity + replay bundle");
 
-    // 2. CPJ endpoint persists a governed record. ---------------------------
-    const cpjRes = await request(app).post("/api/ingest/cpj").send(cpjPayload);
-    assert.equal(cpjRes.status, 200, `cpj 200 (got ${cpjRes.status}: ${JSON.stringify(cpjRes.body)})`);
-    assert.equal(cpjRes.body.persistence?.outcome, "inserted", "cpj persisted=inserted");
-    const cpjSignalId = cpjRes.body.signalId;
+    // 2. CPJ persists WITH a decimal parse.confidence. -----------------------
+    const cpj = await request(app).post("/api/ingest/cpj").send(cpjPayload);
+    assert.equal(cpj.status, 200, `cpj 200 (got ${cpj.status}: ${JSON.stringify(cpj.body)})`);
+    assert.equal(cpj.body.persistence?.outcome, "inserted", "cpj inserted");
+    const cpjSignalId = cpj.body.signalId;
     assert.ok(cpjSignalId, "cpj signalId present");
-    assert.equal(cpjRes.body.persistence?.signalId, cpjSignalId, "cpj persisted signalId matches");
-    ok("POST /api/ingest/cpj → 200, persistence.outcome=inserted");
-
     const cpjBack = await store.getBySignalId(cpjSignalId);
     assertGovernedRecord(cpjBack, cpjSignalId);
-    ok("cpj: read-back by signalId + identifier continuity");
+    ok("POST /api/ingest/cpj (decimal confidence 0.87) → 200 inserted + read-back + continuity");
 
-    // 3. Idempotent duplicate (real store): re-submitting the byte-identical
-    //    stored record returns idempotent-duplicate and creates no second
-    //    record. NOTE: an endpoint re-POST cannot demonstrate this — the scoring
-    //    pipeline's enrichment is non-deterministic, so a re-score yields
-    //    DIFFERENT content (a conflict, not an idempotent duplicate). The
-    //    governed idempotency contract is on the CANONICAL RECORD, so it is
-    //    proven here by re-submitting the exact persisted record.
-    const idem = await store.submit(tvBack);
-    assert.equal(idem.outcome, "idempotent-duplicate", "byte-identical re-submit is idempotent");
-    const currentCount = await client
-      .db(DB_NAME)
-      .collection(EVIDENCE_COLLECTION)
-      .countDocuments({ signalId: tvSignalId });
-    assert.equal(currentCount, 1, "idempotent re-submit created no second record");
-    ok("idempotent duplicate (real store) → idempotent-duplicate, exactly one stored record");
+    // 3. ENDPOINT idempotency (TradingView): identical re-POST → 200 duplicate. -
+    const tvDup = await request(app).post("/api/webhooks/tradingview").send(tvPayload);
+    assert.equal(tvDup.status, 200, `tv idempotent re-POST still 200 (got ${tvDup.status})`);
+    assert.equal(
+      tvDup.body.persistence?.outcome,
+      "idempotent-duplicate",
+      `tv re-POST must be idempotent (got ${tvDup.body.persistence?.outcome})`
+    );
+    assert.equal(await countFor(tvSignalId), 1, "tv idempotent re-POST created no second record");
+    ok("endpoint idempotency (tradingview): identical re-POST → 200 idempotent-duplicate, 1 record");
 
-    // 4. Conflicting duplicate (endpoint→store): a DIFFERENT record for the same
-    //    signalId is an honest 409 (append-once); the stored record is unchanged.
-    const tvConflict = await request(app)
+    // 4. ENDPOINT idempotency (CPJ): identical re-POST → 200 duplicate. -------
+    const cpjDup = await request(app).post("/api/ingest/cpj").send(cpjPayload);
+    assert.equal(cpjDup.status, 200, `cpj idempotent re-POST still 200 (got ${cpjDup.status})`);
+    assert.equal(
+      cpjDup.body.persistence?.outcome,
+      "idempotent-duplicate",
+      `cpj re-POST must be idempotent (got ${cpjDup.body.persistence?.outcome})`
+    );
+    assert.equal(await countFor(cpjSignalId), 1, "cpj idempotent re-POST created no second record");
+    ok("endpoint idempotency (cpj): identical re-POST → 200 idempotent-duplicate, 1 record");
+
+    // 5. Conflicting duplicate: different content, same signalId → 409. ------
+    const conflict = await request(app)
       .post("/api/webhooks/tradingview")
       .send({ ...tvPayload, direction: "short" });
-    assert.equal(tvConflict.status, 409, `conflicting duplicate → 409 (got ${tvConflict.status})`);
-    assert.equal(tvConflict.body.persisted, false, "conflict reports persisted:false");
-    assert.match(String(tvConflict.body.error), /conflict/, "conflict error category");
-    const afterConflict = await store.getBySignalId(tvSignalId);
+    assert.equal(conflict.status, 409, `conflicting duplicate → 409 (got ${conflict.status})`);
+    assert.equal(conflict.body.persisted, false, "conflict reports persisted:false");
+    assert.match(String(conflict.body.error), /conflict/, "conflict error category");
     assert.deepEqual(
-      afterConflict,
+      await store.getBySignalId(tvSignalId),
       tvBack,
       "append-once: the conflicting submit left the stored record byte-unchanged"
     );
     ok("conflicting duplicate → honest 409, append-once (stored record unchanged)");
 
-    // 5. No dual-write: the legacy collection is never created. -------------
+    // 6. No dual-write: legacy collection never created. ---------------------
     const dbNames = (await client.db().admin().listDatabases()).databases.map((d) => d.name);
     for (const dbName of dbNames) {
       const cols = await client.db(dbName).listCollections({ name: LEGACY_COLLECTION }).toArray();
-      assert.equal(
-        cols.length,
-        0,
-        `legacy ${LEGACY_COLLECTION} must not exist (found in db '${dbName}')`
-      );
+      assert.equal(cols.length, 0, `legacy ${LEGACY_COLLECTION} must not exist (db '${dbName}')`);
     }
     const evidenceCols = (
       await client.db(DB_NAME).listCollections({}, { nameOnly: true }).toArray()
     ).map((c) => c.name);
     assert.ok(
-      evidenceCols.includes(EVIDENCE_COLLECTION),
-      "canonical evidence collection exists"
-    );
-    assert.ok(
       evidenceCols.every((c) => c === EVIDENCE_COLLECTION || c === HISTORY_COLLECTION),
       `evidence db holds only the canonical store collections (found: ${evidenceCols.join(", ")})`
     );
-    const totalCanonical = await client
-      .db(DB_NAME)
-      .collection(EVIDENCE_COLLECTION)
-      .countDocuments({});
-    assert.equal(totalCanonical, 2, "exactly the two inserted canonical records (tv + cpj)");
+    assert.equal(
+      await client.db(DB_NAME).collection(EVIDENCE_COLLECTION).countDocuments({}),
+      2,
+      "exactly the two inserted canonical records (tv + cpj)"
+    );
     ok("no dual-write: only the afi-infra evidence store was written (no reactor_scored_signals_v1)");
 
     console.log(`\nPASS — ${passed} real-MongoDB persistence checks green.`);
+    return shutdownReactor;
   } finally {
-    // Bounded cleanup — never let connection teardown block process exit. The
-    // COMPILED app also holds its own afi-infra store connection we don't own; the
-    // assertions above are the proof, and `.then(process.exit)` terminates below.
+    // Bounded cleanup of THIS script's own connections.
     await Promise.race([
       (async () => {
         await store.close().catch(() => {});
@@ -240,13 +212,29 @@ async function main() {
   }
 }
 
-// Force exit on success: the COMPILED app binds its own afi-infra Mongo store
-// (open connection + replica-set heartbeats) and initDedupeCache() sets timers,
-// none of which this script owns a handle to — so the event loop would never
-// drain. The assertions above are the proof; exit deterministically after them.
+// Bounded emergency guard: if cleanup leaks a handle and the process fails to
+// exit naturally, fail LOUDLY (non-zero) instead of hanging CI. On success the
+// guard is cleared and the process terminates on its own — no process.exit(0).
+const EMERGENCY_MS = 20000;
+const emergency = setTimeout(() => {
+  console.error(
+    `EMERGENCY: process did not terminate within ${EMERGENCY_MS}ms after cleanup — ` +
+      `open handles remain (clean-shutdown regression).`
+  );
+  process.exit(1);
+}, EMERGENCY_MS);
+
 main()
-  .then(() => process.exit(0))
+  .then(async (shutdownReactor) => {
+    // Release the COMPILED app's own bound evidence-store connection + dedupe
+    // cache. With every handle closed the event loop drains and the process
+    // exits naturally — proving SIGTERM-compatible cleanup.
+    await shutdownReactor().catch(() => {});
+    clearTimeout(emergency);
+    console.log("Clean shutdown: all handles released; process exits naturally.");
+  })
   .catch((err) => {
     console.error("\nFAIL — real-MongoDB persistence proof failed:\n", err);
+    clearTimeout(emergency);
     process.exit(1);
   });

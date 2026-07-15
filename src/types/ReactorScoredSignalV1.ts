@@ -54,15 +54,13 @@ export interface UwrProfileStamp {
    *
    * Every stamp WRITTEN from PR-UWR-STAMP-SEMANTICS onward populates it —
    * `uwrProfileStampFor` always sets it and refuses to stamp an unknown
-   * source — so new persisted records always carry it. But this same
-   * interface also types records READ BACK from the vault
-   * (ReactorScoredSignalDocument.pipeline.uwrProfile), and records persisted
-   * during the PR-UWR-STAMP era carry a stamp WITHOUT this field. RC-6 is
-   * explicit that those records are not rewritten and that "absence of the
-   * discriminator identifies the pre-program era" — so a read-side consumer
-   * must treat a missing `source` as exactly that (pre-program), never
-   * assume it is present. Typing it required here would assert a guarantee
-   * stored pre-program documents do not have.
+   * source — so any stamp produced now carries it. RC-6 is explicit that a
+   * stamp WITHOUT this field identifies the pre-program era, so a consumer must
+   * treat a missing `source` as exactly that (pre-program), never assume it is
+   * present. Optional-by-design keeps the type honest about that history.
+   * (Note: this stamp's former persistence site — the legacy Reactor scored
+   * document — has been deleted; `uwrProfileStampFor` is retained pending a
+   * governed home on the canonical evidence record. See PR body / owner note.)
    */
   source?: UwrProfileStampSource;
 }
@@ -112,77 +110,3 @@ export interface ReactorScoredSignalV1 {
     source: string;
   };
 }
-
-/**
- * Reactor Scored Signal Document (Persistence Schema)
- *
- * This is what Reactor persists to MongoDB.
- * Stored in Reactor-owned collection (isolated from afi-infra TSSD vault).
- */
-export interface ReactorScoredSignalDocument {
-  /** Unique signal identifier */
-  signalId: string;
-
-  /** Document creation timestamp */
-  createdAt: Date;
-
-  /** Signal source (e.g., "tradingview-webhook", "cpj-telegram") */
-  source: string;
-
-  /** Market metadata */
-  market: {
-    symbol: string;
-    timeframe: string;
-    market: string; // "spot" | "perp" | "futures"
-    priceSource: string; // Required for provenance
-    venueType: string; // Required for provenance
-  };
-
-  /** USS lenses (enrichment data) */
-  lenses?: any[];
-
-  /** Price feed metadata (mirrored for debugging, DEPRECATED) */
-  _priceFeedMetadata?: {
-    technicalIndicators?: any;
-    patternSignals?: any;
-  };
-
-  /** Pipeline outputs */
-  pipeline: {
-    /** Canonical analyst score */
-    analystScore: AnalystScoreTemplate;
-
-    /** Timestamp when scoring was completed */
-    scoredAt: string;
-
-    /** Decay parameters */
-    decayParams: {
-      halfLifeMinutes: number;
-      greeksTemplateId: string;
-    } | null;
-
-    /**
-     * UWR profile stamp (PR-UWR-STAMP). Present only when the scorer
-     * identity is the one the profile is recognized for (UP-10); absent on
-     * documents persisted before this field existed and on documents from
-     * unrecognized scorer identities. Never null.
-     */
-    uwrProfile?: UwrProfileStamp;
-  };
-
-  /** Strategy metadata */
-  strategy: {
-    name: string;
-    direction: "long" | "short" | "neutral";
-  };
-
-  /** Canonical USS v1.1 (queryable field for replay) */
-  rawUss: any;
-
-  /** Legacy field (kept for backward compatibility) */
-  rawPayload?: any;
-
-  /** Schema version */
-  version: string;
-}
-

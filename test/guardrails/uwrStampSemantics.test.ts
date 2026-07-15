@@ -329,16 +329,9 @@ describe("PR-UWR-STAMP-SEMANTICS: source is PROPAGATED end-to-end, never re-deri
     expect(src).toContain("uwrResolvedSource: uwrRuntime.source");
   });
 
-  it("the vault-write stamp site consumes the propagated source and never re-derives it", () => {
-    const src = read("src/services/froggyDemoService.ts");
-    // Passes the propagated field straight through...
-    expect(src).toMatch(
-      /uwrProfileStampFor\(\s*analyzedSignal\.analysis\.analystScore,\s*analyzedSignal\.uwrResolvedSource\s*\)/
-    );
-    // ...and never re-reads the flag / re-resolves / consults the env.
-    expect(src).not.toContain("AFI_UWR_PROFILE_SOURCE");
-    expect(src).not.toContain("getUwrRuntimeConfigOnce");
-    expect(src).not.toContain("resolveUwrRuntimeConfig");
-    expect(src).not.toContain("process.env");
-  });
+  // NOTE (live-beta hardening): the "vault-write stamp site consumes the
+  // propagated source" guardrail was removed with the legacy Reactor
+  // scored-signal vault write it scanned for. The resolver-side propagation is
+  // still asserted above; the stamp's persistence site no longer exists (the
+  // stamp is runtime-orphaned pending a governed home — flagged for the owner).
 });

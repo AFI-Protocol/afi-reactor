@@ -18,4 +18,9 @@ export {
   type EvidencePersistenceOutcome,
   type EvidencePersistenceCategory,
 } from "./submitScoredSignalEvidence.js";
-export { getEvidenceStore, setEvidenceStore, resetEvidenceStore } from "./evidenceStore.js";
+export {
+  getEvidenceStore,
+  setEvidenceStore,
+  resetEvidenceStore,
+  closeEvidenceStore,
+} from "./evidenceStore.js";

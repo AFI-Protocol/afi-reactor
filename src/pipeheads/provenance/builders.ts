@@ -44,6 +44,7 @@ import {
   ENRICHMENT_DECIMAL_KEYS,
   OHLCV_DECIMAL_KEYS,
   SCORE_DECIMAL_KEYS,
+  USS_INPUT_DECIMAL_KEYS,
 } from "./hashProjection.js";
 import {
   ANALYST_INPUT_ENVELOPE_SCHEMA,
@@ -567,11 +568,18 @@ export function enrichmentBundleMaterial(bundle: AnalysisBundle): unknown {
   return material;
 }
 
-/** Compute the signal-input domain hash of the validated raw USS. */
+/**
+ * Compute the signal-input domain hash of the validated raw USS. Declared USS
+ * numeric fields (e.g. the fractional CPJ `provenance.cpjParseConfidence`) are
+ * projected to canonical decimal strings first (afi.hash.v1 fixed-point policy),
+ * so a decimal parser confidence hashes deterministically rather than failing
+ * closed. A structural no-op for USS with no declared numeric fields.
+ */
 export function computeInputHash(rawUss: unknown): CanonicalHashV1 {
-  return computeCanonicalHashV1(rawUss, {
-    domainTag: D2_DOMAIN_TAGS.signalInput,
-  });
+  return computeCanonicalHashV1(
+    projectDecimalFieldsForHash(rawUss, USS_INPUT_DECIMAL_KEYS),
+    { domainTag: D2_DOMAIN_TAGS.signalInput }
+  );
 }
 
 /** Compute the enrichment-bundle domain hash of the bundle material. */

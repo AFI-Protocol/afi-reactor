@@ -8,18 +8,23 @@
  * composition path. The registry-path ban (RC-7 grant 1 form), the
  * pipehead/CLI bans, and the test-only sibling cross-check are UNCHANGED.
  *
- * Verifies the UWR profile stamp that froggyDemoService writes into
- * persisted ReactorScoredSignalDocument records:
+ * Verifies the UWR profile stamp helper (uwrProfileStampFor):
  *   1. the pinned constants match the governed profile (UP-2);
  *   2. the stamp is conditional on the UP-10-recognized scorer identity —
  *      unrecognized identities are never stamped;
  *   3. (dev/CI with sibling checkout) the hardcoded pin is value-identical
  *      to the afi-config registry instance — WITHOUT any runtime registry
  *      read: this cross-check lives in tests only (UP-12);
- *   4. source guardrails: the stamp is wired at the vault-write construction
- *      site — with the RC-6 source propagated, never re-derived there — and
- *      stays OUT of the D2 pipehead surface, whose goldens must remain
- *      byte-stable (UP-5/UP-11).
+ *   4. registry-path boundary: only the authorized loader module references the
+ *      registry path; the stamp stays OUT of the D2 pipehead surface, whose
+ *      goldens must remain byte-stable (UP-5/UP-11).
+ *
+ * NOTE (live-beta hardening): the stamp's former persistence site — the legacy
+ * Reactor scored-signal vault document — has been deleted. uwrProfileStampFor is
+ * retained + tested but is now runtime-orphaned; the two "vault-write site"
+ * source-scan guardrails were removed. Re-homing the stamp onto the canonical
+ * afi.scored-signal-evidence.v1 record needs a governed afi-config schema change
+ * (owner decision).
  *
  * Scope framing: stamping is traceability metadata only. It does not wire
  * the qualification gate, create reward eligibility, or touch mint paths —
@@ -148,25 +153,13 @@ describe("PR-UWR-STAMP: source guardrails", () => {
   const read = (rel: string) =>
     readFileSync(path.resolve(REPO_ROOT, rel), "utf8");
 
-  it("vault-write construction site wires the stamp conditionally, with the RC-6 source PROPAGATED (never re-derived)", () => {
-    const src = read("src/services/froggyDemoService.ts");
-    expect(src).toContain('from "../config/uwrProfilePin.js"');
-    expect(src).toContain("uwrProfileStampFor(");
-    // Conditional spread: absent field, never a persisted null.
-    expect(src).toMatch(/uwrProfile \? \{ uwrProfile \} : \{\}/);
-    // RC-6 (PR-UWR-STAMP-SEMANTICS): the resolved source reaches the stamp
-    // by explicit propagation from the froggy-analyst composition path...
-    expect(src).toMatch(
-      /uwrProfileStampFor\(\s*analyzedSignal\.analysis\.analystScore,\s*analyzedSignal\.uwrResolvedSource\s*\)/
-    );
-    // ...and is NEVER re-derived at the stamp site: the service must not
-    // read the flag, re-resolve the runtime config, or consult the
-    // environment to decide what the stamp claims.
-    expect(src).not.toContain("AFI_UWR_PROFILE_SOURCE");
-    expect(src).not.toContain("getUwrRuntimeConfigOnce");
-    expect(src).not.toContain("resolveUwrRuntimeConfig");
-    expect(src).not.toContain("process.env");
-  });
+  // NOTE (live-beta hardening): the former "vault-write construction site wires
+  // the stamp" guardrail was removed together with the legacy Reactor
+  // scored-signal vault write it scanned for. The UWR profile stamp
+  // (uwrProfileStampFor) is retained and unit-tested below, but is currently
+  // runtime-orphaned (its only persistence site was deleted); re-homing it on
+  // the canonical afi.scored-signal-evidence.v1 record needs a governed
+  // afi-config schema change — flagged for the owner.
 
   it("only the authorized loader module references the uwr-profiles registry (UP-12 boundary, RC-7 grant 1)", () => {
     // PR-UWR-RUNTIME-READ (uwr-runtime-consumption-v0.1.md §7 row flipped

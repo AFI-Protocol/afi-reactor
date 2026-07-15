@@ -21,11 +21,15 @@ import type { EvidenceStorePort } from "./submitScoredSignalEvidence.js";
 
 let injected: EvidenceStorePort | null = null;
 let cached: EvidenceStorePort | null = null;
+/** The concrete afi-infra store behind `cached`, kept so it can be closed on
+ *  graceful shutdown (the submit-only port does not expose close()). */
+let cachedStore: MongoScoredSignalEvidenceStore | null = null;
 
 /** Inject a store (tests / composition root). Pass null to clear. */
 export function setEvidenceStore(store: EvidenceStorePort | null): void {
   injected = store;
   cached = null;
+  cachedStore = null;
 }
 
 /**
@@ -38,6 +42,7 @@ export function getEvidenceStore(): EvidenceStorePort {
   if (injected) return injected;
   if (!cached) {
     const store = new MongoScoredSignalEvidenceStore();
+    cachedStore = store;
     // Anti-corruption bridge (the Reactor's single afi-infra submit boundary):
     // the Reactor's port carries its own STRICT governed-record mirror
     // (ReactorEvidenceRecord, keyed on the Reactor's District-2 provenance
@@ -59,4 +64,20 @@ export function getEvidenceStore(): EvidenceStorePort {
 export function resetEvidenceStore(): void {
   injected = null;
   cached = null;
+  cachedStore = null;
+}
+
+/**
+ * Close the bound canonical evidence store's MongoDB connection for a clean
+ * shutdown (releases the driver's sockets + monitoring timers so the process can
+ * exit naturally — e.g. on SIGTERM under Cloud Run). No-op when no concrete store
+ * is bound; an injected (test) store is left for the test to manage.
+ */
+export async function closeEvidenceStore(): Promise<void> {
+  const store = cachedStore;
+  cached = null;
+  cachedStore = null;
+  if (store) {
+    await store.close();
+  }
 }

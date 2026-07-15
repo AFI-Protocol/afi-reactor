@@ -168,6 +168,21 @@ jobs:
           npm run test:integration:mongo
           echo "✅ Real-MongoDB persistence proof passed"
 
+      # Prove SIGTERM-compatible graceful shutdown on the COMPILED server: spawn
+      # it listening, connect the evidence store via a scored request, send
+      # SIGTERM, and require a prompt clean exit 0 (Cloud Run deployment path).
+      - name: SIGTERM graceful-shutdown proof (compiled build)
+        working-directory: afi-reactor
+        timeout-minutes: 5
+        env:
+          AFI_EVIDENCE_MONGODB_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0
+          AFI_EVIDENCE_DB_NAME: afi_scored_signal_evidence_shutdown_it
+          AFI_PRICE_FEED_SOURCE: demo
+        run: |
+          echo "🧪 Proving SIGTERM → graceful shutdown → exit 0 on the compiled server..."
+          npm run test:integration:shutdown
+          echo "✅ SIGTERM shutdown proof passed"
+
       - name: Ensure all log files exist
         if: always()
         working-directory: afi-reactor

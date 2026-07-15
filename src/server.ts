@@ -40,15 +40,18 @@ import { validateUsignalV11 } from "./uss/ussValidator.js";
 import { mapTradingViewToUssV11 } from "./uss/tradingViewMapper.js";
 import { validateCpjV01 } from "./cpj/cpjValidator.js";
 import { mapCpjToUssV11 } from "./uss/cpjMapper.js";
+import type { Server as HttpServer } from "http";
 import {
   initDedupeCache,
   checkDuplicate,
   recordIngest,
+  shutdownDedupeCache,
 } from "./services/ingestDedupeService.js";
 import {
   getEvidenceStore,
   submitScoredSignalEvidence,
   ReactorEvidencePersistenceError,
+  closeEvidenceStore,
 } from "./evidence/index.js";
 import { startTelegramCollector } from "./collectors/telegram/telegramCollector.js";
 import { createMtprotoClientFromEnv } from "./collectors/telegram_mtproto/mtprotoClient.js";
@@ -457,6 +460,24 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
 export default app;
 
 /**
+ * Graceful shutdown: stop accepting requests (close the HTTP server), then
+ * release every long-lived handle — the canonical afi-infra evidence store's
+ * MongoDB connection and the ingest dedupe cache — so the process exits
+ * naturally. This is SIGTERM-compatible for a Cloud Run deployment. Safe to call
+ * without a live server (compiled integration tests import the app but do not
+ * listen); passing no server just closes the store + cache.
+ */
+export async function shutdownReactor(server?: HttpServer): Promise<void> {
+  if (server) {
+    await new Promise<void>((resolve, reject) =>
+      server.close((err) => (err ? reject(err) : resolve()))
+    );
+  }
+  shutdownDedupeCache();
+  await closeEvidenceStore();
+}
+
+/**
  * Start server only when run directly (not when imported for tests).
  *
  * This allows tests to import the app without starting the server,
@@ -467,7 +488,7 @@ export default app;
 if (process.env.NODE_ENV !== "test") {
   const PORT = parseInt(process.env.PORT || process.env.AFI_REACTOR_PORT || "8080", 10);
 
-  app.listen(PORT, async () => {
+  const server = app.listen(PORT, async () => {
     console.log(`🚀 AFI REACTOR - Scoring Pipeline`);
     console.log(`   Listening on http://localhost:${PORT}`);
     console.log(`   Endpoints:`);
@@ -476,7 +497,19 @@ if (process.env.NODE_ENV !== "test") {
     console.log(`     POST /api/ingest/cpj (CPJ v0.1 ingestion - Telegram/Discord signals)`);
     console.log(``);
     console.log(`   Returns: ReactorScoredSignalV1 (signalId, analystScore, scoredAt, decayParams, lenses, rawUss)`);
-    console.log(`   Price Feed: ${process.env.AFI_PRICE_FEED_SOURCE || "demo (mock data)"}`);
+    const priceSource = process.env.AFI_PRICE_FEED_SOURCE;
+    console.log(`   Price Feed: ${priceSource ?? "(unset)"}`);
+    if (!priceSource) {
+      console.warn(
+        `   ⚠️  AFI_PRICE_FEED_SOURCE is UNSET — live scoring will FAIL CLOSED ` +
+          `(no silent synthetic fallback). Set AFI_PRICE_FEED_SOURCE=blofin|coinbase.`
+      );
+    } else if (priceSource === "demo") {
+      console.warn(
+        `   ⚠️  AFI_PRICE_FEED_SOURCE=demo — SYNTHETIC, non-production market data. ` +
+          `Set AFI_PRICE_FEED_SOURCE=blofin|coinbase for real scoring in production.`
+      );
+    }
     console.log(``);
 
     // Start Telegram Bot API collector if enabled
@@ -499,4 +532,20 @@ if (process.env.NODE_ENV !== "test") {
       }
     }
   });
+
+  // SIGTERM-compatible graceful shutdown (Cloud Run sends SIGTERM).
+  const onSignal = (signal: string) => {
+    console.log(`\n📴 ${signal} received — shutting down AFI Reactor gracefully...`);
+    shutdownReactor(server)
+      .then(() => {
+        console.log("✅ Clean shutdown complete.");
+        process.exit(0);
+      })
+      .catch((err) => {
+        console.error("❌ Shutdown error:", err);
+        process.exit(1);
+      });
+  };
+  process.once("SIGTERM", () => onSignal("SIGTERM"));
+  process.once("SIGINT", () => onSignal("SIGINT"));
 }
