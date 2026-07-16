@@ -17,7 +17,6 @@
   "dependsOn": [
     "afi-core",
     "afi-config",
-    "afi-plugins",
     "afi-math"
   ],
   "consumers": [
