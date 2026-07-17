@@ -1,0 +1,158 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/analysis-plugin/v1/analysis-plugin.schema.json",
+  "title": "AFI Analysis Plugin Manifest v1 (FACTORY-CONTRACT — declarative plugin contract)",
+  "description": "The canonical MANIFEST of one analysis plugin (afi.analysis-plugin.v1): the declarative contract a pipeline node binds by pluginId+pluginVersion. It declares the plugin's category, input/output schema references, determinism, capabilities (provider/secret requirements), execution defaults, permitted failure policies, its inline paramsSchema (the JSON Schema that validates a node's config), multi-instance admissibility, category-level ordering constraints, and whether its output may feed the scorer. It deliberately contains NO filesystem paths and NO code references: binding a manifest to code happens in the consuming runtime's BUILD-TIME plugin registry keyed by pluginId+pluginVersion.",
+  "$comment": "BOUNDARY (FACTORY-CONTRACT): schema/contract only — NO plugin loading, NO dynamic import, NO registry implementation. inputSchemaRef/outputSchemaRef are schema IDENTIFIERS (afi.* schema ids or https://afi-protocol.org/schemas/... URLs), structurally rejecting filesystem paths. capabilities name REQUIREMENT CLASSES (e.g. provider:coinalyze, secret:COINALYZE_API_KEY) — never secret values.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Factory — Analyst-Configurable Pipelines V1 (FACTORY-CONTRACT)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/factory-configurable-pipelines-v1 — authorizes the canonical V1 contract family",
+    "reports/afi-configurable-dag-live-runtime-reconciliation.md §2/§6 — the five code-canonical analysis categories + capability/determinism/fail-semantics facts this manifest makes declarative",
+    "afi-governance/decisions/math-authority-v0.1.md — strategy/pipeline composition is implementation-layer; this manifest declares composition surface, never scoring law"
+  ],
+  "x-afiConstraints": {
+    "buildTimeBinding": "Binding to code happens in the consuming runtime's build-time registry by pluginId+pluginVersion. No filesystem path, module specifier, or entrypoint is representable in this manifest (structurally: inputSchemaRef/outputSchemaRef admit only afi.* schema ids or afi-protocol.org schema URLs; additionalProperties:false rejects entrypoint-like fields).",
+    "paramsSchemaAuthority": "paramsSchema is the SINGLE authority for validating a pipeline node's config bound to this plugin. The factory/runtime MUST validate node.config against it (AJV draft-07, strict) before accepting a composition; an invalid config fails closed.",
+    "capabilitiesAreRequirements": "capabilities declare requirement classes the operator environment must satisfy (provider:<id>, secret:<ENV_NAME>, feed:<id>, ...). They NEVER carry secret material and never grant anything by themselves.",
+    "orderingScope": "orderingConstraints are CATEGORY-level hints (mustRunBefore/mustRunAfter name categories, not node ids) enforced by factory composition validation, not by this schema.",
+    "scorerFeed": "mayFeedScorer declares whether this plugin's output is admissible as scorer input. Composition tooling MUST reject a manifest wiring a mayFeedScorer:false plugin's output into the scorer's join surface.",
+    "hashMaterial": "The plugin-set hash (pluginSetHash in afi.composition-ref.v1, domain tag afi.factory.plugin-set) is computed over the canonically serialized, canonically ordered set of bound plugin manifests per schemas/hashing/canonical-json-hashing.v1.md, excluding description and metadata."
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "pluginId",
+    "pluginVersion",
+    "implementationVersion",
+    "category",
+    "inputSchemaRef",
+    "outputSchemaRef",
+    "deterministic",
+    "paramsSchema",
+    "mayFeedScorer"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "afi.analysis-plugin.v1",
+      "description": "Schema-id version of the plugin manifest."
+    },
+    "pluginId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Stable plugin identifier (lowercase alphanumeric + hyphens). Registry key together with pluginVersion."
+    },
+    "pluginVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "description": "Semver (NO v prefix) of this manifest's CONTRACT surface. Bumped whenever the declared contract changes."
+    },
+    "implementationVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Version identity of the CODE realizing this contract (e.g. a package version or build identifier). Distinct axis from pluginVersion: an implementation fix that preserves the contract bumps only this."
+    },
+    "category": {
+      "type": "string",
+      "enum": ["technical", "pattern", "sentiment", "news", "aiMl", "merge", "scorer"],
+      "description": "Governed plugin category: the five analysis categories plus merge and scorer. A pipeline node may bind only a plugin of its own category."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "OPTIONAL human-readable description; excluded from canonical hash material."
+    },
+    "inputSchemaRef": {
+      "type": "string",
+      "pattern": "^(afi\\.[a-z0-9][a-zA-Z0-9.-]*|https://afi-protocol\\.org/schemas/[A-Za-z0-9/._-]+)$",
+      "description": "Identifier of the schema the plugin's input payload conforms to (afi.* schema id or afi-protocol.org schema URL). NEVER a filesystem path."
+    },
+    "outputSchemaRef": {
+      "type": "string",
+      "pattern": "^(afi\\.[a-z0-9][a-zA-Z0-9.-]*|https://afi-protocol\\.org/schemas/[A-Za-z0-9/._-]+)$",
+      "description": "Identifier of the schema the plugin's output payload conforms to. NEVER a filesystem path."
+    },
+    "deterministic": {
+      "type": "boolean",
+      "description": "TRUE iff the plugin is a pure function of its validated input + config (no external I/O, no clock, no randomness). External-provider plugins MUST declare false."
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*:[A-Za-z0-9_.:-]+$",
+        "description": "Requirement class the operator environment must satisfy, e.g. 'provider:coinalyze', 'secret:COINALYZE_API_KEY', 'feed:ohlcv'."
+      },
+      "description": "OPTIONAL declared requirement classes. Never secret values (x-afiConstraints.capabilitiesAreRequirements)."
+    },
+    "defaultTimeoutMs": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "OPTIONAL default per-invocation timeout applied when the pipeline node declares none."
+    },
+    "defaultRetryPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxRetries"],
+      "properties": {
+        "maxRetries": { "type": "integer", "minimum": 0 },
+        "retryDelayMs": { "type": "integer", "minimum": 0 },
+        "backoff": { "type": "string", "enum": ["none", "fixed", "exponential"] }
+      },
+      "description": "OPTIONAL default retry policy applied when the pipeline node declares none."
+    },
+    "permittedFailurePolicies": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["abort", "degrade"] },
+      "description": "OPTIONAL whitelist of failure policies a node binding this plugin may declare. Absent means only 'abort'. Composition tooling rejects a node declaring a policy outside this set."
+    },
+    "paramsSchema": {
+      "type": "object",
+      "description": "REQUIRED inline JSON Schema (draft-07) fragment that validates a binding node's config. Use {} (permit-all) only for genuinely configuration-free plugins; the factory validates every node.config against this before accepting a composition."
+    },
+    "multiInstance": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether one pipeline may bind this plugin on MULTIPLE nodes (e.g. two news nodes with different windows). Defaults false: composition tooling rejects repeated binding unless declared true."
+    },
+    "orderingConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mustRunBefore": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["technical", "pattern", "sentiment", "news", "aiMl", "merge", "scorer"]
+          }
+        },
+        "mustRunAfter": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["technical", "pattern", "sentiment", "news", "aiMl", "merge", "scorer"]
+          }
+        }
+      },
+      "description": "OPTIONAL category-level ordering hints enforced by factory composition validation (x-afiConstraints.orderingScope)."
+    },
+    "mayFeedScorer": {
+      "type": "boolean",
+      "description": "REQUIRED declaration of whether this plugin's output is admissible as scorer input (x-afiConstraints.scorerFeed). Category 'scorer' plugins declare false (a scorer never feeds another scorer — it is the sink)."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "OPTIONAL free-form annotations; non-authoritative; excluded from canonical hash material."
+    }
+  }
+}

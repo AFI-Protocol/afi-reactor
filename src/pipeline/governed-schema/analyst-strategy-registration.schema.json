@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/analyst-strategy-registration/v1/analyst-strategy-registration.schema.json",
+  "title": "AFI Analyst Strategy Registration v1 (FACTORY-CONTRACT — registry entry)",
+  "description": "The canonical registry ENTRY (afi.analyst-strategy-registration.v1) recording that one analyst strategy configuration is registered: the canonical strategy identity triple, the canonical hash of the exact afi.analyst-strategy-config.v1 object (analystConfigHash), an immutable reference to where that config lives (configRef), the provider binding policy governing WHICH providers may route signals into this strategy, an active/inactive status, the administrative registration date, and the registration decision/PR pointer. One JSON file per identity under registries/analyst-strategies/.",
+  "$comment": "BOUNDARY (FACTORY-CONTRACT): schema/contract only — registering an entry does NOT wire runtime consumption, confer UP-10 recognition, qualification, or rewards. registeredAt and registrationRef are ADMINISTRATIVE metadata: registeredAt is EXCLUDED from canonical hash material (schemas/hashing/canonical-json-hashing.v1.md). Cross-artifact resolution (does configRef resolve? does its canonical hash equal analystConfigHash? do allowedBindings exist and stay active?) is registry tooling's duty, recorded in x-afiConstraints.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Factory — Analyst-Configurable Pipelines V1 (FACTORY-CONTRACT)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/factory-configurable-pipelines-v1 — authorizes the canonical V1 contract family and the analyst-strategy registry layout",
+    "afi-governance/decisions/object-identity-v0.1.md (OBJ-GOV) D-OBJ-3 — the canonical strategy identity triple this entry is keyed by",
+    "afi-governance/decisions/uwr-profile-pin-v0.1.md (PR-UWR) UP-10 — registration here is FACTORY registration (composition admission); protocol scorer-identity recognition remains UP-10's separate act"
+  ],
+  "x-afiConstraints": {
+    "configResolution": "REGISTRY-TOOLING (not JSON-Schema-enforceable): configRef MUST resolve to an immutable afi.analyst-strategy-config.v1 object whose identity triple equals this entry's triple and whose canonical hash (excluding metadata) equals analystConfigHash. A dangling or hash-divergent configRef fails registration closed.",
+    "bindingResolution": "REGISTRY-TOOLING: when providerBindingPolicy.mode is 'explicit', every allowedBindings entry MUST name an existing, ACTIVE afi.provider-strategy-binding.v1 whose allowedStrategies contains this entry's triple. 'any-authenticated' admits any authenticated provider binding without enumeration.",
+    "identityImmutability": "An entry's triple + analystConfigHash never mutate. Corrections register a NEW strategyVersion; retirement flips status to 'inactive' (administrative update per the registry's generic rule) — the file is never deleted.",
+    "hashExclusions": "registeredAt is administrative and EXCLUDED from canonical hash material for this artifact type (canonical-json-hashing.v1). analystConfigHash itself hashes the CONFIG object, not this entry.",
+    "strategyIdMajorAgreement": "Same D-OBJ-3 cross-field rule as the config: strategyId's embedded major MUST equal strategyVersion's major. Enforced by tooling/tests."
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "analystId",
+    "strategyId",
+    "strategyVersion",
+    "analystConfigHash",
+    "configRef",
+    "providerBindingPolicy",
+    "status",
+    "registeredAt",
+    "registrationRef"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "afi.analyst-strategy-registration.v1",
+      "description": "Schema-id version of the registry entry."
+    },
+    "analystId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Canonical triple member (OBJ-GOV D-OBJ-3)."
+    },
+    "strategyId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*_v(0|[1-9]\\d*)$",
+      "maxLength": 100,
+      "description": "Canonical triple member: bare snake_case slug with embedded major token; major must match strategyVersion (x-afiConstraints)."
+    },
+    "strategyVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "description": "Canonical triple member: semver, NO v prefix."
+    },
+    "analystConfigHash": {
+      "$ref": "https://afi-protocol.org/schemas/provenance/v1/canonical-hash.schema.json",
+      "description": "CanonicalHash v1 of the exact registered afi.analyst-strategy-config.v1 object (domain tag afi.factory.analyst-config; metadata excluded). The immutable pin the runtime verifies before composing."
+    },
+    "configRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Immutable reference to the registered config artifact (repo path or content-addressed ref), e.g. 'afi-config/examples/analyst-strategy-config/v1/....json' or a pinned git object ref. MUST resolve and hash-match (x-afiConstraints.configResolution)."
+    },
+    "providerBindingPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "description": "Which providers may route signals into this strategy. 'explicit' enumerates binding ids; 'any-authenticated' admits any authenticated provider binding.",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["explicit", "any-authenticated"]
+        },
+        "allowedBindings": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$",
+            "description": "bindingId of an afi.provider-strategy-binding.v1 entry."
+          },
+          "description": "REQUIRED when mode is 'explicit' (bound structurally by if/then below); forbidden semantics otherwise are advisory (ignored under any-authenticated)."
+        }
+      },
+      "if": {
+        "properties": { "mode": { "const": "explicit" } },
+        "required": ["mode"]
+      },
+      "then": {
+        "required": ["allowedBindings"]
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "inactive"],
+      "description": "Registry status. Only 'active' entries are resolvable at runtime; 'inactive' retires without deletion (supersession discipline)."
+    },
+    "registeredAt": {
+      "type": "string",
+      "format": "date",
+      "description": "ADMINISTRATIVE registration date (YYYY-MM-DD). Excluded from canonical hash material (x-afiConstraints.hashExclusions)."
+    },
+    "registrationRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Pointer to the registering act (PR URL/number or decision reference)."
+    }
+  }
+}

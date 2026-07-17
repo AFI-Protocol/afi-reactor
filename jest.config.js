@@ -59,6 +59,9 @@ export default {
     "**/test/state-management.test.ts",
     "**/test/integration/state-lifecycle.test.ts",
     "**/src/dag/__tests__/*.test.ts",
+    // SLOT-FCP-REACTOR stage A: executor core, hashing KATs, vendored-closure
+    // drift guard, registry boot validation, graph proofs, node units.
+    "**/test/pipeline/**/*.test.ts",
     "**/test/pipeheads/**/*.test.ts",
     "**/test/evidence/**/*.test.ts",
     // ORACLE-EQUIVALENCE: the behavioral-oracle harness is part of the DEFAULT
