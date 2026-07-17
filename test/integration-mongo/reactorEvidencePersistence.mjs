@@ -45,6 +45,9 @@ if (!URI) {
 const DB_NAME = process.env.AFI_EVIDENCE_DB_NAME ?? "afi_scored_signal_evidence_it";
 process.env.AFI_EVIDENCE_DB_NAME = DB_NAME;
 process.env.NODE_ENV = "test"; // prevent the compiled server from listening
+// The runtime registers no synthetic feed: inject the deterministic test feed
+// through the guarded seam, then select it (explicitly; never silently).
+await import("../support/registerDeterministicPriceFeed.mjs");
 process.env.AFI_PRICE_FEED_SOURCE = process.env.AFI_PRICE_FEED_SOURCE ?? "demo";
 
 const EVIDENCE_COLLECTION = process.env.AFI_EVIDENCE_COLLECTION ?? "scored_signal_evidence";

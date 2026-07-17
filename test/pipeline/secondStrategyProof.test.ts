@@ -57,6 +57,8 @@ import {
   disableNetwork,
 } from "../oracle/support/oracleHarness.js";
 import { aimlAtlasProbeNode, scorerAtlasProbeNode } from "./support/atlasProbePlugins.js";
+import { registerPriceFeedAdapterForTests } from "../../src/adapters/exchanges/priceFeedRegistry.js";
+import { demoPriceFeedAdapter } from "../support/deterministicPriceFeedAdapter.js";
 
 const ATLAS_CONFIG_ROOT = path.resolve(process.cwd(), "test/pipeline/fixtures/afi-config-atlas");
 const TV = "/api/webhooks/tradingview";
@@ -81,6 +83,7 @@ const ENV_KEYS = [
 ] as const;
 const savedEnv = new Map<string, string | undefined>();
 let restoreNet: () => void;
+let unregisterDemoFeed: () => void;
 
 const aimlProbeSpy = jest.spyOn(aimlAtlasProbeNode, "run");
 const scorerProbeSpy = jest.spyOn(scorerAtlasProbeNode, "run");
@@ -90,6 +93,9 @@ beforeAll(() => {
     savedEnv.set(k, process.env[k]);
     delete process.env[k];
   }
+  // Inject the deterministic feed through the guarded test seam and select
+  // it explicitly (production source registers no synthetic feed).
+  unregisterDemoFeed = registerPriceFeedAdapterForTests(demoPriceFeedAdapter);
   process.env.AFI_PRICE_FEED_SOURCE = "demo";
   process.env.PATTERN_REGIME_PROVIDER = "off";
   restoreNet = disableNetwork();
@@ -119,6 +125,7 @@ afterAll(() => {
   resetEvidenceStore();
   shutdownDedupeCache();
   restoreNet();
+  unregisterDemoFeed();
   __resetRuntimeCompositionForTests();
   for (const [k, v] of savedEnv) {
     if (v === undefined) delete process.env[k];

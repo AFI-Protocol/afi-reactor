@@ -28,6 +28,8 @@ import {
   __resetRuntimeCompositionForTests,
   __setRuntimeCompositionOverridesForTests,
 } from "../../../src/config/runtimeComposition.js";
+import { registerPriceFeedAdapterForTests } from "../../../src/adapters/exchanges/priceFeedRegistry.js";
+import { demoPriceFeedAdapter } from "../../support/deterministicPriceFeedAdapter.js";
 
 /** Jest runs from the repo root (repo idiom — see test/pipeheads/*.test.ts). */
 export const GOLDENS_DIR = path.resolve(process.cwd(), "test/oracle/goldens");
@@ -67,8 +69,8 @@ export const CLOCK_TOKEN = "<CLOCK>";
 /**
  * Recursively replace volatile clock values with the CLOCK token (and drop
  * functions/undefined via JSON semantics). scoredAt is NOT injectable in the
- * live path (froggyScoringService.ts:225) — normalizing it out is the governed
- * way to freeze everything else byte-exactly.
+ * live path — normalizing it out is the governed way to freeze everything
+ * else byte-exactly.
  */
 export function normalizeVolatile<T>(value: T): unknown {
   return JSON.parse(
@@ -217,6 +219,10 @@ export function installOracleEnv(): () => void {
   for (const k of KEYS) saved.set(k, process.env[k]);
 
   for (const k of KEYS) delete process.env[k];
+  // The synthetic feed no longer exists in production source: inject the
+  // byte-stable deterministic adapter through the guarded test seam and
+  // select it explicitly (same id — goldens stay byte-identical).
+  const unregisterDemoFeed = registerPriceFeedAdapterForTests(demoPriceFeedAdapter);
   process.env.AFI_PRICE_FEED_SOURCE = "demo";
   // The regime-candle provider defaults to LIVE blofin (via ccxt, not fetch) —
   // engage its explicit kill-switch so the oracle is hermetic even where the
@@ -230,6 +236,7 @@ export function installOracleEnv(): () => void {
   __setRuntimeCompositionOverridesForTests({ configRoot: ORACLE_CONFIG_ROOT });
 
   return () => {
+    unregisterDemoFeed();
     __resetRuntimeCompositionForTests();
     for (const [k, v] of saved) {
       if (v === undefined) delete process.env[k];

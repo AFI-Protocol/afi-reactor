@@ -1,5 +1,12 @@
 /**
- * Deterministic synthetic price-feed adapter (selected by AFI_PRICE_FEED_SOURCE=demo).
+ * Deterministic synthetic price-feed adapter (TEST-ONLY; selected by
+ * AFI_PRICE_FEED_SOURCE=demo after being injected through
+ * registerPriceFeedAdapterForTests — production source contains no synthetic
+ * feed and refuses the injection seam under NODE_ENV=production).
+ *
+ * The implementation below is the byte-stable former src demo adapter, moved
+ * verbatim so the committed oracle goldens (priceSource:"demo" provenance and
+ * all derived indicator bytes) remain unchanged.
  *
  * Generates synthetic OHLCV / ticker data as a DETERMINISTIC function of the
  * governed request inputs (symbol + timeframe): NO wall-clock (Date.now) and NO
@@ -13,7 +20,11 @@
  * priceSource:"demo" so a synthetic source is never presented as real.
  */
 
-import type { PriceFeedAdapter, OHLCVCandle, TickerSnapshot } from "./types.js";
+import type {
+  PriceFeedAdapter,
+  OHLCVCandle,
+  TickerSnapshot,
+} from "../../src/adapters/exchanges/types.js";
 
 /** FNV-1a 32-bit string hash → deterministic PRNG seed (no wall clock). */
 function seedFromString(s: string): number {

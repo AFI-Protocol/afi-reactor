@@ -21,6 +21,12 @@ delete process.env.AFI_SCORED_SIGNAL_EVIDENCE_URI;
 delete process.env.AFI_MONGO_URI;
 process.env.NODE_ENV = "test"; // prevent the compiled server from listening
 
+// The runtime registers no synthetic feed: inject the deterministic test feed
+// through the guarded seam and select it explicitly (scoring must succeed so
+// the proof reaches the store-unavailable 503, not a feed-config 500).
+await import("../support/registerDeterministicPriceFeed.mjs");
+process.env.AFI_PRICE_FEED_SOURCE = "demo";
+
 const COMPILED_SERVER = pathToFileURL(
   path.resolve(process.cwd(), "dist/src/server.js")
 ).href;

@@ -40,8 +40,11 @@ const DB_NAME = process.env.AFI_EVIDENCE_DB_NAME ?? "afi_scored_signal_evidence_
 process.env.AFI_EVIDENCE_DB_NAME = DB_NAME;
 process.env.NODE_ENV = "test"; // prevent the compiled server from listening
 
-// Deterministic oracle environment: demo feed, every external provider OFF —
-// the exact environment the fail-soft goldens were frozen under.
+// Deterministic oracle environment: the deterministic feed (injected through
+// the guarded test seam — the runtime registers no synthetic feed) plus every
+// external provider OFF — the exact environment the fail-soft goldens were
+// frozen under.
+await import("../support/registerDeterministicPriceFeed.mjs");
 process.env.AFI_PRICE_FEED_SOURCE = "demo";
 for (const k of [
   "COINALYZE_API_KEY",

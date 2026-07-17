@@ -14,6 +14,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const URI = process.env.AFI_EVIDENCE_MONGODB_URI;
 if (!URI) {
@@ -25,12 +26,20 @@ const PORT = process.env.PORT || "8199";
 const DB = process.env.AFI_EVIDENCE_DB_NAME || "afi_scored_signal_evidence_shutdown_it";
 const SERVER = path.resolve(process.cwd(), "dist/src/server.js");
 
-const child = spawn(process.execPath, [SERVER], {
+// The runtime registers no synthetic feed: preload the guarded test seam into
+// the child so the deterministic feed exists before the first scored request.
+const PRELOAD = pathToFileURL(
+  path.resolve(process.cwd(), "test/support/registerDeterministicPriceFeed.mjs")
+).href;
+
+const child = spawn(process.execPath, ["--import", PRELOAD, SERVER], {
   // NODE_ENV must NOT be "test" so the server actually listens + installs the
-  // SIGTERM handler (the production runtime path).
+  // SIGTERM handler. It also must not be "production": the deterministic-feed
+  // seam (correctly) refuses to register synthetic data in production, so this
+  // proof runs the listening path under "development".
   env: {
     ...process.env,
-    NODE_ENV: "production",
+    NODE_ENV: "development",
     AFI_EVIDENCE_MONGODB_URI: URI,
     AFI_EVIDENCE_DB_NAME: DB,
     PORT,

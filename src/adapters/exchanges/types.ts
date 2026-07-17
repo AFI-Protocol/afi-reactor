@@ -106,11 +106,11 @@ export interface PriceFeedAdapter {
  * Price Source ID
  * 
  * Identifies which price feed source to use.
- * "demo" = mock data (current behavior)
  * "blofin" = BloFin exchange
  * "coinbase" = Coinbase (future)
+ * (Tests may inject additional sources via registerPriceFeedAdapterForTests.)
  */
-export type PriceSourceId = "demo" | "blofin" | "coinbase" | string;
+export type PriceSourceId = "blofin" | "coinbase" | string;
 
 /**
  * Venue Type
@@ -126,7 +126,7 @@ export type VenueType = "crypto_perps" | "crypto_spot" | "equity" | "forex" | "d
  * This is stored in TSSD vault for provenance tracking.
  */
 export interface PriceFeedMetadata {
-  /** Price source ID (e.g., "blofin", "demo") */
+  /** Price source ID (e.g., "blofin", "coinbase") */
   priceSource: PriceSourceId;
   
   /** Venue type (e.g., "crypto_perps", "crypto_spot") */

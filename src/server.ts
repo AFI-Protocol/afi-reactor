@@ -21,7 +21,7 @@
  * - AFI_REACTOR_PORT: Server port fallback (default: 8080)
  * - WEBHOOK_SHARED_SECRET: Optional shared secret for webhook authentication
  * - COINALYZE_API_KEY: Optional API key for Coinalyze perp sentiment data
- * - AFI_PRICE_FEED_SOURCE: Price feed source (demo, blofin, coinbase)
+ * - AFI_PRICE_FEED_SOURCE: Price feed source (blofin, coinbase)
  *
  * @module server
  */
@@ -602,11 +602,6 @@ if (process.env.NODE_ENV !== "test") {
       console.warn(
         `   ⚠️  AFI_PRICE_FEED_SOURCE is UNSET — live scoring will FAIL CLOSED ` +
           `(no silent synthetic fallback). Set AFI_PRICE_FEED_SOURCE=blofin|coinbase.`
-      );
-    } else if (priceSource === "demo") {
-      console.warn(
-        `   ⚠️  AFI_PRICE_FEED_SOURCE=demo — SYNTHETIC, non-production market data. ` +
-          `Set AFI_PRICE_FEED_SOURCE=blofin|coinbase for real scoring in production.`
       );
     }
     console.log(``);
