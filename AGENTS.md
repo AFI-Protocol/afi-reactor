@@ -50,12 +50,6 @@ npm run esm:check
 # Validate all DAG configs and Codex metadata
 npm run validate-all
 
-# Simulate signal processing
-npm run simulate-signal
-
-# Simulate from vault
-npm run simulate-from-vault
-
 # Replay vault for determinism testing
 npm run replay-vault
 
@@ -76,12 +70,6 @@ npm run start:demo
 ## Run Locally / Dev Workflow
 
 ```bash
-# Simulate a signal through the DAG
-npm run simulate-signal
-
-# Simulate from vault
-npm run simulate-from-vault
-
 # Replay vault for determinism testing
 npm run replay-vault
 
@@ -99,11 +87,8 @@ npm run mentor-eval
 **Purpose**: Orchestrate signal pipelines via DAG. **Not** for business logic, token economics, or agent personas.
 
 **Key directories**:
-- `src/cli/` — CLI entrypoints (run-dag.ts, replay-signals.ts)
-- `src/dag/` — Flexible DAG infrastructure (DAGBuilder, DAGExecutor, PluginRegistry)
-- `src/dag/nodes/` — Core node types (AnalystNode, ExecutionNode, ObserverNode)
-- `src/dag/plugins/` — Plugin implementations (ScoutNode, NewsNode, SentimentNode, PatternRecognitionNode, SignalIngressNode, TechnicalIndicatorsNode, AiMlNode)
-- `src/state/` — State management (StateManager, StateSerializer, StateValidator)
+- `src/cli/` — CLI entrypoints (run-pipehead-demo.ts)
+- `src/pipeline/` — the manifest-driven graph executor (executor, registryLoader, nodeSdk, hashing, category nodes)
 - `src/aiMl/` — AI/ML provider integration (MLProviderRegistry, TinyBrainsProvider)
 - `src/adapters/` — External service adapters (Coinalyze, CoinGecko, exchanges)
 - `src/collectors/` — Data collectors (Telegram, MTProto)
@@ -1033,13 +1018,12 @@ The webhook returns a scored-only `ReactorScoredSignalV1`
 ### Known caveats (pre-existing, verified 2026-07-02)
 
 - `npm run codex-lint` (and therefore `npm run validate-all`) fails because
-  `tsc` does not copy `config/*.json` into `dist/`, so
-  `dist/config/dag.codex.json` is absent. CI runs `build` + `test`, not
-  `validate-all`.
+  `tsc` does not copy `config/*.json` into `dist/`, so the codex manifests are
+  absent under `dist/config/`. CI runs `build` + `test`, not `validate-all`.
 - The repo-wide `npm run esm:check` still flags a handful of pre-existing
   legacy files importing without `.js` extensions (e.g.
-  `src/aiMl/providers/TinyBrainsProvider.ts`, `src/state/StateManager.ts`,
-  `test/uss/*`). This predates Mission 1.5-B and does not affect build/test.
+  `src/aiMl/providers/TinyBrainsProvider.ts`, `test/uss/*`). This predates
+  Mission 1.5-B and does not affect build/test.
   The scoped pipehead gates (`npx tsc -p tsconfig.pipeheads.json`,
   `bash scripts/esm-check-pipeheads.sh`) pass clean.
 

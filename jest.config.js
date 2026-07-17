@@ -49,7 +49,6 @@ export default {
   ],
   testEnvironment: 'node',
   testMatch: [
-    "**/test/dagConfigShape.test.ts",
     "**/test/froggyWebhookService.test.ts",
     "**/test/guardrails/uwrProfileStamp.test.ts",
     "**/test/guardrails/uwrRuntimeProfile.test.ts",
@@ -79,7 +78,6 @@ export default {
     "<rootDir>/test/cpj/",
   ],
   collectCoverageFrom: [
-    'core/**/*.ts',
     'ops/**/*.ts',
     '!**/*.d.ts'
   ],

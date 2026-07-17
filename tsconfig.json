@@ -19,7 +19,6 @@
   "include": [
     "src/**/*",
     "ops/**/*",
-    "core/**/*",
     "codex/**/*",
     "plugins/**/*",
     "typings.d.ts"
