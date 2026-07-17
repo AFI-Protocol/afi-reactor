@@ -1,0 +1,25 @@
+{
+  "schema": "afi.analyst-strategy-registration.v1",
+  "analystId": "froggy",
+  "strategyId": "trend_pullback_v1",
+  "strategyVersion": "1.0.0",
+  "analystConfigHash": {
+    "algorithm": "sha256",
+    "canonicalizationVersion": "afi.hash.v1",
+    "domainTag": "afi.d2.analyst-config",
+    "value": "269ae355a0d8bfaf53d849c38fba16e167f0571b6319ddc8d94841ff7c275261"
+  },
+  "configRef": "afi-config/registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.config.json",
+  "providerBindingPolicy": {
+    "mode": "explicit",
+    "allowedBindings": [
+      "tradingview-default-webhook",
+      "cpj-oracle-telegram-channel-1",
+      "cpj-oracle-telegram-channel-2",
+      "cpj-oracle-discord-guild-3"
+    ]
+  },
+  "status": "active",
+  "registeredAt": "2026-07-16",
+  "registrationRef": "AFI-Protocol/afi-config PR (branch mission/afi-factory-configurable-pipelines-v1, W3a administrative registry seeding) per afi-governance/decisions/factory-configurable-pipelines-v1 D-FCP-5"
+}

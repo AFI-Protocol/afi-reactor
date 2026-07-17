@@ -1,0 +1,22 @@
+{
+  "schema": "afi.analyst-strategy-registration.v1",
+  "analystId": "atlas-probe",
+  "strategyId": "multi_branch_v1",
+  "strategyVersion": "1.0.0",
+  "analystConfigHash": {
+    "algorithm": "sha256",
+    "canonicalizationVersion": "afi.hash.v1",
+    "domainTag": "afi.d2.analyst-config",
+    "value": "2c515ce272528ec6c2fc20cde2b1a988de1eeb7abbf782a91811c1127a626db3"
+  },
+  "configRef": "afi-config/registries/analyst-strategies/atlas-probe--multi_branch_v1--1.0.0.config.json",
+  "providerBindingPolicy": {
+    "mode": "explicit",
+    "allowedBindings": [
+      "atlas-probe-webhook"
+    ]
+  },
+  "status": "active",
+  "registeredAt": "2026-07-16",
+  "registrationRef": "TEST OVERLAY ONLY (afi-reactor test/pipeline/fixtures/afi-config-atlas) \u2014 SECOND-STRATEGY PROOF per W3 spec 8.2 / program 9.5; never a governed registry entry"
+}

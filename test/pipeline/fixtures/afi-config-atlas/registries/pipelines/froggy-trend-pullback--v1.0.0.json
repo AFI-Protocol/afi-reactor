@@ -1,0 +1,117 @@
+{
+  "schema": "afi.pipeline.v1",
+  "pipelineId": "froggy-trend-pullback",
+  "pipelineVersion": "v1.0.0",
+  "description": "Official froggy trend-pullback composition: technical entry fanning out to pattern/sentiment/news branches, deterministic namespace-by-node merge, AI/ML augmentation of the merged view, and the single froggy trend-pullback scorer sink.",
+  "entry": "technical",
+  "nodes": [
+    {
+      "id": "technical",
+      "category": "technical",
+      "pluginId": "afi-analysis-technical",
+      "pluginVersion": "1.0.0",
+      "config": {
+        "candleLimit": 100
+      },
+      "critical": false,
+      "failurePolicy": "degrade"
+    },
+    {
+      "id": "pattern",
+      "category": "pattern",
+      "pluginId": "afi-analysis-pattern",
+      "pluginVersion": "1.0.0",
+      "critical": false,
+      "failurePolicy": "degrade"
+    },
+    {
+      "id": "sentiment",
+      "category": "sentiment",
+      "pluginId": "afi-analysis-sentiment",
+      "pluginVersion": "1.0.0",
+      "critical": false,
+      "failurePolicy": "degrade"
+    },
+    {
+      "id": "news",
+      "category": "news",
+      "pluginId": "afi-analysis-news",
+      "pluginVersion": "1.0.0",
+      "config": {
+        "windowHours": 4
+      },
+      "critical": false,
+      "failurePolicy": "degrade"
+    },
+    {
+      "id": "merge",
+      "category": "merge",
+      "pluginId": "afi-merge-enriched-view",
+      "pluginVersion": "1.0.0",
+      "join": {
+        "policy": "all",
+        "merge": {
+          "strategy": "namespace-by-node",
+          "conflictRule": "error"
+        }
+      }
+    },
+    {
+      "id": "aiml",
+      "category": "aiMl",
+      "pluginId": "afi-analysis-aiml",
+      "pluginVersion": "1.0.0",
+      "critical": false,
+      "failurePolicy": "degrade"
+    },
+    {
+      "id": "scorer",
+      "category": "scorer",
+      "pluginId": "afi-scorer-froggy-trend-pullback",
+      "pluginVersion": "1.0.0"
+    }
+  ],
+  "edges": [
+    {
+      "from": "technical",
+      "to": "pattern",
+      "fromPort": "candles"
+    },
+    {
+      "from": "technical",
+      "to": "sentiment"
+    },
+    {
+      "from": "technical",
+      "to": "news"
+    },
+    {
+      "from": "technical",
+      "to": "merge",
+      "optional": true
+    },
+    {
+      "from": "pattern",
+      "to": "merge",
+      "optional": true
+    },
+    {
+      "from": "sentiment",
+      "to": "merge",
+      "optional": true
+    },
+    {
+      "from": "news",
+      "to": "merge",
+      "optional": true
+    },
+    {
+      "from": "merge",
+      "to": "aiml"
+    },
+    {
+      "from": "aiml",
+      "to": "scorer"
+    }
+  ]
+}
