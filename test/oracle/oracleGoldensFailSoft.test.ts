@@ -1,12 +1,14 @@
 /**
  * ORACLE-EQUIVALENCE — golden captures, FAIL-SOFT environment.
  *
- * Freezes the CURRENT live behavior of BOTH scored endpoints
- * (POST /api/webhooks/tradingview — src/server.ts:194; POST /api/ingest/cpj —
- * src/server.ts:326) through the REAL shared path
- * (froggyScoringService → runPipelineDag(FROGGY_TREND_PULLBACK_PIPELINE) →
- * the four real froggy plugins) as committed goldens, so the upcoming
- * manifest-driven executor can be proven byte-equivalent.
+ * Freezes the live behavior of BOTH scored endpoints
+ * (POST /api/webhooks/tradingview; POST /api/ingest/cpj) through the REAL
+ * shared path — strategy resolution → boot-validated registry composition →
+ * GraphExecutor over the registered froggy manifest → the seven category
+ * nodes — as committed goldens. Originally captured against the legacy
+ * froggyScoringService path; the manifest-driven executor was proven
+ * byte-equivalent against these goldens with ONLY the documented intentional
+ * diffs (test/oracle/INTENTIONAL_DIFFS.md) regenerated.
  *
  * Deterministic environment (installOracleEnv + disableNetwork):
  *   - AFI_PRICE_FEED_SOURCE=demo → deterministic synthetic candles;
@@ -23,7 +25,7 @@
  *   inputHash/outputHash (afi.hash.v1 — deterministic for fixed fixtures),
  *   the governed evidence record captured at the store seam, and the HTTP
  *   response envelope — all volatile clock values normalized to '<CLOCK>'
- *   (scoredAt is NOT injectable: froggyScoringService.ts:225).
+ *   (scoredAt is NOT injectable in the live path).
  *
  * Goldens are regenerated ONLY via `npm run oracle:regen`.
  */
@@ -51,7 +53,7 @@ import {
   __resetUwrRuntimeConfigForTests,
   UWR_PROFILE_SOURCE_ENV,
 } from "../../src/config/uwrRuntimeProfile.js";
-import froggyAnalystPlugin from "../../plugins/froggy.trend_pullback_v1.plugin.js";
+import { scorerFroggyTrendPullbackNode } from "../../src/pipeline/nodes/scorerFroggyTrendPullback.js";
 // @ts-ignore — afi-core subpath types resolve via package exports; jest maps to source
 import { buildFroggyTrendPullbackInputFromEnriched } from "afi-core/analysts/froggy.enrichment_adapter.js";
 import {
@@ -65,7 +67,10 @@ import {
 
 let restoreEnv: () => void;
 let restoreNet: () => void;
-const analystSpy = jest.spyOn(froggyAnalystPlugin as { run: (e: unknown) => Promise<unknown> }, "run");
+// The scorer-node seam replaces the legacy analyst-plugin seam: the live
+// path now scores through the registered scorer category node. The node's
+// input IS the (aiMl-augmented) enriched view — same capture semantics.
+const analystSpy = jest.spyOn(scorerFroggyTrendPullbackNode, "run");
 
 beforeAll(() => {
   restoreEnv = installOracleEnv();

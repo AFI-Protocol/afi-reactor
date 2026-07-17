@@ -1,0 +1,373 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/pipeline/v1/pipeline.schema.json",
+  "title": "AFI Pipeline Manifest v1 (FACTORY-CONTRACT — canonical analyst-configurable pipeline topology)",
+  "description": "The canonical pipeline topology contract for AFI analyst-configurable pipelines (afi.pipeline.v1). A pipeline manifest is a DECLARATIVE, deterministic description of a directed acyclic analysis graph: nodes (plugin-backed analysis stages in the seven governed categories) and edges (dataflow, optionally condition-gated by a schema-validated predicate tree). nodes/edges is the ONE topology representation: there is deliberately NO enrichmentNodes map and NO requiredNodes list (the retired ungoverned drafts' three overlapping mechanisms are collapsed into this single one). The manifest binds plugins by pluginId+pluginVersion ONLY — binding to code happens in the consuming runtime's build-time plugin registry; no filesystem paths are representable. Exactly one node of category 'scorer' terminates every admissible graph (the single scoring seam); graph-semantic invariants JSON Schema draft-07 cannot express are governed contract constraints in x-afiConstraints, enforced by the accompanying vector/tooling tests.",
+  "$comment": "BOUNDARY (FACTORY-CONTRACT): schema/contract only — NO executor, NO plugin loading, NO runtime wiring, NO storage. The consuming runtime (afi-reactor pipelineRunner lineage) and the authoring factory (afi-factory) validate manifests against this schema PLUS the x-afiConstraints graph semantics before execution. node.config is an open object HERE and is validated downstream against the bound plugin's paramsSchema (afi.analysis-plugin.v1). Canonical manifest hashing (manifestHash) is specified by schemas/hashing/canonical-json-hashing.v1.md: description and metadata are volatile/annotational and are EXCLUDED from canonical hash material.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Factory — Analyst-Configurable Pipelines V1 (FACTORY-CONTRACT)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/factory-configurable-pipelines-v1 — authorizes the canonical V1 contract family (pipeline, pipeline-template, analysis-plugin, analyst-strategy-config/registration, provider-strategy-binding, composition-ref, scored-signal-evidence.v2) and the retirement of the superseded ungoverned drafts",
+    "reports/afi-configurable-dag-live-runtime-reconciliation.md §5/§9 N7 — canonical topology contract minted FRESH as afi.pipeline.v1 (never a mutation of the retired draft); ONE topology mechanism chosen (nodes/edges); node categories aligned to the code-canonical five analysis categories + merge + scorer",
+    "afi-governance/decisions/lifecycle-v0.1.md (LIFE-GOV) D-LIFE-1/D-LIFE-4 — one scoring seam: only the scorer stage effects VALIDATED→SCORED; no enrichment node performs lifecycle transitions (realized structurally: exactly one non-bypassable scorer sink)",
+    "afi-governance/decisions/persistence-v0.1.md (MONGO-GOV) D-MONGO-9 — deterministic replay/verify: joins must be deterministic by construction (join.merge conflictRule mandatory), conditions are data (predicate trees), never code",
+    "afi-governance/decisions/object-identity-v0.1.md (OBJ-GOV) D-OBJ-6 — two-axis versioning pattern: per-object schema-id const afi.pipeline.v1 + explicit pipelineVersion"
+  ],
+  "x-afiConstraints": {
+    "uniqueNodeIds": "GRAPH-SEMANTIC (not JSON-Schema-draft-07-enforceable): every nodes[].id MUST be unique within the manifest. Enforced by the manifest tooling/tests (see tests/pipeline-schema-validation.test.ts), never assumed.",
+    "knownEndpoints": "GRAPH-SEMANTIC: entry and every edges[].from / edges[].to MUST name a declared node id; self-edges are forbidden.",
+    "acyclicity": "GRAPH-SEMANTIC: the edge set MUST be acyclic (Kahn). A manifest with a cycle is inadmissible regardless of schema validity.",
+    "singleScorer": "GRAPH-SEMANTIC: exactly ONE node of category 'scorer'. The schema structurally requires AT LEAST one (nodes 'contains'); the at-most-one cap is enforced by tooling/tests. The scorer is the single scoring seam (LIFE-GOV D-LIFE-1).",
+    "scorerTerminality": "GRAPH-SEMANTIC: the scorer MUST be a sink (no outgoing edges), MUST be reachable from entry, and MUST NOT be bypassable: every node is reachable from entry and the scorer is the ONLY sink — so every path from entry that reaches any sink reaches the scorer. A non-scorer sink is inadmissible.",
+    "joinDeclaration": "GRAPH-SEMANTIC: any node with MORE THAN ONE incoming edge MUST declare join:{policy:'all', merge:{strategy, conflictRule}} — deterministic by construction; nodes with zero or one incoming edge MUST NOT declare join. A conflictRule of the form 'prefer:<nodeId>' MUST name one of that node's parent nodes.",
+    "deterministicConditions": "Edge conditions are schema-validated predicate trees over JSON-pointer-style paths into VALIDATED node outputs (/nodes/<nodeId>/output/...) or pipeline context (/context/...). They are pure data — deterministic given the same inputs. Code strings, expression languages, and unknown operators are structurally rejected (the condition property admits only the predicate-tree shape).",
+    "configValidatedDownstream": "node.config is an open object at this layer and MUST be validated by the consuming factory/runtime against the bound plugin's paramsSchema (afi.analysis-plugin.v1, resolved by pluginId+pluginVersion) before the manifest is accepted for execution.",
+    "pluginBinding": "The manifest binds plugins by pluginId+pluginVersion ONLY. Binding to code happens in the consuming runtime's build-time plugin registry; filesystem paths are not representable in this contract.",
+    "oneRepresentation": "nodes/edges is the ONE topology representation. The retired drafts' parallel mechanisms (enrichmentNodes map, requiredNodes list) are structurally rejected by additionalProperties:false and MUST NOT be reintroduced.",
+    "hashMaterial": "Canonical manifest hashing (manifestHash, domain tag afi.factory.pipeline-manifest) follows schemas/hashing/canonical-json-hashing.v1.md; description and metadata are excluded from canonical hash material. metadata is free-form and NON-AUTHORITATIVE: nothing in it may alter execution."
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "pipelineId", "pipelineVersion", "entry", "nodes", "edges"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "afi.pipeline.v1",
+      "description": "Schema-id version of the pipeline manifest (OBJ-GOV D-OBJ-6 axis (a))."
+    },
+    "pipelineId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Stable identifier of the pipeline topology (lowercase alphanumeric + hyphens). Registry key: one file per pipelineId+pipelineVersion under registries/pipelines/."
+    },
+    "pipelineVersion": {
+      "type": "string",
+      "pattern": "^v\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of this pipeline topology, WITH v prefix (v{major}.{minor}.{patch}). Any topology change requires a new version — never a mutation."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "OPTIONAL human-readable description. Annotational only — EXCLUDED from canonical hash material."
+    },
+    "entry": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Node id of the single entry node. MUST name a declared node (x-afiConstraints.knownEndpoints); every node must be reachable from it."
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The analysis stages of the graph. Node ids MUST be unique (x-afiConstraints.uniqueNodeIds). Structurally requires at least one 'scorer' node; exactly-one is a governed graph constraint.",
+      "items": { "$ref": "#/definitions/node" },
+      "contains": {
+        "type": "object",
+        "properties": { "category": { "const": "scorer" } },
+        "required": ["category"]
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "Directed dataflow edges. The edge set MUST be acyclic and MUST make the scorer the only sink reachable from entry (x-afiConstraints).",
+      "items": { "$ref": "#/definitions/edge" }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "OPTIONAL free-form annotations (author, notes, provenance of authorship). NON-AUTHORITATIVE: nothing here may alter execution; EXCLUDED from canonical hash material."
+    }
+  },
+  "definitions": {
+    "nodeId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "pluginId", "pluginVersion"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/nodeId",
+          "description": "Unique node id within the manifest (lowercase alphanumeric + hyphens)."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["technical", "pattern", "sentiment", "news", "aiMl", "merge", "scorer"],
+          "description": "Governed node category: the five code-canonical analysis categories (technical|pattern|sentiment|news|aiMl) plus 'merge' (structured join stage) and 'scorer' (the single scoring seam). No other categories exist in v1."
+        },
+        "pluginId": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Id of the afi.analysis-plugin.v1 manifest implementing this node. Resolved against the runtime's build-time plugin registry — never a filesystem path."
+        },
+        "pluginVersion": {
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+          "description": "Exact semver (NO v prefix) of the bound plugin manifest."
+        },
+        "config": {
+          "type": "object",
+          "description": "OPTIONAL node configuration. Open object at this layer; validated DOWNSTREAM against the bound plugin's paramsSchema (x-afiConstraints.configValidatedDownstream)."
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "OPTIONAL per-node execution timeout in milliseconds (>= 1). Absent means the plugin's defaultTimeoutMs (or no timeout if that too is absent)."
+        },
+        "maxRetries": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "OPTIONAL maximum retry count after the first attempt (>= 0)."
+        },
+        "retryDelayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "OPTIONAL base delay between retries in milliseconds."
+        },
+        "backoff": {
+          "type": "string",
+          "enum": ["none", "fixed", "exponential"],
+          "description": "OPTIONAL retry backoff policy applied to retryDelayMs."
+        },
+        "critical": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether a failure of this node aborts the pipeline. Defaults to TRUE (fail-fast). Only critical:false nodes may declare failurePolicy 'degrade'."
+        },
+        "failurePolicy": {
+          "type": "string",
+          "enum": ["abort", "degrade"],
+          "description": "OPTIONAL failure policy: 'abort' fails the whole run; 'degrade' records the degradation and continues to the join — allowed ONLY when critical is explicitly false (bound structurally by if/then below)."
+        },
+        "resourceLimits": {
+          "type": "object",
+          "description": "OPTIONAL operational resource limits for the node (open object; operational hints only, never scoring semantics)."
+        },
+        "join": {
+          "$ref": "#/definitions/join",
+          "description": "REQUIRED on (and only on) nodes with more than one incoming edge (x-afiConstraints.joinDeclaration). Declares the deterministic all-parents join and merge rule."
+        }
+      },
+      "if": {
+        "properties": { "failurePolicy": { "const": "degrade" } },
+        "required": ["failurePolicy"]
+      },
+      "then": {
+        "properties": { "critical": { "const": false } },
+        "required": ["critical"]
+      }
+    },
+    "join": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "merge"],
+      "properties": {
+        "policy": {
+          "type": "string",
+          "const": "all",
+          "description": "v1 fixes the join policy to 'all': the node runs when ALL non-optional parents have completed (optional parents that were skipped/degraded are joined as absent)."
+        },
+        "merge": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strategy", "conflictRule"],
+          "description": "Deterministic merge of parent outputs — deterministic by construction: strategy + conflictRule are both mandatory, so branch completion order can never change the merged value (MONGO-GOV D-MONGO-9).",
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "enum": ["namespace-by-node", "declared-fields"],
+              "description": "'namespace-by-node': parent outputs are merged under their node ids (no key collisions possible). 'declared-fields': parent outputs contribute the fields declared by their plugin outputSchemaRef; collisions resolve via conflictRule."
+            },
+            "conflictRule": {
+              "type": "string",
+              "pattern": "^(error|prefer:[a-z0-9-]+)$",
+              "description": "'error': any field collision fails the run. 'prefer:<nodeId>': collisions resolve to the named parent node's value; <nodeId> MUST be one of this node's parents (x-afiConstraints.joinDeclaration)."
+            }
+          }
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": {
+          "$ref": "#/definitions/nodeId",
+          "description": "Source node id (must be declared in nodes)."
+        },
+        "to": {
+          "$ref": "#/definitions/nodeId",
+          "description": "Target node id (must be declared in nodes)."
+        },
+        "fromPort": {
+          "type": "string",
+          "minLength": 1,
+          "description": "OPTIONAL named output port on the source node."
+        },
+        "toPort": {
+          "type": "string",
+          "minLength": 1,
+          "description": "OPTIONAL named input port on the target node."
+        },
+        "condition": {
+          "$ref": "#/definitions/predicate",
+          "description": "OPTIONAL activation predicate: the edge fires only when the predicate evaluates true over validated node outputs / pipeline context. Pure data (predicate tree) — code strings are structurally rejected."
+        },
+        "optional": {
+          "type": "boolean",
+          "default": false,
+          "description": "OPTIONAL marker that this edge's parent is optional for a downstream join: if the parent was skipped (condition false) or degraded, the join proceeds without it instead of waiting/failing."
+        }
+      }
+    },
+    "path": {
+      "type": "string",
+      "pattern": "^(/[A-Za-z0-9_.-]+)+$",
+      "description": "JSON-pointer-style path into validated node outputs (/nodes/<nodeId>/output/...) or pipeline context (/context/...). Non-empty segments only; never an expression."
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "value"],
+      "properties": {
+        "path": { "$ref": "#/definitions/path" },
+        "value": {
+          "type": ["string", "number", "boolean", "null"],
+          "description": "Scalar comparison operand (objects/arrays are not comparable operands in v1)."
+        }
+      }
+    },
+    "orderedComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "value"],
+      "properties": {
+        "path": { "$ref": "#/definitions/path" },
+        "value": {
+          "type": "number",
+          "description": "Numeric operand for ordering comparisons."
+        }
+      }
+    },
+    "predicate": {
+      "description": "Deterministic predicate tree. Exactly one operator per object: all/any (conjunction/disjunction over sub-predicates), not, exists(path), eq/ne (scalar equality), gt/gte/lt/lte (numeric ordering), in (path, values[]). Unknown operators and code strings are structurally rejected.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["all"],
+          "properties": {
+            "all": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/definitions/predicate" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["any"],
+          "properties": {
+            "any": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/definitions/predicate" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["not"],
+          "properties": {
+            "not": { "$ref": "#/definitions/predicate" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["exists"],
+          "properties": {
+            "exists": { "$ref": "#/definitions/path" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["eq"],
+          "properties": {
+            "eq": { "$ref": "#/definitions/comparison" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ne"],
+          "properties": {
+            "ne": { "$ref": "#/definitions/comparison" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["gt"],
+          "properties": {
+            "gt": { "$ref": "#/definitions/orderedComparison" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["gte"],
+          "properties": {
+            "gte": { "$ref": "#/definitions/orderedComparison" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lt"],
+          "properties": {
+            "lt": { "$ref": "#/definitions/orderedComparison" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lte"],
+          "properties": {
+            "lte": { "$ref": "#/definitions/orderedComparison" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["in"],
+          "properties": {
+            "in": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "values"],
+              "properties": {
+                "path": { "$ref": "#/definitions/path" },
+                "values": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "type": ["string", "number", "boolean", "null"] }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

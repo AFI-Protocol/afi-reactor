@@ -1,8 +1,9 @@
 /**
- * MONGO-REACTOR-SUBMIT (Slot 3) — canonical scored-signal evidence submission.
- * The Reactor constructs the governed afi.scored-signal-evidence.v1 record and
- * submits it through the afi-infra canonical evidence-store interface. It never
- * writes MongoDB directly and never retains a parallel canonical store.
+ * Canonical scored-signal evidence submission (MONGO-REACTOR-SUBMIT, evolved
+ * to v2 by FCP-GOV D-FCP-7). The Reactor constructs the governed
+ * afi.scored-signal-evidence.v2 record (v1 + REQUIRED composition provenance)
+ * and submits it through the afi-infra canonical evidence-store interface. It
+ * never writes MongoDB directly and never retains a parallel canonical store.
  */
 
 export {
@@ -10,7 +11,10 @@ export {
   ReactorEvidenceConstructionError,
   EVIDENCE_SCHEMA,
   REACTOR_LIFECYCLE_STATE,
+  type EvidenceCompositionContext,
+  type ReactorEvidenceRecord,
 } from "./reactorEvidenceRecord.js";
+export { validateEvidenceRecordV2 } from "./evidenceV2Schema.js";
 export {
   submitScoredSignalEvidence,
   ReactorEvidencePersistenceError,

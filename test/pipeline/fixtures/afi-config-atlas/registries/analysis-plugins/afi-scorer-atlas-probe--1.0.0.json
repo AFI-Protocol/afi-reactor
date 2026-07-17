@@ -1,0 +1,22 @@
+{
+  "schema": "afi.analysis-plugin.v1",
+  "pluginId": "afi-scorer-atlas-probe",
+  "pluginVersion": "1.0.0",
+  "implementationVersion": "1.0.0",
+  "category": "scorer",
+  "description": "TEST-ONLY scorer for the second-strategy proof (W3 spec 8.2): emits the atlas-probe strategy triple through the production envelope contract.",
+  "inputSchemaRef": "afi.test.atlas-merged.v1",
+  "outputSchemaRef": "afi.scored-signal.v1",
+  "deterministic": true,
+  "defaultTimeoutMs": 5000,
+  "permittedFailurePolicies": [
+    "abort"
+  ],
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "multiInstance": false,
+  "mayFeedScorer": true
+}

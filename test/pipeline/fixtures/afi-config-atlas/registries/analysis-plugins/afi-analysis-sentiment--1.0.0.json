@@ -1,0 +1,26 @@
+{
+  "schema": "afi.analysis-plugin.v1",
+  "pluginId": "afi-analysis-sentiment",
+  "pluginVersion": "1.0.0",
+  "implementationVersion": "1.0.0",
+  "category": "sentiment",
+  "description": "Official perp-market sentiment plugin manifest: derives funding/positioning sentiment features from the Coinalyze provider. External provider call — NOT deterministic; requires the COINALYZE_API_KEY secret class in the operator environment.",
+  "inputSchemaRef": "afi.usignal.v1.1",
+  "outputSchemaRef": "afi.enrichment.sentiment.v1",
+  "deterministic": false,
+  "capabilities": ["provider:coinalyze", "secret:COINALYZE_API_KEY"],
+  "defaultTimeoutMs": 10000,
+  "defaultRetryPolicy": {
+    "maxRetries": 2,
+    "retryDelayMs": 500,
+    "backoff": "fixed"
+  },
+  "permittedFailurePolicies": ["abort", "degrade"],
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "multiInstance": true,
+  "mayFeedScorer": true
+}

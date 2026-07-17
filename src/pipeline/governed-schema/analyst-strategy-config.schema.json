@@ -1,0 +1,188 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/analyst-strategy-config/v1/analyst-strategy-config.schema.json",
+  "title": "AFI Analyst Strategy Config v1 (FACTORY-CONTRACT — the analyst's strategy selection object)",
+  "description": "The canonical analyst strategy configuration (afi.analyst-strategy-config.v1): the SELECTION object that binds one canonical strategy identity triple (OBJ-GOV D-OBJ-3: analystId + strategyId + strategyVersion) to a pinned pipeline topology (pipelineRef with canonical manifestHash), a scorer plugin (scorerRef), a UWR scoring profile (uwrProfileRef), and a decay configuration (decayConfig), with bounded per-node overrides. It carries the CHOICES; the pipeline manifest carries the GRAPH. This is the object the resolution seam keys on to map an inbound signal to a strategy/pipeline.",
+  "$comment": "BOUNDARY (FACTORY-CONTRACT): schema/contract only — NO resolver, NO runtime, NO registry implementation. Referencing a uwrProfileRef does NOT wire the qualification gate, change production scoring law, or create reward eligibility (PR-UWR doctrine unchanged); an analyst config naming an identity the runtime does not recognize under UP-10 fail-closes at the UWR stamp, exactly as today. Cross-field/cross-artifact constraints JSON Schema draft-07 cannot express (strategyId embedded-major agreement, override boundedness, ref resolution) are governed contract constraints in x-afiConstraints, enforced by tooling/tests.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Factory — Analyst-Configurable Pipelines V1 (FACTORY-CONTRACT)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/factory-configurable-pipelines-v1 — authorizes the canonical V1 contract family",
+    "afi-governance/decisions/object-identity-v0.1.md (OBJ-GOV) D-OBJ-3 — canonical strategy identity triple: analystId + strategyId (bare snake_case slug with embedded major-version token; never embeds the analyst name) + strategyVersion (semver, NO v prefix)",
+    "afi-governance/decisions/uwr-profile-pin-v0.1.md (PR-UWR) UP-10 — profile/identity RECOGNITION is a runtime property; selecting a profile here confers nothing (no qualification, no rewards, no production scoring law)",
+    "reports/afi-configurable-dag-live-runtime-reconciliation.md §5/§6.2 — the analyst configuration carries the SELECTION (identity + pipelineRef + bounded overrides), not the graph"
+  ],
+  "x-afiConstraints": {
+    "strategyIdMajorAgreement": "CROSS-FIELD (not JSON-Schema-draft-07-enforceable): the major-version token embedded in strategyId (the trailing _v<major>) MUST equal the major component of strategyVersion (e.g. trend_pullback_v1 pairs only with 1.x.y). Enforced by tooling/tests.",
+    "analystNameNotEmbedded": "strategyId is a bare strategy slug and MUST NOT embed the analyst name (OBJ-GOV D-OBJ-3). Not pattern-enforceable; reviewed at registration.",
+    "boundedOverrides": "nodeOverrides may only reference node ids present in the referenced pipeline manifest, and only tune {enabled, config} — never topology, plugins, joins, or the scorer. An override's config is validated against the bound plugin's paramsSchema exactly like the base config. Cross-artifact; enforced by factory validation.",
+    "pinnedTopology": "pipelineRef.manifestHash pins the EXACT canonical pipeline manifest (schemas/hashing/canonical-json-hashing.v1.md, domain tag afi.factory.pipeline-manifest). A resolved manifest whose canonical hash differs fails closed.",
+    "scorerAgreement": "scorerRef MUST identify the plugin bound by the referenced pipeline's single scorer node (same pluginId+pluginVersion). Cross-artifact; enforced by factory validation.",
+    "hashMaterial": "The canonical analystConfigHash (afi.composition-ref.v1 / registration, domain tag afi.factory.analyst-config) is computed over this object per schemas/hashing/canonical-json-hashing.v1.md, EXCLUDING metadata."
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "analystId",
+    "strategyId",
+    "strategyVersion",
+    "pipelineRef",
+    "scorerRef",
+    "uwrProfileRef",
+    "decayConfig"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "afi.analyst-strategy-config.v1",
+      "description": "Schema-id version of the analyst strategy config."
+    },
+    "analystId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Canonical triple member (OBJ-GOV D-OBJ-3): the analyst identity, kept orthogonal to strategyId."
+    },
+    "strategyId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*_v(0|[1-9]\\d*)$",
+      "maxLength": 100,
+      "description": "Canonical triple member (OBJ-GOV D-OBJ-3): bare snake_case strategy slug with the embedded major-version token (e.g. trend_pullback_v1). The embedded major MUST match strategyVersion's major (x-afiConstraints.strategyIdMajorAgreement); the analyst name is never embedded."
+    },
+    "strategyVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "description": "Canonical triple member (OBJ-GOV D-OBJ-3): semver, NO v prefix (e.g. 1.0.0)."
+    },
+    "pipelineRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pipelineId", "pipelineVersion", "manifestHash"],
+      "description": "Pin of the exact pipeline topology this strategy runs: identity + canonical manifest hash (fail-closed on mismatch).",
+      "properties": {
+        "pipelineId": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "pipelineVersion": {
+          "type": "string",
+          "pattern": "^v\\d+\\.\\d+\\.\\d+$"
+        },
+        "manifestHash": {
+          "$ref": "https://afi-protocol.org/schemas/provenance/v1/canonical-hash.schema.json",
+          "description": "CanonicalHash v1 of the referenced afi.pipeline.v1 manifest (canonical-json-hashing.v1; description/metadata excluded)."
+        }
+      }
+    },
+    "scorerRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pluginId", "pluginVersion"],
+      "description": "The scorer plugin identity. MUST agree with the referenced pipeline's single scorer node (x-afiConstraints.scorerAgreement).",
+      "properties": {
+        "pluginId": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "pluginVersion": {
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+        }
+      }
+    },
+    "uwrProfileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profileId"],
+      "description": "The UWR scoring profile this strategy scores under (e.g. a registries/uwr-profiles entry). Selection here is configuration only: recognition, qualification, and rewards remain separately governed (UP-10/UP-9/§6).",
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    },
+    "decayConfig": {
+      "description": "Decay selection: EITHER a reference to a governed decay template (ref.templateId, e.g. a GreeksDecayTemplate id) OR an inline surface (halfLifeMinutes > 0 + the greeksTemplateId it derives from). Exactly one form.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ref"],
+          "properties": {
+            "ref": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["templateId"],
+              "properties": {
+                "templateId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "description": "Id of a governed decay template (e.g. decay-swing-v1)."
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inline"],
+          "properties": {
+            "inline": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["halfLifeMinutes", "greeksTemplateId"],
+              "properties": {
+                "halfLifeMinutes": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Half-life in minutes; strictly positive."
+                },
+                "greeksTemplateId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "description": "The Greeks template family the inline surface derives from."
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "nodeOverrides": {
+      "type": "object",
+      "description": "OPTIONAL bounded per-node overrides, keyed by node id of the referenced pipeline (x-afiConstraints.boundedOverrides). Only {enabled, config} are tunable — never topology.",
+      "propertyNames": {
+        "pattern": "^[a-z0-9-]+$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Disable/enable the node (only admissible on nodes whose absence keeps the graph admissible; factory-validated)."
+          },
+          "config": {
+            "type": "object",
+            "description": "Replacement node config; validated against the bound plugin's paramsSchema."
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "OPTIONAL free-form annotations; non-authoritative; EXCLUDED from canonical hash material (analystConfigHash)."
+    }
+  }
+}

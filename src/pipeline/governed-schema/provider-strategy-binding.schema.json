@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/provider-strategy-binding/v1/provider-strategy-binding.schema.json",
+  "title": "AFI Provider Strategy Binding v1 (FACTORY-CONTRACT — provider-to-strategy routing contract)",
+  "description": "The canonical provider-to-strategy binding (afi.provider-strategy-binding.v1): which STRATEGIES an authenticated signal provider may route into, and which one is the default when the inbound signal does not select one. A binding names the provider, its ingress class (providerType), the authentication CLASS that authenticates it (authenticatedBy — never secret material), the whitelist of canonical strategy triples it may invoke (allowedStrategies), an optional defaultStrategy (which MUST be a member of allowedStrategies), and an active/inactive status.",
+  "$comment": "BOUNDARY (FACTORY-CONTRACT): schema/contract only — NO route implementation, NO tenant management, NO secret storage. authenticatedBy names the mechanism class (route-secret | gateway-tenant | integration-key); the secret/tenant/key VALUES live in operator configuration, never here. The defaultStrategy-membership rule is cross-field over array membership (not JSON-Schema-draft-07-enforceable) and is a governed contract constraint enforced by tooling/tests.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Factory — Analyst-Configurable Pipelines V1 (FACTORY-CONTRACT)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/factory-configurable-pipelines-v1 — authorizes the canonical V1 contract family",
+    "afi-governance/decisions/object-identity-v0.1.md (OBJ-GOV) D-OBJ-3 — allowedStrategies entries are canonical strategy identity triples",
+    "reports/afi-configurable-dag-live-runtime-reconciliation.md §1/§6.2 — the resolution seam: today every provider statically resolves to one strategy; this binding makes that routing declarative and auditable"
+  ],
+  "x-afiConstraints": {
+    "defaultMembership": "CROSS-FIELD (not JSON-Schema-draft-07-enforceable): defaultStrategy, when present, MUST be deep-equal to one of the allowedStrategies entries. Enforced by tooling/tests; a binding violating it fails closed.",
+    "noSecretMaterial": "authenticatedBy names the authentication CLASS only. Secret values, tenant records, and integration keys are operator configuration and MUST NOT appear in this artifact (additionalProperties:false leaves them nowhere to live).",
+    "strategyResolution": "REGISTRY-TOOLING: every allowedStrategies triple SHOULD resolve to an ACTIVE afi.analyst-strategy-registration.v1 entry whose providerBindingPolicy admits this binding (mode 'any-authenticated', or 'explicit' listing this bindingId). Routing through a non-resolving triple fails closed at composition time.",
+    "strategyIdMajorAgreement": "Each triple's strategyId embedded major MUST equal its strategyVersion major (D-OBJ-3; tooling-enforced)."
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "bindingId",
+    "providerId",
+    "providerType",
+    "authenticatedBy",
+    "allowedStrategies",
+    "status"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "afi.provider-strategy-binding.v1",
+      "description": "Schema-id version of the provider strategy binding."
+    },
+    "bindingId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Stable identifier of this binding (referenced by registration providerBindingPolicy.allowedBindings)."
+    },
+    "providerId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Stable identifier of the signal provider (same id space as USS provenance.providerId)."
+    },
+    "providerType": {
+      "type": "string",
+      "enum": ["webhook", "cpj", "gateway"],
+      "description": "Ingress class: 'webhook' (e.g. TradingView alert webhook), 'cpj' (Chat Parse JSON ingestion), 'gateway' (afi-gateway tenant ingress)."
+    },
+    "authenticatedBy": {
+      "type": "string",
+      "enum": ["route-secret", "gateway-tenant", "integration-key"],
+      "description": "The authentication CLASS that authenticates this provider at ingress. Names the mechanism only — never carries the secret value (x-afiConstraints.noSecretMaterial)."
+    },
+    "allowedStrategies": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Whitelist of canonical strategy identity triples this provider may route into.",
+      "items": { "$ref": "#/definitions/strategyTriple" }
+    },
+    "defaultStrategy": {
+      "$ref": "#/definitions/strategyTriple",
+      "description": "OPTIONAL default triple used when the inbound signal does not select a strategy. MUST be a member of allowedStrategies (x-afiConstraints.defaultMembership)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "inactive"],
+      "description": "Binding status. Only 'active' bindings route; 'inactive' retires without deletion."
+    }
+  },
+  "definitions": {
+    "strategyTriple": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analystId", "strategyId", "strategyVersion"],
+      "description": "Canonical strategy identity triple (OBJ-GOV D-OBJ-3).",
+      "properties": {
+        "analystId": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "strategyId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*_v(0|[1-9]\\d*)$",
+          "maxLength": 100
+        },
+        "strategyVersion": {
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+        }
+      }
+    }
+  }
+}

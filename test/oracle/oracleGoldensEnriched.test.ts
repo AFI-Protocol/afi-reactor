@@ -113,7 +113,7 @@ import {
   __resetUwrRuntimeConfigForTests,
   UWR_PROFILE_SOURCE_ENV,
 } from "../../src/config/uwrRuntimeProfile.js";
-import froggyAnalystPlugin from "../../plugins/froggy.trend_pullback_v1.plugin.js";
+import { scorerFroggyTrendPullbackNode } from "../../src/pipeline/nodes/scorerFroggyTrendPullback.js";
 // @ts-ignore — afi-core subpath types resolve via package exports; jest maps to source
 import { buildFroggyTrendPullbackInputFromEnriched } from "afi-core/analysts/froggy.enrichment_adapter.js";
 import {
@@ -127,7 +127,10 @@ import {
 
 let restoreEnv: () => void;
 let restoreNet: () => void;
-const analystSpy = jest.spyOn(froggyAnalystPlugin as { run: (e: unknown) => Promise<unknown> }, "run");
+// The scorer-node seam replaces the legacy analyst-plugin seam: the live
+// path now scores through the registered scorer category node. The node's
+// input IS the (aiMl-augmented) enriched view — same capture semantics.
+const analystSpy = jest.spyOn(scorerFroggyTrendPullbackNode, "run");
 
 beforeAll(() => {
   restoreEnv = installOracleEnv();

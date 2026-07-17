@@ -1,0 +1,28 @@
+{
+  "schema": "afi.analyst-strategy-config.v1",
+  "analystId": "atlas-probe",
+  "strategyId": "multi_branch_v1",
+  "strategyVersion": "1.0.0",
+  "pipelineRef": {
+    "pipelineId": "atlas-multi-branch",
+    "pipelineVersion": "v1.0.0",
+    "manifestHash": {
+      "algorithm": "sha256",
+      "canonicalizationVersion": "afi.hash.v1",
+      "domainTag": "afi.d2.composition-manifest",
+      "value": "8cb66b4e8eff3ec5f6d80ae2b6c549722600b4b4f77b666fa6c074a2547855bc"
+    }
+  },
+  "scorerRef": {
+    "pluginId": "afi-scorer-atlas-probe",
+    "pluginVersion": "1.0.0"
+  },
+  "uwrProfileRef": {
+    "profileId": "uwr-weighted-lifts-v0.1"
+  },
+  "decayConfig": {
+    "ref": {
+      "templateId": "decay-scalp-v1"
+    }
+  }
+}

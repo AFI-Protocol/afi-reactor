@@ -35,7 +35,7 @@
     "facts": {
       "direction": "neutral",
       "market": "perp",
-      "strategy": "cpj-ingested",
+      "strategy": "trend_pullback_v1",
       "symbol": "SOL/USDT",
       "timeframe": "15m"
     },
@@ -61,6 +61,43 @@
   "evidenceRecord": {
     "analystId": "froggy",
     "canonicalizationVersion": "afi.hash.v1",
+    "composition": {
+      "analystConfigHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.analyst-config",
+        "value": "269ae355a0d8bfaf53d849c38fba16e167f0571b6319ddc8d94841ff7c275261"
+      },
+      "enrichmentHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.enrichment-bundle",
+        "value": "1bb17078d1700da38c878f4ae4d8720f977bab65e86b3c37a688df7c819427a5"
+      },
+      "executionSummaryHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.execution-summary",
+        "value": "53e7083eb8c69fdac01b1a779aa9953baac7a11d7f321628c23f135ab4b53d8c"
+      },
+      "manifestHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.composition-manifest",
+        "value": "b8d9b73410ce8ec0d1827d75ee2a2e750aa85553fb2fc985a7a52fdb75080d49"
+      },
+      "pipelineId": "froggy-trend-pullback",
+      "pipelineVersion": "v1.0.0",
+      "pluginSetHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.plugin-set",
+        "value": "6d54c8b720d6d709962bc2b8c792b4e8b1657308fac46fbec33a8f24232e0bb7"
+      },
+      "schema": "afi.composition-ref.v1",
+      "scorerPluginId": "afi-scorer-froggy-trend-pullback",
+      "scorerPluginVersion": "1.0.0"
+    },
     "finalized": false,
     "lifecycleState": "SCORED",
     "provenanceRecord": {
@@ -73,7 +110,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.signal-input",
-        "value": "cf41be7972cc34f4cd810c4eb6f39d6948254621809aff53fe1801d29ac3a9cd"
+        "value": "bbee6935424a5c4ee47c5d612bd148b632f709c9ca8fef002c124f79ef4465b8"
       },
       "outputHash": {
         "algorithm": "sha256",
@@ -89,7 +126,7 @@
       "signalId": "cpj-discord-oracle-discord-guild-3-oracle-cpj-msg-0003"
     },
     "recordVersion": 1,
-    "schema": "afi.scored-signal-evidence.v1",
+    "schema": "afi.scored-signal-evidence.v2",
     "scoredSignal": {
       "analystId": "froggy",
       "conviction": 0.42500000000000004,
@@ -241,7 +278,7 @@
       "meta": {
         "direction": "neutral",
         "source": "cpj-discord",
-        "strategy": "cpj-ingested",
+        "strategy": "trend_pullback_v1",
         "symbol": "SOL/USDT",
         "timeframe": "15m"
       },
@@ -249,7 +286,7 @@
         "facts": {
           "direction": "neutral",
           "market": "perp",
-          "strategy": "cpj-ingested",
+          "strategy": "trend_pullback_v1",
           "symbol": "SOL/USDT",
           "timeframe": "15m"
         },
@@ -277,7 +314,7 @@
       "facts": {
         "direction": "neutral",
         "market": "perp",
-        "strategy": "cpj-ingested",
+        "strategy": "trend_pullback_v1",
         "symbol": "SOL/USDT",
         "timeframe": "15m"
       },
@@ -300,7 +337,7 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.signal-input",
-    "value": "cf41be7972cc34f4cd810c4eb6f39d6948254621809aff53fe1801d29ac3a9cd"
+    "value": "bbee6935424a5c4ee47c5d612bd148b632f709c9ca8fef002c124f79ef4465b8"
   },
   "outputHash": {
     "algorithm": "sha256",

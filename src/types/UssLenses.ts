@@ -190,7 +190,7 @@ export interface SentimentLensV1 extends UssLens {
     providerMeta?: {
       primary: "coinalyze" | "binance" | "demo";
       secondary?: "binance" | "coingecko";
-      symbols: string[]; // e.g. ["BTCUSDT_PERP.A"]
+      symbols: string[]; // provider-convention symbols ('<BASE><QUOTE>_PERP.A')
     };
   };
 }

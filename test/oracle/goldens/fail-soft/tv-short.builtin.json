@@ -35,15 +35,15 @@
     "facts": {
       "direction": "short",
       "market": "perp",
-      "strategy": "froggy_trend_pullback_v1",
+      "strategy": "trend_pullback_v1",
       "symbol": "ETHUSDT",
       "timeframe": "4h"
     },
     "provenance": {
-      "ingestHash": "ffa140b9d44342e258401ba56d1d2c9fbbabaa22977ecfd89a8606490ef231c0",
+      "ingestHash": "222e5a67a0cb62441dfeba21081e8bfea44be1cd5b4c1208c8d7a4e707491fef",
       "ingestedAt": "<CLOCK>",
       "providerId": "oracle-provider-tv",
-      "providerRef": "froggy_trend_pullback_v1",
+      "providerRef": "trend_pullback_v1",
       "providerType": "tradingview",
       "signalId": "oracle-tv-short-0001",
       "source": "tradingview-webhook"
@@ -58,6 +58,43 @@
   "evidenceRecord": {
     "analystId": "froggy",
     "canonicalizationVersion": "afi.hash.v1",
+    "composition": {
+      "analystConfigHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.analyst-config",
+        "value": "269ae355a0d8bfaf53d849c38fba16e167f0571b6319ddc8d94841ff7c275261"
+      },
+      "enrichmentHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.enrichment-bundle",
+        "value": "139a6ee60875cc2240063ff48946e173cb2b23171c2d861e928159d5dd91f58a"
+      },
+      "executionSummaryHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.execution-summary",
+        "value": "53e7083eb8c69fdac01b1a779aa9953baac7a11d7f321628c23f135ab4b53d8c"
+      },
+      "manifestHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.composition-manifest",
+        "value": "b8d9b73410ce8ec0d1827d75ee2a2e750aa85553fb2fc985a7a52fdb75080d49"
+      },
+      "pipelineId": "froggy-trend-pullback",
+      "pipelineVersion": "v1.0.0",
+      "pluginSetHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.plugin-set",
+        "value": "6d54c8b720d6d709962bc2b8c792b4e8b1657308fac46fbec33a8f24232e0bb7"
+      },
+      "schema": "afi.composition-ref.v1",
+      "scorerPluginId": "afi-scorer-froggy-trend-pullback",
+      "scorerPluginVersion": "1.0.0"
+    },
     "finalized": false,
     "lifecycleState": "SCORED",
     "provenanceRecord": {
@@ -70,7 +107,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.signal-input",
-        "value": "d603dc985718db3b56336085f41a080011e4bc50ad559623156b68460ca8a6c5"
+        "value": "1090e181f37729c0ca65b6c2f1a74416c50c9e8ee99605221b352aa9b1535423"
       },
       "outputHash": {
         "algorithm": "sha256",
@@ -86,7 +123,7 @@
       "signalId": "oracle-tv-short-0001"
     },
     "recordVersion": 1,
-    "schema": "afi.scored-signal-evidence.v1",
+    "schema": "afi.scored-signal-evidence.v2",
     "scoredSignal": {
       "analystId": "froggy",
       "conviction": 0.42500000000000004,
@@ -229,7 +266,7 @@
     "meta": {
       "direction": "short",
       "source": "tradingview-webhook",
-      "strategy": "froggy_trend_pullback_v1",
+      "strategy": "trend_pullback_v1",
       "symbol": "ETHUSDT",
       "timeframe": "4h"
     },
@@ -243,15 +280,15 @@
       "facts": {
         "direction": "short",
         "market": "perp",
-        "strategy": "froggy_trend_pullback_v1",
+        "strategy": "trend_pullback_v1",
         "symbol": "ETHUSDT",
         "timeframe": "4h"
       },
       "provenance": {
-        "ingestHash": "ffa140b9d44342e258401ba56d1d2c9fbbabaa22977ecfd89a8606490ef231c0",
+        "ingestHash": "222e5a67a0cb62441dfeba21081e8bfea44be1cd5b4c1208c8d7a4e707491fef",
         "ingestedAt": "<CLOCK>",
         "providerId": "oracle-provider-tv",
-        "providerRef": "froggy_trend_pullback_v1",
+        "providerRef": "trend_pullback_v1",
         "providerType": "tradingview",
         "signalId": "oracle-tv-short-0001",
         "source": "tradingview-webhook"
@@ -266,7 +303,7 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.signal-input",
-    "value": "d603dc985718db3b56336085f41a080011e4bc50ad559623156b68460ca8a6c5"
+    "value": "1090e181f37729c0ca65b6c2f1a74416c50c9e8ee99605221b352aa9b1535423"
   },
   "outputHash": {
     "algorithm": "sha256",

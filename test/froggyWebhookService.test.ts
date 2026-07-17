@@ -75,16 +75,21 @@ describe("Reactor scored-only surface", () => {
     });
   });
 
-  it("maps TradingView payload to canonical USS v1.1", () => {
-    const uss = mapTradingViewToUssV11({
-      symbol: "BTC/USDT",
-      timeframe: "15m",
-      strategy: "froggy_trend_pullback_v1",
-      direction: "long",
-    });
+  it("maps TradingView payload to canonical USS v1.1 (resolved strategy in — W3 spec section 4)", () => {
+    const uss = mapTradingViewToUssV11(
+      {
+        symbol: "BTC/USDT",
+        timeframe: "15m",
+        strategy: "froggy_trend_pullback_v1",
+        direction: "long",
+      },
+      { strategyId: "trend_pullback_v1" }
+    );
 
     expect(uss.schema).toBe("afi.usignal.v1.1");
     expect(uss.provenance.source).toBe("tradingview-webhook");
     expect(uss.provenance.signalId).toBeDefined();
+    // facts.strategy is the RESOLVED registered strategyId, never free text
+    expect(uss.facts?.strategy).toBe("trend_pullback_v1");
   });
 });

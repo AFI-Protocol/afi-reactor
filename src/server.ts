@@ -31,15 +31,23 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express, { Request, Response } from "express";
-import {
-  runFroggyTrendPullbackFromTradingView,
-  runFroggyTrendPullbackFromCanonicalUss,
-  type TradingViewAlertPayload,
-} from "./services/froggyScoringService.js";
 import { validateUsignalV11 } from "./uss/ussValidator.js";
-import { mapTradingViewToUssV11 } from "./uss/tradingViewMapper.js";
+import {
+  mapTradingViewToUssV11,
+  type TradingViewAlertPayload,
+} from "./uss/tradingViewMapper.js";
 import { validateCpjV01 } from "./cpj/cpjValidator.js";
 import { mapCpjToUssV11 } from "./uss/cpjMapper.js";
+import {
+  getRuntimeComposition,
+  initRuntimeComposition,
+} from "./config/runtimeComposition.js";
+import {
+  resolveStrategyForProvider,
+  resolveWebhookProviderId,
+  StrategyResolutionError,
+} from "./config/strategyResolution.js";
+import { scoreRegisteredStrategyFromCanonicalUss } from "./services/graphScoringService.js";
 import type { Server as HttpServer } from "http";
 import {
   initDedupeCache,
@@ -66,6 +74,19 @@ const app = express();
  * the signalId + category/code — never the full record or payload.
  */
 function respondWithFailure(res: Response, err: unknown, context: string): Response {
+  if (err instanceof StrategyResolutionError) {
+    // Honest resolution rejection (W3 spec section 4): no binding / inactive
+    // binding / unauthorized strategy → 403 with the typed discriminator.
+    console.warn(`⚠️ ${context}: strategy resolution refused`, {
+      code: err.code,
+      providerId: err.providerId,
+      requestedStrategy: err.requestedStrategy,
+    });
+    return res.status(err.httpStatus).json({
+      error: err.code,
+      message: err.message,
+    });
+  }
   if (err instanceof ReactorEvidencePersistenceError) {
     console.error(`❌ ${context}: canonical persistence failed`, {
       signalId: err.signalId,
@@ -172,7 +193,7 @@ if (process.env.DEBUG_ENDPOINTS_ENABLED === "true" && process.env.NODE_ENV !== "
  * {
  *   "symbol": "BTCUSDT",
  *   "timeframe": "15m",
- *   "strategy": "froggy_trend_pullback_v1",
+ *   "strategy": "trend_pullback_v1",  (a registered strategyId, the full analystId/strategyId@version form, or free text resolved to the binding defaultStrategy)
  *   "direction": "long",
  *   "setupSummary": "Bullish pullback",
  *   "notes": "Optional notes",
@@ -238,9 +259,29 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
       direction: rawPayload.direction,
     });
 
+    // ✅ STRATEGY RESOLUTION (W3 spec section 4) — BEFORE USS mapping, so
+    // facts.strategy is the RESOLVED registered strategyId. Resolution runs
+    // against the boot-validated provider-binding registry; every rejection
+    // is an honest 403 (no silent froggy fallback).
+    const providerId = resolveWebhookProviderId(rawPayload);
+    const resolution = resolveStrategyForProvider(
+      {
+        providerId,
+        providerType: "webhook",
+        requestedStrategy: rawPayload.strategy,
+      },
+      getRuntimeComposition().runtime
+    );
+
+    console.log(`✅ Strategy resolved:`, {
+      providerId,
+      bindingId: resolution.binding.bindingId,
+      strategy: `${resolution.triple.analystId}/${resolution.triple.strategyId}@${resolution.triple.strategyVersion}`,
+    });
+
     // ✅ CANONICAL USS v1.1 INGESTION
-    // Map TradingView payload to canonical USS v1.1
-    const canonicalUss = mapTradingViewToUssV11(rawPayload);
+    // Map TradingView payload to canonical USS v1.1 (resolved strategy in)
+    const canonicalUss = mapTradingViewToUssV11(rawPayload, resolution.triple);
 
     // Validate canonical USS against schema
     const validation = validateUsignalV11(canonicalUss);
@@ -259,22 +300,29 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
       source: canonicalUss.provenance.source,
     });
 
-    // ✅ Run the Froggy scoring pipeline with canonical USS v1.1
-    // The canonical USS is now the single source of truth passed into the DAG
-    const result = await runFroggyTrendPullbackFromCanonicalUss(canonicalUss);
+    // ✅ Execute the RESOLVED registered composition through the
+    // manifest-driven GraphExecutor (boot-validated registry composition —
+    // the production switch of SLOT-FCP-REACTOR).
+    const run = await scoreRegisteredStrategyFromCanonicalUss(
+      canonicalUss,
+      resolution.strategy
+    );
 
-    console.log(`✅ Froggy scoring complete:`, {
-      signalId: result.signalId,
-      uwrScore: result.analystScore.uwrScore,
+    console.log(`✅ Scoring complete:`, {
+      signalId: run.scored.signalId,
+      uwrScore: run.scored.analystScore.uwrScore,
     });
 
     // Canonical evidence persistence is a REQUIRED step of the scoring run
-    // (MONGO-GOV D-MONGO-3): submit the governed record through the afi-infra
-    // interface. A persistence failure is a first-class, honestly-reported
-    // failure — never a masked 200.
-    const persistence = await submitScoredSignalEvidence(result, getEvidenceStore());
+    // (MONGO-GOV D-MONGO-3): submit the governed v2 record (with its
+    // composition provenance) through the afi-infra interface. A persistence
+    // failure is a first-class, honestly-reported failure — never a masked 200.
+    const persistence = await submitScoredSignalEvidence(run.scored, getEvidenceStore(), {
+      composition: run.composition,
+      registration: run.registration,
+    });
 
-    return res.status(200).json({ ...result, persistence });
+    return res.status(200).json({ ...run.scored, persistence });
   } catch (err: any) {
     return respondWithFailure(res, err, "Error processing TradingView webhook");
   }
@@ -363,8 +411,27 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
       parseConfidence: rawPayload.parse.confidence,
     });
 
+    // ✅ STEP 1.5: STRATEGY RESOLUTION (W3 spec section 4) — BEFORE USS
+    // mapping, so facts.strategy is the RESOLVED registered strategyId
+    // (replaces the removed cpj-ingested constant). CPJ payloads name no
+    // strategy: the provider binding's defaultStrategy resolves; absence of a
+    // binding is an honest 403 rejection, never a silent default composition.
+    const resolution = resolveStrategyForProvider(
+      {
+        providerId: rawPayload.provenance.providerId,
+        providerType: "cpj",
+      },
+      getRuntimeComposition().runtime
+    );
+
+    console.log(`✅ Strategy resolved (CPJ):`, {
+      providerId: rawPayload.provenance.providerId,
+      bindingId: resolution.binding.bindingId,
+      strategy: `${resolution.triple.analystId}/${resolution.triple.strategyId}@${resolution.triple.strategyVersion}`,
+    });
+
     // ✅ STEP 2: Map CPJ → USS v1.1 with strict symbol validation
-    const mappingResult = mapCpjToUssV11(rawPayload);
+    const mappingResult = mapCpjToUssV11(rawPayload, resolution.triple);
 
     // Check for symbol normalization failures
     if (!mappingResult.success) {
@@ -428,16 +495,25 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
     // Record this ingest for future dedupe checks
     recordIngest(ingestHash, signalId);
 
-    // ✅ STEP 4: Run the Froggy scoring pipeline with canonical USS v1.1
-    const pipelineResult = await runFroggyTrendPullbackFromCanonicalUss(canonicalUss);
+    // ✅ STEP 4: Execute the RESOLVED registered composition through the
+    // manifest-driven GraphExecutor (boot-validated registry composition).
+    const run = await scoreRegisteredStrategyFromCanonicalUss(
+      canonicalUss,
+      resolution.strategy
+    );
+    const pipelineResult = run.scored;
 
-    console.log(`✅ Froggy scoring complete (CPJ ingestion):`, {
+    console.log(`✅ Scoring complete (CPJ ingestion):`, {
       signalId: pipelineResult.signalId,
       uwrScore: pipelineResult.analystScore.uwrScore,
     });
 
-    // Canonical evidence persistence (REQUIRED; failure is first-class).
-    const persistence = await submitScoredSignalEvidence(pipelineResult, getEvidenceStore());
+    // Canonical evidence persistence (REQUIRED; failure is first-class) —
+    // the governed v2 record with its composition provenance.
+    const persistence = await submitScoredSignalEvidence(pipelineResult, getEvidenceStore(), {
+      composition: run.composition,
+      registration: run.registration,
+    });
 
     // Return result
     return res.status(200).json({
@@ -487,6 +563,29 @@ export async function shutdownReactor(server?: HttpServer): Promise<void> {
  */
 if (process.env.NODE_ENV !== "test") {
   const PORT = parseInt(process.env.PORT || process.env.AFI_REACTOR_PORT || "8080", 10);
+
+  // ✅ BOOT-TIME REGISTRY VALIDATION (W3 spec section 3; D-FCP-8): validate
+  // the ENTIRE active registry composition (schemas, hashes, plugin bindings,
+  // scorer/UWR/decay refs, provider bindings) BEFORE accepting any request.
+  // ANY invalid ACTIVE entry throws here and the process refuses to serve —
+  // no lazy discovery at request time, no partial boot.
+  try {
+    const composition = initRuntimeComposition();
+    console.log(
+      `✅ Runtime registry composition validated:`,
+      {
+        strategies: [...composition.runtime.strategies.keys()],
+        bindings: composition.runtime.bindings.size,
+        plugins: composition.pluginRegistry.keys().length,
+      }
+    );
+  } catch (err) {
+    console.error(
+      `❌ BOOT REFUSED — the active registry composition is invalid (D-FCP-8 honest failure):`,
+      (err as Error)?.message ?? String(err)
+    );
+    throw err;
+  }
 
   const server = app.listen(PORT, async () => {
     console.log(`🚀 AFI REACTOR - Scoring Pipeline`);

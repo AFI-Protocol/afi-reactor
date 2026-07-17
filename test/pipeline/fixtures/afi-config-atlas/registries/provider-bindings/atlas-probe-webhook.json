@@ -1,0 +1,20 @@
+{
+  "schema": "afi.provider-strategy-binding.v1",
+  "bindingId": "atlas-probe-webhook",
+  "providerId": "atlas-probe-provider",
+  "providerType": "webhook",
+  "authenticatedBy": "route-secret",
+  "allowedStrategies": [
+    {
+      "analystId": "atlas-probe",
+      "strategyId": "multi_branch_v1",
+      "strategyVersion": "1.0.0"
+    }
+  ],
+  "defaultStrategy": {
+    "analystId": "atlas-probe",
+    "strategyId": "multi_branch_v1",
+    "strategyVersion": "1.0.0"
+  },
+  "status": "active"
+}

@@ -13,9 +13,12 @@ declare module "afi-core/analyst" {
 declare module "afi-core/analysts/froggy.enrichment_adapter.js" {
   export type EnrichmentProfile = any;
   export type FroggyEnrichedView = any;
+  export function buildFroggyTrendPullbackInputFromEnriched(enriched: any): any;
 }
 declare module "afi-core/analysts/froggy.trend_pullback_v1.js" {
   export type FroggyTrendPullbackScore = any;
+  export function scoreFroggyTrendPullback(input: any, config?: any, enriched?: any): any;
+  export function scoreFroggyTrendPullbackFromEnriched(enriched: any): any;
 }
 declare module "afi-core/validators/ValidatorDecision.js" {
   export type ValidatorDecisionBase = any;
@@ -29,6 +32,11 @@ declare module "afi-core/validators/NoveltyTypes.js" {
 }
 declare module "afi-core/decay" {
   export type DecayParams = any;
+  export const DEFAULT_DECAY_TEMPLATES_BY_HORIZON: Record<
+    string,
+    { templateId: string; [key: string]: any }
+  >;
+  export function pickDecayParamsForAnalystScore(...args: any[]): any;
 }
 declare module "ccxt" {
   const ccxt: any;
@@ -68,12 +76,15 @@ declare module "input" {
 }
 declare module "ajv" {
   export type ValidateFunction = any;
-  export default class Ajv {
+  export type ErrorObject = any;
+  export class Ajv {
     constructor(options?: any);
     addSchema(schema: any, key?: string): void;
     getSchema(key: string): ValidateFunction | undefined;
     compile(schema: any): ValidateFunction;
+    addVocabulary(keywords: string[]): void;
   }
+  export default Ajv;
 }
 declare module "ajv-formats" {
   export default function addFormats(ajv: any): void;

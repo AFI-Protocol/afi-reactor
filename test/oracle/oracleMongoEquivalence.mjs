@@ -68,6 +68,9 @@ const EVIDENCE_COLLECTION = process.env.AFI_EVIDENCE_COLLECTION ?? "scored_signa
 const ROOT = process.cwd();
 const COMPILED_SERVER = pathToFileURL(path.resolve(ROOT, "dist/src/server.js")).href;
 const COMPILED_UWR = pathToFileURL(path.resolve(ROOT, "dist/src/config/uwrRuntimeProfile.js")).href;
+const COMPILED_COMPOSITION = pathToFileURL(
+  path.resolve(ROOT, "dist/src/config/runtimeComposition.js")
+).href;
 const GOLDENS = path.resolve(ROOT, "test/oracle/goldens/fail-soft");
 const FIXTURES = path.resolve(ROOT, "test/oracle/fixtures");
 
@@ -157,6 +160,13 @@ async function main() {
   const store = new MongoScoredSignalEvidenceStore({ mongoUri: URI, dbName: DB_NAME });
   const { default: app, shutdownReactor } = await import(COMPILED_SERVER);
   const { __resetUwrRuntimeConfigForTests, UWR_PROFILE_SOURCE_ENV } = await import(COMPILED_UWR);
+  // The committed oracle fixtures resolve through the oracle registry OVERLAY
+  // (test/oracle/fixtures/afi-config — byte-equal official registries + the
+  // oracle-fixture provider bindings), exactly like the jest oracle suites.
+  const { __setRuntimeCompositionOverridesForTests } = await import(COMPILED_COMPOSITION);
+  __setRuntimeCompositionOverridesForTests({
+    configRoot: path.resolve(ROOT, "test/oracle/fixtures/afi-config"),
+  });
 
   try {
     // Builtin (default) mode — all six fail-soft fixtures.

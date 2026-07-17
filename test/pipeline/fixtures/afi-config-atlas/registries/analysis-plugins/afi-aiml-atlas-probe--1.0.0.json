@@ -1,0 +1,23 @@
+{
+  "schema": "afi.analysis-plugin.v1",
+  "pluginId": "afi-aiml-atlas-probe",
+  "pluginVersion": "1.0.0",
+  "implementationVersion": "1.0.0",
+  "category": "aiMl",
+  "description": "TEST-ONLY aiMl-category probe for the second-strategy proof (W3 spec 8.2). Deterministic; no external service.",
+  "inputSchemaRef": "afi.test.atlas-upstream.v1",
+  "outputSchemaRef": "afi.test.atlas-aiml.v1",
+  "deterministic": true,
+  "defaultTimeoutMs": 5000,
+  "permittedFailurePolicies": [
+    "abort",
+    "degrade"
+  ],
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "multiInstance": false,
+  "mayFeedScorer": true
+}

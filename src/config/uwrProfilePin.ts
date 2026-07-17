@@ -1,13 +1,25 @@
 /**
  * UWR profile pin — PR-UWR-STAMP (afi-governance/decisions/uwr-profile-pin-v0.1.md §7),
  * amended by PR-UWR-STAMP-SEMANTICS (uwr-runtime-consumption-v0.1.md §7 row
- * flipped by owner merge of afi-governance PR #13, merge commit 6b3638b).
+ * flipped by owner merge of afi-governance PR #13, merge commit 6b3638b) and
+ * generalized to REGISTRY-BACKED recognition by FCP-GOV
+ * (decisions/factory-configurable-pipelines-v1.md §14 / D-FCP-9 item 5): the
+ * former froggy-only pinned scorer-identity gate is replaced by recognition
+ * through the resolved analyst-strategy REGISTRATION — a stamp is issued iff
+ * the registration's `uwrProfileRef` names a registered profile AND the
+ * scorer identity triple matches the registration. Recognition stays "always
+ * registered and pinned, never silent" (UP-10 generalized into D-FCP-5).
  *
- * HARDCODED pinned constants, deliberately. This module does NOT read the
- * afi-config profile registry at runtime — the single authorized reader is
- * src/config/uwrRuntimeProfile.ts (RC-7 grant 1). The stamp records which
- * governed profile the scoring configuration corresponds to, and (RC-6) HOW
- * that configuration was sourced:
+ * HARDCODED pinned profile metadata, deliberately (values UNCHANGED from
+ * PR-UWR-STAMP). This module does NOT read the afi-config uwr-profiles
+ * registry at runtime — the single authorized reader is
+ * src/config/uwrRuntimeProfile.ts (RC-7 grant 1). The registration handed in
+ * comes from the boot-validated strategy registries (validateRuntimeConfig
+ * verifies every active registration's uwrProfileRef against the pinned
+ * recognized profile), so recognition is registry-backed without a second
+ * registry read path. The stamp records which governed profile the scoring
+ * configuration corresponds to, and (RC-6) HOW that configuration was
+ * sourced:
  *
  * - resolved source "builtin"  → stamp source "builtin-value-identity":
  *   scoring ran afi-core's `defaultUwrConfig`, value-identical to the
@@ -54,15 +66,14 @@ export const UWR_PROFILE_DECISION_REF =
   "afi-governance/decisions/uwr-profile-pin-v0.1.md";
 
 /**
- * UP-10: the profile is recognized ONLY for this scorer identity
- * (registry `scorerIdentity`). Documents produced by any other identity
- * must not be stamped — that would assert recognition governance never
- * granted.
+ * The REGISTERED profiles this Reactor can stamp. Exactly one is registered
+ * (UP-2); registering another profile is a registry + governance act, never a
+ * code default. Recognition of a SCORER identity is no longer pinned here —
+ * it flows from the resolved analyst-strategy registration (D-FCP-5).
  */
-export const UWR_PROFILE_SCORER_IDENTITY = Object.freeze({
-  analystId: "froggy",
-  strategyId: "trend_pullback_v1",
-});
+export const REGISTERED_UWR_PROFILE_IDS: readonly string[] = Object.freeze([
+  UWR_PROFILE_ID,
+]);
 
 /** RC-6 discriminator value stamped when scoring ran the builtin config. */
 export const UWR_STAMP_SOURCE_BUILTIN = "builtin-value-identity" as const;
@@ -70,6 +81,17 @@ export const UWR_STAMP_SOURCE_BUILTIN = "builtin-value-identity" as const;
 /** RC-6 discriminator value stamped only after a successful, RC-5-validated
  * registry read actually supplied the scoring config. */
 export const UWR_STAMP_SOURCE_REGISTRY = "registry-consumed" as const;
+
+/**
+ * The registration identity recognition is checked against — the resolved,
+ * boot-validated analyst-strategy registration's triple + uwrProfileRef.
+ */
+export interface RecognizedStrategyRegistration {
+  analystId: string;
+  strategyId: string;
+  strategyVersion: string;
+  uwrProfileRef: { profileId: string };
+}
 
 /**
  * Map the composition path's resolved source onto the persisted RC-6
@@ -96,8 +118,12 @@ function stampSourceFor(resolvedSource: UwrProfileSource): UwrProfileStampSource
 
 /**
  * Build the UWR profile stamp for a scored signal, or return undefined when
- * the scorer identity is not the one the profile is recognized for (UP-10).
- * Callers must OMIT the field entirely when undefined (do not persist null).
+ * recognition fails — i.e. when no resolved registration is supplied, the
+ * registration's uwrProfileRef does not name a REGISTERED profile, or the
+ * scorer identity triple does not match the registration (registry-backed
+ * recognition, D-FCP-5; the identity gate PRECEDES the source discriminator
+ * exactly as before). Callers must OMIT the field entirely when undefined
+ * (do not persist null) — the evidence constructor fails closed on it.
  *
  * `resolvedSource` is the source the composition path actually scored with
  * (ResolvedUwrRuntimeConfig.source), propagated explicitly — never re-read
@@ -105,16 +131,27 @@ function stampSourceFor(resolvedSource: UwrProfileSource): UwrProfileStampSource
  */
 export function uwrProfileStampFor(
   analystScore:
-    | { analystId?: string; strategyId?: string }
+    | { analystId?: string; strategyId?: string; strategyVersion?: string }
     | null
     | undefined,
-  resolvedSource: UwrProfileSource
+  resolvedSource: UwrProfileSource,
+  registration: RecognizedStrategyRegistration | null | undefined
 ): UwrProfileStamp | undefined {
-  if (!analystScore) return undefined;
-  if (analystScore.analystId !== UWR_PROFILE_SCORER_IDENTITY.analystId) {
+  if (!analystScore || !registration) return undefined;
+  // Registry-backed recognition gate 1: the registration must reference a
+  // REGISTERED profile (never a silent/unregistered recognition).
+  if (!REGISTERED_UWR_PROFILE_IDS.includes(registration.uwrProfileRef?.profileId as string)) {
     return undefined;
   }
-  if (analystScore.strategyId !== UWR_PROFILE_SCORER_IDENTITY.strategyId) {
+  // Gate 2: the scorer identity triple must MATCH the resolved registration —
+  // a score produced under any other identity must not be stamped (that would
+  // assert recognition governance never granted).
+  if (analystScore.analystId !== registration.analystId) return undefined;
+  if (analystScore.strategyId !== registration.strategyId) return undefined;
+  if (
+    analystScore.strategyVersion !== undefined &&
+    analystScore.strategyVersion !== registration.strategyVersion
+  ) {
     return undefined;
   }
   return {

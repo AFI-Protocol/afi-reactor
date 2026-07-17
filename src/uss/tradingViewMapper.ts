@@ -1,13 +1,25 @@
 /**
  * TradingView to USS v1.1 Mapper
- * 
+ *
  * Converts TradingView webhook payloads to canonical USS v1.1 format.
- * 
+ *
+ * W3 spec section 4: strategy resolution happens BEFORE this mapping — the
+ * mapper takes the RESOLVED strategy as input and stamps `facts.strategy`
+ * with the resolved strategyId (never raw payload free text). The resolved
+ * strategyId also composes the derived default signalId. This is the
+ * DOCUMENTED intentional oracle difference class 1
+ * (test/oracle/INTENTIONAL_DIFFS.md).
+ *
  * @module tradingViewMapper
  */
 
 import crypto from "crypto";
 import { UssV11Payload } from "./ussValidator.js";
+
+/** The resolved strategy identity the mapper stamps (resolution output). */
+export interface ResolvedStrategyIdentity {
+  strategyId: string;
+}
 
 /**
  * TradingView alert payload shape (from existing webhook)
@@ -32,10 +44,14 @@ export interface TradingViewAlertPayload {
  * Format: {symbol}-{timeframe}-{strategy}-{direction}-{timestamp}
  * Example: btcusdt-15m-froggy-trend-pullback-v1-long-20251215T120530Z
  */
-function generateSignalId(payload: TradingViewAlertPayload, timestamp: string): string {
+function generateSignalId(
+  payload: TradingViewAlertPayload,
+  resolvedStrategyId: string,
+  timestamp: string
+): string {
   const symbol = payload.symbol.toLowerCase().replace(/\//g, "");
   const timeframe = payload.timeframe.toLowerCase();
-  const strategy = payload.strategy.toLowerCase().replace(/_/g, "-");
+  const strategy = resolvedStrategyId.toLowerCase().replace(/_/g, "-");
   const direction = payload.direction.toLowerCase();
 
   // Use ISO timestamp without milliseconds for cleaner IDs
@@ -86,11 +102,16 @@ function deriveProviderId(payload: TradingViewAlertPayload): string {
  * @param payload - TradingView alert payload
  * @returns Canonical USS v1.1 payload
  */
-export function mapTradingViewToUssV11(payload: TradingViewAlertPayload): UssV11Payload {
+export function mapTradingViewToUssV11(
+  payload: TradingViewAlertPayload,
+  resolvedStrategy: ResolvedStrategyIdentity
+): UssV11Payload {
   const now = new Date().toISOString();
 
-  // Derive or use explicit signalId
-  const signalId = payload.signalId || generateSignalId(payload, now);
+  // Derive or use explicit signalId (default composition uses the RESOLVED
+  // strategyId — resolution precedes mapping, W3 spec section 4)
+  const signalId =
+    payload.signalId || generateSignalId(payload, resolvedStrategy.strategyId, now);
 
   // Derive or use explicit providerId
   const providerId = deriveProviderId(payload);
@@ -116,7 +137,9 @@ export function mapTradingViewToUssV11(payload: TradingViewAlertPayload): UssV11
       symbol: payload.symbol,
       market: payload.market || "perp", // Default to perp if not specified
       timeframe: payload.timeframe,
-      strategy: payload.strategy || payload.strategyId || "unknown",
+      // The RESOLVED registered strategyId — never raw payload free text
+      // (W3 spec section 4; documented intentional oracle diff class 1).
+      strategy: resolvedStrategy.strategyId,
       direction: payload.direction || "neutral",
     },
   };

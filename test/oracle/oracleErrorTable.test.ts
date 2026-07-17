@@ -139,6 +139,70 @@ describe("oracle error table — request validation (400/401/422)", () => {
   });
 });
 
+describe("oracle error table — strategy resolution rejections (403; W3 spec section 4)", () => {
+  // NEW rows of the error contract (documented in
+  // test/oracle/INTENTIONAL_DIFFS.md): resolution runs BEFORE USS mapping and
+  // every rejection is an honest 403 — no silent froggy fallback, ever.
+  beforeAll(() => setEvidenceStore(new OracleEvidenceStore()));
+  afterAll(() => resetEvidenceStore());
+
+  it("webhook unknown provider (no binding) → 403 unknown_provider_binding", async () => {
+    const res = await request(app)
+      .post(TV)
+      .send(tvPayload({ providerId: "oracle-unregistered-provider" }));
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("unknown_provider_binding");
+  });
+
+  it("cpj unknown provider (no binding) → 403 unknown_provider_binding", async () => {
+    const payload = loadFixture("cpj/cpj-blofin-perp-long.json");
+    payload.provenance.providerId = "oracle-unregistered-provider";
+    const res = await request(app).post(CPJ).send(payload);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("unknown_provider_binding");
+  });
+
+  it("inactive binding → 403 inactive_provider_binding", async () => {
+    // 'example-retired-provider' is bound by the committed inactive example
+    // binding (example-inactive-webhook) — present but never served.
+    const res = await request(app)
+      .post(TV)
+      .send(tvPayload({ providerId: "example-retired-provider" }));
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("inactive_provider_binding");
+  });
+
+  it("unauthorized strategy (free text, binding without defaultStrategy) → 403 unauthorized_strategy", async () => {
+    const res = await request(app)
+      .post(TV)
+      .send(
+        tvPayload({
+          providerId: "oracle-provider-nodefault",
+          strategy: "some_unregistered_free_text",
+        })
+      );
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("unauthorized_strategy");
+  });
+
+  it("free text with a defaultStrategy binding resolves to the default (200) — never a silent hardcoded fallback", async () => {
+    const store = new OracleEvidenceStore();
+    setEvidenceStore(store);
+    const res = await request(app)
+      .post(TV)
+      .send(
+        tvPayload({
+          strategy: "froggy_trend_pullback_v1", // legacy free text, NOT a registered strategyId
+          signalId: "oracle-tv-freetext-default-0001",
+        })
+      );
+    expect(res.status).toBe(200);
+    // Resolution stamped the REGISTERED default strategy id into facts.
+    expect(res.body.rawUss.facts.strategy).toBe("trend_pullback_v1");
+    expect(store.submissions[0].strategyId).toBe("trend_pullback_v1");
+  });
+});
+
 describe("oracle error table — configuration fail-closed (500)", () => {
   beforeAll(() => setEvidenceStore(new OracleEvidenceStore()));
   afterAll(() => resetEvidenceStore());

@@ -6,7 +6,7 @@
  * evidence store — NO fakes, NO Jest module mapping. Proves:
  *
  *   1. POST /api/webhooks/tradingview constructs, validates, and PERSISTS a
- *      governed afi.scored-signal-evidence.v1 record (persistence.outcome
+ *      governed afi.scored-signal-evidence.v2 record (persistence.outcome
  *      = "inserted").
  *   2. POST /api/ingest/cpj does the same — with a DECIMAL parse.confidence
  *      (0.87), proving the afi.hash.v1 fixed-point projection of
@@ -50,7 +50,7 @@ process.env.AFI_PRICE_FEED_SOURCE = process.env.AFI_PRICE_FEED_SOURCE ?? "demo";
 const EVIDENCE_COLLECTION = process.env.AFI_EVIDENCE_COLLECTION ?? "scored_signal_evidence";
 const HISTORY_COLLECTION =
   process.env.AFI_EVIDENCE_HISTORY_COLLECTION ?? "scored_signal_evidence_history";
-const EVIDENCE_SCHEMA = "afi.scored-signal-evidence.v1";
+const EVIDENCE_SCHEMA = "afi.scored-signal-evidence.v2";
 const LEGACY_COLLECTION = "reactor_scored_signals_v1";
 
 const COMPILED_SERVER = pathToFileURL(
@@ -74,6 +74,31 @@ function assertGovernedRecord(record, signalId) {
   assert.equal(record.lifecycleState, "SCORED", "SCORED lifecycle");
   assert.equal(record.finalized, false, "SCORED is not finalized");
   assert.ok(record.analystId && record.strategyId && record.strategyVersion, "strategy triple");
+  // v2's REQUIRED composition provenance (FCP-GOV D-FCP-7) — all pins present.
+  assert.equal(record.composition?.schema, "afi.composition-ref.v1", "composition ref schema");
+  for (const pin of [
+    "pipelineId",
+    "pipelineVersion",
+    "manifestHash",
+    "analystConfigHash",
+    "scorerPluginId",
+    "scorerPluginVersion",
+    "pluginSetHash",
+    "executionSummaryHash",
+    "enrichmentHash",
+  ]) {
+    assert.ok(record.composition[pin], `composition.${pin} present`);
+  }
+  assert.equal(
+    record.composition.executionSummaryHash.domainTag,
+    "afi.d2.execution-summary",
+    "execution-summary domain tag"
+  );
+  assert.equal(
+    record.composition.enrichmentHash.domainTag,
+    "afi.d2.enrichment-bundle",
+    "enrichment-bundle domain tag"
+  );
 }
 
 async function main() {
@@ -105,7 +130,7 @@ async function main() {
     schema: "afi.cpj.v0.1",
     provenance: {
       providerType: "telegram",
-      providerId: "telegram-channel-it",
+      providerId: "oracle-telegram-channel-1", // a REGISTERED cpj provider binding (resolution is fail-closed)
       messageId: "it-cpj-msg-0001",
       postedAt: "2026-01-15T10:00:00Z",
     },
@@ -137,7 +162,17 @@ async function main() {
     assertGovernedRecord(tvBack, tvSignalId);
     const tvReplay = await store.getReplayBundle(tvSignalId);
     assert.ok(tvReplay?.scoredSignal && tvReplay?.provenanceRecord, "tradingview replay bundle");
-    ok("tradingview: read-back by signalId + identifier continuity + replay bundle");
+    assert.equal(
+      tvReplay?.composition?.schema,
+      "afi.composition-ref.v1",
+      "v2 replay bundle carries the composition ref (MONGO-GOV D-MONGO-9 sufficiency)"
+    );
+    assert.equal(
+      tvReplay.composition.manifestHash.value,
+      "b8d9b73410ce8ec0d1827d75ee2a2e750aa85553fb2fc985a7a52fdb75080d49",
+      "replay composition pins the OFFICIAL froggy manifestHash"
+    );
+    ok("tradingview: read-back by signalId + identifier continuity + replay bundle (with composition)");
 
     // 2. CPJ persists WITH a decimal parse.confidence. -----------------------
     const cpj = await request(app).post("/api/ingest/cpj").send(cpjPayload);
