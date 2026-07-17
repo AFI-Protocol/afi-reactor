@@ -168,6 +168,22 @@ jobs:
           npm run test:integration:mongo
           echo "✅ Real-MongoDB persistence proof passed"
 
+      # ORACLE-EQUIVALENCE: the committed behavioral goldens are the contract the
+      # manifest-driven executor must reproduce. Prove the COMPILED build + the
+      # real afi-infra store + real MongoDB persist records BYTE-EQUAL to those
+      # goldens (present in scored_signal_evidence, unique signalId, normalized
+      # bytes equal; builtin + registry UWR modes).
+      - name: Real-MongoDB oracle byte-equivalence (compiled build)
+        working-directory: afi-reactor
+        timeout-minutes: 12
+        env:
+          AFI_EVIDENCE_MONGODB_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0
+          AFI_EVIDENCE_DB_NAME: afi_scored_signal_evidence_oracle_it
+        run: |
+          echo "🧪 Proving stored records byte-equal the committed oracle goldens..."
+          npm run test:oracle:mongo
+          echo "✅ Oracle byte-equivalence proof passed"
+
       # Prove SIGTERM-compatible graceful shutdown on the COMPILED server: spawn
       # it listening, connect the evidence store via a scored request, send
       # SIGTERM, and require a prompt clean exit 0 (Cloud Run deployment path).
