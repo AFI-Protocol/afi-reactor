@@ -1,7 +1,7 @@
 {
   "$comment": "Provenance of the vendored governed FACTORY-CONTRACT closure consumed by src/pipeline/ (canonical hashing + registry/composition schemas + the governed hashing KAT vectors). Each vendored file is a byte-identical copy of afi-config@afiConfigCommit at afiConfigPath (the afi-infra governed-schema vendoring discipline). Enforced by test/pipeline/vendoredSchemaProvenance.test.ts. Do not hand-edit; regenerate only from an owner-approved afi-config commit.",
   "afiConfigRepo": "https://github.com/AFI-Protocol/afi-config",
-  "afiConfigCommit": "e462c4e8bef5fda946ca19a826f5c53c6d202151",
+  "afiConfigCommit": "f91ce4465b9c54bc221ba82e7a468544ffcf3fe3",
   "sources": {
     "src/pipeline/governed-schema/pipeline.schema.json": {
       "afiConfigPath": "schemas/pipeline/v1/pipeline.schema.json",
@@ -37,7 +37,7 @@
     },
     "src/pipeline/governed-schema/canonical-json-hashing.v1.md": {
       "afiConfigPath": "schemas/hashing/canonical-json-hashing.v1.md",
-      "sha256": "757067f5b133eec91bb3d033f3ffd039e1a4b95490382ab3067f0c0239a6f483"
+      "sha256": "1ab064a1b0a5f693517eb24f593450ab31c420cd9eb629f053c724d1452b6201"
     },
     "src/pipeline/governed-schema/canonical-json-hashing.kat.json": {
       "afiConfigPath": "kats/hashing/v1/canonical-json-hashing.kat.json",

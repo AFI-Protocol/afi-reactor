@@ -22,7 +22,7 @@ function sha256(relPath: string): string {
 
 describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   it("pins the authorizing afi-config commit", () => {
-    expect(manifest.afiConfigCommit).toBe("e462c4e8bef5fda946ca19a826f5c53c6d202151");
+    expect(manifest.afiConfigCommit).toBe("f91ce4465b9c54bc221ba82e7a468544ffcf3fe3");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {
