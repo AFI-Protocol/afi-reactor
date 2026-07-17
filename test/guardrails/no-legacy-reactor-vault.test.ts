@@ -76,13 +76,4 @@ describe("guardrail: legacy reactor_scored_signals_v1 store is fully removed", (
     expect(survivors).toEqual([]);
   });
 
-  it("the froggy pipeline has no reactor-owned persistence stage", () => {
-    const pipeline = readFileSync(
-      path.resolve(SRC, "config/froggyPipeline.ts"),
-      "utf8"
-    );
-    expect(pipeline).not.toContain("tssd-vault-write");
-    // A persistence category must not name the deleted reactor store.
-    expect(pipeline).not.toContain("reactor_scored_signals_v1");
-  });
 });

@@ -75,8 +75,6 @@ export default {
     "<rootDir>/dist/",
     "<rootDir>/test/enrichment/",
     "<rootDir>/test/news/",
-    "<rootDir>/test/pipelineRunner",
-    "<rootDir>/test/pipelineRunnerDag.test.ts",
     "<rootDir>/test/receiptProvenanceService.test.ts",
     "<rootDir>/test/vaultReplayService.test.ts",
     "<rootDir>/test/uss/",

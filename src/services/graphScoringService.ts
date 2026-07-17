@@ -1,7 +1,7 @@
 /**
  * Graph scoring service — the LIVE scoring path of the configurable-pipelines
- * program (W3 spec sections 4-7; supersedes froggyScoringService, which stays
- * present-but-unreferenced until the cleanup PR).
+ * program (W3 spec sections 4-7; superseded and replaced the hardcoded
+ * scoring service, removed under D-FCP-9).
  *
  * ingest → (strategy already resolved by src/config/strategyResolution.ts)
  * → GraphExecutor over the REGISTERED pipeline manifest → ReactorScoredSignalV1
