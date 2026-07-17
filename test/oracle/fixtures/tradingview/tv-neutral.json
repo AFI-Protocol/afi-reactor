@@ -1,0 +1,12 @@
+{
+  "signalId": "oracle-tv-neutral-0001",
+  "providerId": "oracle-provider-tv",
+  "symbol": "SOLUSDT",
+  "market": "spot",
+  "timeframe": "15m",
+  "strategy": "froggy_trend_pullback_v1",
+  "direction": "neutral",
+  "setupSummary": "Consolidation watch (oracle fixture)",
+  "notes": "ORACLE-EQUIVALENCE committed fixture - fixed content, never edit casually",
+  "alertTimestamp": "2026-01-15T14:00:00Z"
+}

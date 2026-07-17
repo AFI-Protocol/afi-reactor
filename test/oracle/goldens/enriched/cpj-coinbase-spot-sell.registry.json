@@ -1,0 +1,366 @@
+{
+  "analystScore": {
+    "analystId": "froggy",
+    "assetClass": "crypto",
+    "baseAsset": "ETH",
+    "conviction": 0.5916666666666667,
+    "direction": "neutral",
+    "holdingHorizon": "swing",
+    "instrumentType": "linear-perp",
+    "marketType": "perp",
+    "quoteAsset": "USD",
+    "riskBucket": "medium",
+    "scoredAt": "<CLOCK>",
+    "signalTimeframe": "1h",
+    "strategyId": "trend_pullback_v1",
+    "strategyVersion": "1.0.0",
+    "tags": [
+      "trend-following",
+      "pullback",
+      "ema-based"
+    ],
+    "uwrAxes": {
+      "execution": 0.6666666666666666,
+      "insight": 0.4,
+      "risk": 0.9,
+      "structure": 0.4
+    },
+    "uwrScore": 0.5916666666666667
+  },
+  "canonicalUss": {
+    "facts": {
+      "direction": "short",
+      "market": "spot",
+      "strategy": "cpj-ingested",
+      "symbol": "ETH/USD",
+      "timeframe": "1h"
+    },
+    "provenance": {
+      "cpjMessageId": "oracle-cpj-msg-0002",
+      "cpjParseConfidence": 0.6180339887,
+      "cpjPostedAt": "2026-01-15T11:00:00Z",
+      "ingestHash": "5c89a9e9c8ef090a4da758910ac33fed69bc887de2d7a8c4a6224473e5ca978c",
+      "ingestedAt": "<CLOCK>",
+      "providerId": "oracle-telegram-channel-2",
+      "providerRef": "oracle-telegram-channel-2",
+      "providerType": "bot",
+      "signalId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002",
+      "source": "cpj-telegram"
+    },
+    "schema": "afi.usignal.v1.1"
+  },
+  "decayParams": {
+    "greeksTemplateId": "decay-swing-v1",
+    "halfLifeMinutes": 720
+  },
+  "endpoint": "/api/ingest/cpj",
+  "evidenceRecord": {
+    "analystId": "froggy",
+    "canonicalizationVersion": "afi.hash.v1",
+    "finalized": false,
+    "lifecycleState": "SCORED",
+    "provenanceRecord": {
+      "canonicalizationVersion": "afi.hash.v1",
+      "domainTags": [
+        "afi.d2.signal-input",
+        "afi.d2.scored-output"
+      ],
+      "inputHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.signal-input",
+        "value": "6fc7a0b066d2b611aac8b229fb8dbd6db14d36cf663d79f6dbff4e060d60029b"
+      },
+      "outputHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.scored-output",
+        "value": "e19e9b746d0f64adce67ce27459b465ace39d6be49d88e548d65d15b28339eca"
+      },
+      "schema": "afi.provenance-record.v1",
+      "schemaVersions": {
+        "input": "afi.usignal.v1.1",
+        "output": "afi.scored-signal.v1"
+      },
+      "signalId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002"
+    },
+    "recordVersion": 1,
+    "schema": "afi.scored-signal-evidence.v1",
+    "scoredSignal": {
+      "analystId": "froggy",
+      "conviction": 0.5916666666666667,
+      "direction": "neutral",
+      "provenanceRecordRef": "provenance-record:cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002",
+      "providerId": "oracle-telegram-channel-2",
+      "riskBucket": "medium",
+      "schema": "afi.scored-signal.v1",
+      "signalId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002",
+      "strategyId": "trend_pullback_v1",
+      "strategyVersion": "1.0.0",
+      "uwrAxes": {
+        "execution": 0.6666666666666666,
+        "insight": 0.4,
+        "risk": 0.9,
+        "structure": 0.4
+      },
+      "uwrScore": 0.5916666666666667
+    },
+    "signalId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002",
+    "strategyId": "trend_pullback_v1",
+    "strategyVersion": "1.0.0",
+    "uwrProfile": {
+      "decisionRef": "afi-governance/decisions/uwr-profile-pin-v0.1.md",
+      "profileId": "uwr-weighted-lifts-v0.1",
+      "source": "registry-consumed",
+      "status": "testnet-provisional"
+    }
+  },
+  "httpResponse": {
+    "ingestHash": "5c89a9e9c8ef090a4da758910ac33fed69bc887de2d7a8c4a6224473e5ca978c",
+    "ok": true,
+    "persistence": {
+      "lifecycleState": "SCORED",
+      "outcome": "inserted",
+      "recordVersion": 1,
+      "signalId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002"
+    },
+    "pipelineResult": {
+      "_priceFeedMetadata": {
+        "marketType": "spot",
+        "patternSignals": {
+          "bearishEngulfing": false,
+          "bullishEngulfing": false,
+          "insideBar": false,
+          "patternConfidence": 65,
+          "patternName": "pin bar",
+          "pinBar": true,
+          "regime": {
+            "cyclePhase": "unknown",
+            "externalLabels": {
+              "fearGreedLabel": "greed",
+              "fearGreedValue": 56,
+              "notes": "FG=56 (greed). Price at 100% of 90d range"
+            },
+            "topBottomRisk": "neutral",
+            "trendState": "uptrend",
+            "volRegime": "low"
+          },
+          "structureBias": "lower-lows",
+          "trendPullbackConfirmed": false
+        },
+        "priceSource": "demo",
+        "technicalIndicators": {
+          "atr14": 31.2485468200695,
+          "ema20": 2998.1511085761304,
+          "ema50": 2999.0429709032783,
+          "emaDistancePct": -0.6511453704633388,
+          "isInValueSweetSpot": true,
+          "rsi14": 45.747266481159215,
+          "trendBias": "range",
+          "volumeRatio": 0.7842600319383496
+        },
+        "venueType": "demo"
+      },
+      "analystScore": {
+        "analystId": "froggy",
+        "assetClass": "crypto",
+        "baseAsset": "ETH",
+        "conviction": 0.5916666666666667,
+        "direction": "neutral",
+        "holdingHorizon": "swing",
+        "instrumentType": "linear-perp",
+        "marketType": "perp",
+        "quoteAsset": "USD",
+        "riskBucket": "medium",
+        "scoredAt": "<CLOCK>",
+        "signalTimeframe": "1h",
+        "strategyId": "trend_pullback_v1",
+        "strategyVersion": "1.0.0",
+        "tags": [
+          "trend-following",
+          "pullback",
+          "ema-based"
+        ],
+        "uwrAxes": {
+          "execution": 0.6666666666666666,
+          "insight": 0.4,
+          "risk": 0.9,
+          "structure": 0.4
+        },
+        "uwrScore": 0.5916666666666667
+      },
+      "decayParams": {
+        "greeksTemplateId": "decay-swing-v1",
+        "halfLifeMinutes": 720
+      },
+      "lenses": [
+        {
+          "payload": {
+            "atr14": 31.2485468200695,
+            "ema20": 2998.1511085761304,
+            "ema50": 2999.0429709032783,
+            "emaDistancePct": -0.6511453704633388,
+            "isInValueSweetSpot": true,
+            "rsi14": 45.747266481159215,
+            "trendBias": "range",
+            "volumeRatio": 0.7842600319383496
+          },
+          "type": "technical",
+          "version": "v1"
+        },
+        {
+          "payload": {
+            "bearishEngulfing": false,
+            "bullishEngulfing": false,
+            "insideBar": false,
+            "patternConfidence": 65,
+            "patternName": "pin bar",
+            "pinBar": true,
+            "regime": {
+              "cyclePhase": "unknown",
+              "externalLabels": {
+                "fearGreedLabel": "greed",
+                "fearGreedValue": 56,
+                "notes": "FG=56 (greed). Price at 100% of 90d range"
+              },
+              "topBottomRisk": "neutral",
+              "trendState": "uptrend",
+              "volRegime": "low"
+            },
+            "structureBias": "lower-lows",
+            "trendPullbackConfirmed": false
+          },
+          "type": "pattern",
+          "version": "v1"
+        },
+        {
+          "payload": {
+            "fundingRegime": "normal",
+            "perpSentimentScore": 51,
+            "positioningBias": "balanced"
+          },
+          "type": "sentiment",
+          "version": "v1"
+        },
+        {
+          "payload": {
+            "hasShockEvent": true,
+            "headlines": [
+              "Oracle recorded headline A",
+              "Oracle recorded headline B"
+            ],
+            "items": [
+              {
+                "publishedAt": "2026-01-15T09:30:00.000Z",
+                "source": "oracle-wire",
+                "title": "Oracle recorded headline A",
+                "url": "https://example.invalid/a"
+              },
+              {
+                "publishedAt": "2026-01-15T08:45:00.000Z",
+                "source": "oracle-wire",
+                "title": "Oracle recorded headline B",
+                "url": "https://example.invalid/b"
+              }
+            ],
+            "shockDirection": "bullish"
+          },
+          "type": "news",
+          "version": "v1"
+        },
+        {
+          "payload": {
+            "ensembleScore": 0.85,
+            "modelTags": [
+              "bull"
+            ]
+          },
+          "type": "aiMl",
+          "version": "v1"
+        }
+      ],
+      "meta": {
+        "direction": "short",
+        "source": "cpj-telegram",
+        "strategy": "cpj-ingested",
+        "symbol": "ETH/USD",
+        "timeframe": "1h"
+      },
+      "rawUss": {
+        "facts": {
+          "direction": "short",
+          "market": "spot",
+          "strategy": "cpj-ingested",
+          "symbol": "ETH/USD",
+          "timeframe": "1h"
+        },
+        "provenance": {
+          "cpjMessageId": "oracle-cpj-msg-0002",
+          "cpjParseConfidence": 0.6180339887,
+          "cpjPostedAt": "2026-01-15T11:00:00Z",
+          "ingestHash": "5c89a9e9c8ef090a4da758910ac33fed69bc887de2d7a8c4a6224473e5ca978c",
+          "ingestedAt": "<CLOCK>",
+          "providerId": "oracle-telegram-channel-2",
+          "providerRef": "oracle-telegram-channel-2",
+          "providerType": "bot",
+          "signalId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002",
+          "source": "cpj-telegram"
+        },
+        "schema": "afi.usignal.v1.1"
+      },
+      "scoredAt": "<CLOCK>",
+      "signalId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002",
+      "uwrResolvedSource": "registry"
+    },
+    "providerId": "oracle-telegram-channel-2",
+    "signalId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002",
+    "uss": {
+      "facts": {
+        "direction": "short",
+        "market": "spot",
+        "strategy": "cpj-ingested",
+        "symbol": "ETH/USD",
+        "timeframe": "1h"
+      },
+      "provenance": {
+        "cpjMessageId": "oracle-cpj-msg-0002",
+        "cpjParseConfidence": 0.6180339887,
+        "cpjPostedAt": "2026-01-15T11:00:00Z",
+        "ingestHash": "5c89a9e9c8ef090a4da758910ac33fed69bc887de2d7a8c4a6224473e5ca978c",
+        "ingestedAt": "<CLOCK>",
+        "providerId": "oracle-telegram-channel-2",
+        "providerRef": "oracle-telegram-channel-2",
+        "providerType": "bot",
+        "signalId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002",
+        "source": "cpj-telegram"
+      },
+      "schema": "afi.usignal.v1.1"
+    }
+  },
+  "inputHash": {
+    "algorithm": "sha256",
+    "canonicalizationVersion": "afi.hash.v1",
+    "domainTag": "afi.d2.signal-input",
+    "value": "6fc7a0b066d2b611aac8b229fb8dbd6db14d36cf663d79f6dbff4e060d60029b"
+  },
+  "outputHash": {
+    "algorithm": "sha256",
+    "canonicalizationVersion": "afi.hash.v1",
+    "domainTag": "afi.d2.scored-output",
+    "value": "e19e9b746d0f64adce67ce27459b465ace39d6be49d88e548d65d15b28339eca"
+  },
+  "scorerInput": {
+    "atrRegime": "normal",
+    "brokeEmaWithBody": false,
+    "dailyBias": "neutral",
+    "distanceFromDailyEmaPct": -0.6511453704633388,
+    "haFlatBackConfirmed": false,
+    "liquiditySwept": false,
+    "pulledBackIntoSweetSpot": true,
+    "rrMultiplePlanned": 2,
+    "triggerPatternQuality": 2,
+    "weeklyBias": "neutral"
+  },
+  "uwrMode": "registry",
+  "uwrResolvedSource": "registry"
+}

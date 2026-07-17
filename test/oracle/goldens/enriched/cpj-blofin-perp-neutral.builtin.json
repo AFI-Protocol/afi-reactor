@@ -1,0 +1,370 @@
+{
+  "analystScore": {
+    "analystId": "froggy",
+    "assetClass": "crypto",
+    "axisNotes": {
+      "execution": "Trigger pattern quality is low for this setup."
+    },
+    "baseAsset": "SOL",
+    "conviction": 0.42500000000000004,
+    "direction": "neutral",
+    "holdingHorizon": "swing",
+    "instrumentType": "linear-perp",
+    "marketType": "perp",
+    "quoteAsset": "USDT",
+    "rationale": "Trigger pattern quality is low for this setup.",
+    "riskBucket": "medium",
+    "scoredAt": "<CLOCK>",
+    "signalTimeframe": "15m",
+    "strategyId": "trend_pullback_v1",
+    "strategyVersion": "1.0.0",
+    "tags": [
+      "trend-following",
+      "pullback",
+      "ema-based"
+    ],
+    "uwrAxes": {
+      "execution": 0,
+      "insight": 0.4,
+      "risk": 0.9,
+      "structure": 0.4
+    },
+    "uwrScore": 0.42500000000000004
+  },
+  "canonicalUss": {
+    "facts": {
+      "direction": "neutral",
+      "market": "perp",
+      "strategy": "cpj-ingested",
+      "symbol": "SOL/USDT",
+      "timeframe": "15m"
+    },
+    "provenance": {
+      "cpjMessageId": "oracle-cpj-msg-0003",
+      "cpjParseConfidence": 0.42,
+      "cpjPostedAt": "2026-01-15T12:30:00Z",
+      "ingestHash": "b1280061530f46a7146ad09b9e863d0bf95abe6041f35c6d703b86d35e9d9b9d",
+      "ingestedAt": "<CLOCK>",
+      "providerId": "oracle-discord-guild-3",
+      "providerRef": "oracle-discord-guild-3",
+      "providerType": "bot",
+      "signalId": "cpj-discord-oracle-discord-guild-3-oracle-cpj-msg-0003",
+      "source": "cpj-discord"
+    },
+    "schema": "afi.usignal.v1.1"
+  },
+  "decayParams": {
+    "greeksTemplateId": "decay-swing-v1",
+    "halfLifeMinutes": 720
+  },
+  "endpoint": "/api/ingest/cpj",
+  "evidenceRecord": {
+    "analystId": "froggy",
+    "canonicalizationVersion": "afi.hash.v1",
+    "finalized": false,
+    "lifecycleState": "SCORED",
+    "provenanceRecord": {
+      "canonicalizationVersion": "afi.hash.v1",
+      "domainTags": [
+        "afi.d2.signal-input",
+        "afi.d2.scored-output"
+      ],
+      "inputHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.signal-input",
+        "value": "cf41be7972cc34f4cd810c4eb6f39d6948254621809aff53fe1801d29ac3a9cd"
+      },
+      "outputHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.scored-output",
+        "value": "a7ca24a29571639a0a99a14f2f83ff107b5c2b863dd06ce558b195f1699442a6"
+      },
+      "schema": "afi.provenance-record.v1",
+      "schemaVersions": {
+        "input": "afi.usignal.v1.1",
+        "output": "afi.scored-signal.v1"
+      },
+      "signalId": "cpj-discord-oracle-discord-guild-3-oracle-cpj-msg-0003"
+    },
+    "recordVersion": 1,
+    "schema": "afi.scored-signal-evidence.v1",
+    "scoredSignal": {
+      "analystId": "froggy",
+      "conviction": 0.42500000000000004,
+      "direction": "neutral",
+      "provenanceRecordRef": "provenance-record:cpj-discord-oracle-discord-guild-3-oracle-cpj-msg-0003",
+      "providerId": "oracle-discord-guild-3",
+      "riskBucket": "medium",
+      "schema": "afi.scored-signal.v1",
+      "signalId": "cpj-discord-oracle-discord-guild-3-oracle-cpj-msg-0003",
+      "strategyId": "trend_pullback_v1",
+      "strategyVersion": "1.0.0",
+      "uwrAxes": {
+        "execution": 0,
+        "insight": 0.4,
+        "risk": 0.9,
+        "structure": 0.4
+      },
+      "uwrScore": 0.42500000000000004
+    },
+    "signalId": "cpj-discord-oracle-discord-guild-3-oracle-cpj-msg-0003",
+    "strategyId": "trend_pullback_v1",
+    "strategyVersion": "1.0.0",
+    "uwrProfile": {
+      "decisionRef": "afi-governance/decisions/uwr-profile-pin-v0.1.md",
+      "profileId": "uwr-weighted-lifts-v0.1",
+      "source": "builtin-value-identity",
+      "status": "testnet-provisional"
+    }
+  },
+  "httpResponse": {
+    "ingestHash": "b1280061530f46a7146ad09b9e863d0bf95abe6041f35c6d703b86d35e9d9b9d",
+    "ok": true,
+    "persistence": {
+      "lifecycleState": "SCORED",
+      "outcome": "inserted",
+      "recordVersion": 1,
+      "signalId": "cpj-discord-oracle-discord-guild-3-oracle-cpj-msg-0003"
+    },
+    "pipelineResult": {
+      "_priceFeedMetadata": {
+        "marketType": "perp",
+        "patternSignals": {
+          "bearishEngulfing": false,
+          "bullishEngulfing": false,
+          "insideBar": false,
+          "pinBar": false,
+          "regime": {
+            "cyclePhase": "unknown",
+            "externalLabels": {
+              "fearGreedLabel": "greed",
+              "fearGreedValue": 56,
+              "notes": "FG=56 (greed). Price at 100% of 90d range"
+            },
+            "topBottomRisk": "neutral",
+            "trendState": "uptrend",
+            "volRegime": "low"
+          },
+          "structureBias": "higher-highs",
+          "trendPullbackConfirmed": false
+        },
+        "priceSource": "demo",
+        "technicalIndicators": {
+          "atr14": 1.1685809655298571,
+          "ema20": 100.01045172807879,
+          "ema50": 100.03568834253537,
+          "emaDistancePct": 0.2503722265458551,
+          "isInValueSweetSpot": true,
+          "rsi14": 51.22203250518938,
+          "trendBias": "range",
+          "volumeRatio": 1.439080827868955
+        },
+        "venueType": "demo"
+      },
+      "analystScore": {
+        "analystId": "froggy",
+        "assetClass": "crypto",
+        "axisNotes": {
+          "execution": "Trigger pattern quality is low for this setup."
+        },
+        "baseAsset": "SOL",
+        "conviction": 0.42500000000000004,
+        "direction": "neutral",
+        "holdingHorizon": "swing",
+        "instrumentType": "linear-perp",
+        "marketType": "perp",
+        "quoteAsset": "USDT",
+        "rationale": "Trigger pattern quality is low for this setup.",
+        "riskBucket": "medium",
+        "scoredAt": "<CLOCK>",
+        "signalTimeframe": "15m",
+        "strategyId": "trend_pullback_v1",
+        "strategyVersion": "1.0.0",
+        "tags": [
+          "trend-following",
+          "pullback",
+          "ema-based"
+        ],
+        "uwrAxes": {
+          "execution": 0,
+          "insight": 0.4,
+          "risk": 0.9,
+          "structure": 0.4
+        },
+        "uwrScore": 0.42500000000000004
+      },
+      "decayParams": {
+        "greeksTemplateId": "decay-swing-v1",
+        "halfLifeMinutes": 720
+      },
+      "lenses": [
+        {
+          "payload": {
+            "atr14": 1.1685809655298571,
+            "ema20": 100.01045172807879,
+            "ema50": 100.03568834253537,
+            "emaDistancePct": 0.2503722265458551,
+            "isInValueSweetSpot": true,
+            "rsi14": 51.22203250518938,
+            "trendBias": "range",
+            "volumeRatio": 1.439080827868955
+          },
+          "type": "technical",
+          "version": "v1"
+        },
+        {
+          "payload": {
+            "bearishEngulfing": false,
+            "bullishEngulfing": false,
+            "insideBar": false,
+            "pinBar": false,
+            "regime": {
+              "cyclePhase": "unknown",
+              "externalLabels": {
+                "fearGreedLabel": "greed",
+                "fearGreedValue": 56,
+                "notes": "FG=56 (greed). Price at 100% of 90d range"
+              },
+              "topBottomRisk": "neutral",
+              "trendState": "uptrend",
+              "volRegime": "low"
+            },
+            "structureBias": "higher-highs",
+            "trendPullbackConfirmed": false
+          },
+          "type": "pattern",
+          "version": "v1"
+        },
+        {
+          "payload": {
+            "fundingRegime": "normal",
+            "perpSentimentScore": 51,
+            "positioningBias": "balanced"
+          },
+          "type": "sentiment",
+          "version": "v1"
+        },
+        {
+          "payload": {
+            "hasShockEvent": true,
+            "headlines": [
+              "Oracle recorded headline A",
+              "Oracle recorded headline B"
+            ],
+            "items": [
+              {
+                "publishedAt": "2026-01-15T09:30:00.000Z",
+                "source": "oracle-wire",
+                "title": "Oracle recorded headline A",
+                "url": "https://example.invalid/a"
+              },
+              {
+                "publishedAt": "2026-01-15T08:45:00.000Z",
+                "source": "oracle-wire",
+                "title": "Oracle recorded headline B",
+                "url": "https://example.invalid/b"
+              }
+            ],
+            "shockDirection": "bullish"
+          },
+          "type": "news",
+          "version": "v1"
+        },
+        {
+          "payload": {
+            "ensembleScore": 0.85,
+            "modelTags": [
+              "bull"
+            ]
+          },
+          "type": "aiMl",
+          "version": "v1"
+        }
+      ],
+      "meta": {
+        "direction": "neutral",
+        "source": "cpj-discord",
+        "strategy": "cpj-ingested",
+        "symbol": "SOL/USDT",
+        "timeframe": "15m"
+      },
+      "rawUss": {
+        "facts": {
+          "direction": "neutral",
+          "market": "perp",
+          "strategy": "cpj-ingested",
+          "symbol": "SOL/USDT",
+          "timeframe": "15m"
+        },
+        "provenance": {
+          "cpjMessageId": "oracle-cpj-msg-0003",
+          "cpjParseConfidence": 0.42,
+          "cpjPostedAt": "2026-01-15T12:30:00Z",
+          "ingestHash": "b1280061530f46a7146ad09b9e863d0bf95abe6041f35c6d703b86d35e9d9b9d",
+          "ingestedAt": "<CLOCK>",
+          "providerId": "oracle-discord-guild-3",
+          "providerRef": "oracle-discord-guild-3",
+          "providerType": "bot",
+          "signalId": "cpj-discord-oracle-discord-guild-3-oracle-cpj-msg-0003",
+          "source": "cpj-discord"
+        },
+        "schema": "afi.usignal.v1.1"
+      },
+      "scoredAt": "<CLOCK>",
+      "signalId": "cpj-discord-oracle-discord-guild-3-oracle-cpj-msg-0003",
+      "uwrResolvedSource": "builtin"
+    },
+    "providerId": "oracle-discord-guild-3",
+    "signalId": "cpj-discord-oracle-discord-guild-3-oracle-cpj-msg-0003",
+    "uss": {
+      "facts": {
+        "direction": "neutral",
+        "market": "perp",
+        "strategy": "cpj-ingested",
+        "symbol": "SOL/USDT",
+        "timeframe": "15m"
+      },
+      "provenance": {
+        "cpjMessageId": "oracle-cpj-msg-0003",
+        "cpjParseConfidence": 0.42,
+        "cpjPostedAt": "2026-01-15T12:30:00Z",
+        "ingestHash": "b1280061530f46a7146ad09b9e863d0bf95abe6041f35c6d703b86d35e9d9b9d",
+        "ingestedAt": "<CLOCK>",
+        "providerId": "oracle-discord-guild-3",
+        "providerRef": "oracle-discord-guild-3",
+        "providerType": "bot",
+        "signalId": "cpj-discord-oracle-discord-guild-3-oracle-cpj-msg-0003",
+        "source": "cpj-discord"
+      },
+      "schema": "afi.usignal.v1.1"
+    }
+  },
+  "inputHash": {
+    "algorithm": "sha256",
+    "canonicalizationVersion": "afi.hash.v1",
+    "domainTag": "afi.d2.signal-input",
+    "value": "cf41be7972cc34f4cd810c4eb6f39d6948254621809aff53fe1801d29ac3a9cd"
+  },
+  "outputHash": {
+    "algorithm": "sha256",
+    "canonicalizationVersion": "afi.hash.v1",
+    "domainTag": "afi.d2.scored-output",
+    "value": "a7ca24a29571639a0a99a14f2f83ff107b5c2b863dd06ce558b195f1699442a6"
+  },
+  "scorerInput": {
+    "atrRegime": "normal",
+    "brokeEmaWithBody": false,
+    "dailyBias": "neutral",
+    "distanceFromDailyEmaPct": 0.2503722265458551,
+    "haFlatBackConfirmed": false,
+    "liquiditySwept": false,
+    "pulledBackIntoSweetSpot": true,
+    "rrMultiplePlanned": 2,
+    "triggerPatternQuality": 0,
+    "weeklyBias": "neutral"
+  },
+  "uwrMode": "builtin",
+  "uwrResolvedSource": "builtin"
+}

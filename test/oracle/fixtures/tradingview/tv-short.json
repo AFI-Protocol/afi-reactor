@@ -1,0 +1,12 @@
+{
+  "signalId": "oracle-tv-short-0001",
+  "providerId": "oracle-provider-tv",
+  "symbol": "ETHUSDT",
+  "market": "perp",
+  "timeframe": "4h",
+  "strategy": "froggy_trend_pullback_v1",
+  "direction": "short",
+  "setupSummary": "Bearish rejection at range high (oracle fixture)",
+  "notes": "ORACLE-EQUIVALENCE committed fixture - fixed content, never edit casually",
+  "alertTimestamp": "2026-01-15T13:00:00Z"
+}

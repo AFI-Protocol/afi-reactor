@@ -20,6 +20,8 @@
     "codex-lint": "node dist/ops/codexLint.js",
     "mentor-eval": "node dist/ops/mentorChain.js",
     "test": "jest",
+    "oracle:regen": "UPDATE_ORACLE_GOLDENS=1 jest --testPathPattern 'test/oracle/'",
+    "test:oracle:mongo": "node test/oracle/oracleMongoEquivalence.mjs",
     "test:integration:unavailable": "node test/integration-mongo/reactorEvidenceUnavailable.mjs",
     "test:integration:mongo": "node test/integration-mongo/reactorEvidencePersistence.mjs",
     "test:integration:shutdown": "node test/integration-mongo/reactorShutdown.mjs",

@@ -1,0 +1,26 @@
+{
+  "schema": "afi.cpj.v0.1",
+  "provenance": {
+    "providerType": "telegram",
+    "providerId": "oracle-telegram-channel-1",
+    "messageId": "oracle-cpj-msg-0001",
+    "postedAt": "2026-01-15T10:00:00Z",
+    "rawText": "BTC LONG entry 42500 SL 41800 TP 43500 (oracle fixture)",
+    "channelName": "Oracle Fixture Channel"
+  },
+  "extracted": {
+    "symbolRaw": "BTCUSDT",
+    "side": "long",
+    "entry": 42500,
+    "stopLoss": 41800,
+    "takeProfits": [{ "price": 43500 }],
+    "timeframeHint": "4h",
+    "venueHint": "blofin",
+    "marketTypeHint": "perp"
+  },
+  "parse": {
+    "parserId": "oracle-fixture-parser",
+    "parserVersion": "1.0.0",
+    "confidence": 0.87
+  }
+}
