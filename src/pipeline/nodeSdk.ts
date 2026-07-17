@@ -18,7 +18,7 @@
  *    real, partial data such as a declared fallback summary — never
  *    fabricated success data).
  */
-import type { CanonicalUss } from "../services/pipelineRunner.js";
+import type { CanonicalUss } from "../types/canonicalUss.js";
 
 export type { CanonicalUss };
 

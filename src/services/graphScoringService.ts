@@ -28,7 +28,7 @@
  *   of the bundle (Dates as ISO strings, undefined dropped).
  */
 import type { ReactorScoredSignalV1 } from "../types/ReactorScoredSignalV1.js";
-import type { CanonicalUss } from "./pipelineRunner.js";
+import type { CanonicalUss } from "../types/canonicalUss.js";
 import { getRuntimeComposition, type RuntimeComposition } from "../config/runtimeComposition.js";
 import { canonicalHashOf, DOMAIN_TAGS } from "../pipeline/hashing.js";
 import type { CompositionRefV1, PipelineManifest } from "../pipeline/manifestTypes.js";

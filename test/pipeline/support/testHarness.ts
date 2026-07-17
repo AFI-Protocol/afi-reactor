@@ -5,7 +5,7 @@
  * production source contains NO mock implementations (D-FCP-8); injecting a
  * registry is data injection through the executor's public seam.
  */
-import type { CanonicalUss } from "../../../src/services/pipelineRunner.js";
+import type { CanonicalUss } from "../../../src/types/canonicalUss.js";
 import type {
   AnalysisNodePlugin,
   NodeResult,
