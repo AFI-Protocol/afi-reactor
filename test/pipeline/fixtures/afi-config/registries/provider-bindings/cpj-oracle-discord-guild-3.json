@@ -1,0 +1,20 @@
+{
+  "schema": "afi.provider-strategy-binding.v1",
+  "bindingId": "cpj-oracle-discord-guild-3",
+  "providerId": "oracle-discord-guild-3",
+  "providerType": "cpj",
+  "authenticatedBy": "route-secret",
+  "allowedStrategies": [
+    {
+      "analystId": "froggy",
+      "strategyId": "trend_pullback_v1",
+      "strategyVersion": "1.0.0"
+    }
+  ],
+  "defaultStrategy": {
+    "analystId": "froggy",
+    "strategyId": "trend_pullback_v1",
+    "strategyVersion": "1.0.0"
+  },
+  "status": "active"
+}
