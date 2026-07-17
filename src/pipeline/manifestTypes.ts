@@ -148,6 +148,26 @@ export interface StrategyTriple {
   strategyVersion: string;
 }
 
+/**
+ * afi.composition-ref.v1 (vendored composition-ref.schema.json) — the
+ * COMPLETE, hash-pinned identity of the composition that produced one scored
+ * signal. Every field REQUIRED (all-or-nothing: partial composition
+ * provenance is inadmissible — a submitter that cannot produce every pin
+ * refuses to submit).
+ */
+export interface CompositionRefV1 {
+  schema: "afi.composition-ref.v1";
+  pipelineId: string;
+  pipelineVersion: string;
+  manifestHash: CanonicalHashDoc;
+  analystConfigHash: CanonicalHashDoc;
+  scorerPluginId: string;
+  scorerPluginVersion: string;
+  pluginSetHash: CanonicalHashDoc;
+  executionSummaryHash: CanonicalHashDoc;
+  enrichmentHash: CanonicalHashDoc;
+}
+
 /** afi.provider-strategy-binding.v1 (provider-to-strategy routing). */
 export interface ProviderStrategyBinding {
   schema: "afi.provider-strategy-binding.v1";

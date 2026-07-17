@@ -212,6 +212,48 @@ export function governedDecayTemplateIds(): Set<string> {
   );
 }
 
+/** The runtime decay surface (identical to afi-core's DecayParams). */
+export interface ResolvedDecayParams {
+  halfLifeMinutes: number;
+  greeksTemplateId: string;
+}
+
+/**
+ * Resolve the registered strategy's decay selection (W3 spec section 6):
+ * a `ref.templateId` is looked up BY TEMPLATE ID in afi-core's
+ * DEFAULT_DECAY_TEMPLATES_BY_HORIZON values (unknown → refusal — boot
+ * validation enforces the same set, so a live miss is a deployment defect);
+ * a schema-validated `inline` surface is taken verbatim. The froggy
+ * registration selects decay-swing-v1 → byte-equal to the superseded
+ * horizon-inferring helper's swing-template result. NO horizon inference, NO
+ * hardcoded template selection anywhere in the live path.
+ */
+export function resolveDecayParams(decay: ResolvedStrategy["decay"]): ResolvedDecayParams {
+  if (decay.kind === "template") {
+    const template = Object.values(DEFAULT_DECAY_TEMPLATES_BY_HORIZON).find(
+      (t) => t.templateId === decay.templateId
+    );
+    if (!template) {
+      throw new RuntimeConfigValidationError([
+        `decay templateId '${decay.templateId}' is not a governed template`,
+      ]);
+    }
+    return {
+      halfLifeMinutes: template.halfLifeMinutes ?? template.targetHoldingMinutes / 2,
+      greeksTemplateId: template.templateId,
+    };
+  }
+  const inline = (decay.config as { inline?: Record<string, unknown> })?.inline;
+  const halfLifeMinutes = inline?.halfLifeMinutes;
+  const greeksTemplateId = inline?.greeksTemplateId;
+  if (typeof halfLifeMinutes !== "number" || halfLifeMinutes <= 0 || typeof greeksTemplateId !== "string") {
+    throw new RuntimeConfigValidationError([
+      "inline decayConfig must carry a positive halfLifeMinutes and a greeksTemplateId",
+    ]);
+  }
+  return { halfLifeMinutes, greeksTemplateId };
+}
+
 function strategyKey(analystId: string, strategyId: string, strategyVersion: string): string {
   return `${analystId}/${strategyId}@${strategyVersion}`;
 }

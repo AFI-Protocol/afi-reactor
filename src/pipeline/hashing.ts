@@ -43,6 +43,9 @@ export const DOMAIN_TAGS = {
   analystConfig: "afi.d2.analyst-config",
   pluginSet: "afi.d2.plugin-set",
   executionSummary: "afi.d2.execution-summary",
+  /** D-FCP-7 fifth registered tag — SAME domain as the provenance-record's
+   *  optional enrichmentHash, made mandatory at the composition layer. */
+  enrichmentBundle: "afi.d2.enrichment-bundle",
 } as const;
 
 /** Excluded top-level fields per artifact type (canonical-json-hashing.v1 §3). */

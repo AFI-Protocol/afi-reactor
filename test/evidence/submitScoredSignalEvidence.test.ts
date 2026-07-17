@@ -1,10 +1,13 @@
 /**
- * MONGO-REACTOR-SUBMIT (Slot 3) — canonical evidence submission tests.
+ * Canonical evidence submission tests — afi.scored-signal-evidence.v2
+ * (MONGO-REACTOR-SUBMIT evolved by FCP-GOV D-FCP-7: v2 = v1 + REQUIRED
+ * composition provenance; the projection/provenance preimages are UNCHANGED).
  *
  * Focused behaviors: success, idempotent duplicate, conflicting duplicate,
- * store unavailable, schema rejection (invalid record never submitted), and
- * persistence-failure propagation (never a silent success). Uses a fake store
- * (the Reactor is a submitter; it never touches MongoDB).
+ * store unavailable, schema rejection (invalid record never submitted),
+ * persistence-failure propagation (never a silent success), the registry-
+ * backed UWR stamp recognition, and the all-or-nothing composition rule.
+ * Uses a fake store (the Reactor is a submitter; it never touches MongoDB).
  */
 
 import type { ReactorScoredSignalV1 } from "../../src/types/ReactorScoredSignalV1.js";
@@ -12,9 +15,11 @@ import {
   validateProvenanceRecordV1,
   validateScoredSignalV1,
 } from "../../src/pipeheads/provenance/schemaValidation.js";
+import { validateEvidenceRecordV2 } from "../../src/evidence/evidenceV2Schema.js";
 import {
   buildReactorEvidenceRecord,
   ReactorEvidenceConstructionError,
+  type EvidenceCompositionContext,
   type ReactorEvidenceRecord,
 } from "../../src/evidence/reactorEvidenceRecord.js";
 import {
@@ -23,6 +28,8 @@ import {
   type EvidenceStorePort,
   type EvidenceSubmitResult,
 } from "../../src/evidence/submitScoredSignalEvidence.js";
+import { canonicalHashOf, DOMAIN_TAGS } from "../../src/pipeline/hashing.js";
+import type { CompositionRefV1 } from "../../src/pipeline/manifestTypes.js";
 
 const SILENT = { info: () => {}, error: () => {} };
 
@@ -57,6 +64,35 @@ function makeScored(overrides: Record<string, unknown> = {}): ReactorScoredSigna
   } as unknown as ReactorScoredSignalV1;
 }
 
+/** A complete, schema-valid composition context (real CanonicalHash refs). */
+function makeContext(
+  overrides: Partial<EvidenceCompositionContext> = {}
+): EvidenceCompositionContext {
+  const composition: CompositionRefV1 = {
+    schema: "afi.composition-ref.v1",
+    pipelineId: "froggy-trend-pullback",
+    pipelineVersion: "v1.0.0",
+    manifestHash: canonicalHashOf({ fixture: "manifest" }, DOMAIN_TAGS.compositionManifest),
+    analystConfigHash: canonicalHashOf({ fixture: "config" }, DOMAIN_TAGS.analystConfig),
+    scorerPluginId: "afi-scorer-froggy-trend-pullback",
+    scorerPluginVersion: "1.0.0",
+    pluginSetHash: canonicalHashOf({ fixture: "plugins" }, DOMAIN_TAGS.pluginSet),
+    executionSummaryHash: canonicalHashOf({ fixture: "summary" }, DOMAIN_TAGS.executionSummary),
+    enrichmentHash: canonicalHashOf({ fixture: "enrichment" }, DOMAIN_TAGS.enrichmentBundle),
+  };
+  return {
+    composition: (overrides.composition as CompositionRefV1) ?? composition,
+    registration:
+      overrides.registration ??
+      ({
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        strategyVersion: "1.0.0",
+        uwrProfileRef: { profileId: "uwr-weighted-lifts-v0.1" },
+      } as EvidenceCompositionContext["registration"]),
+  };
+}
+
 /** Fake afi-infra evidence store. Records submissions; drives outcomes/errors. */
 class FakeStore implements EvidenceStorePort {
   submissions: ReactorEvidenceRecord[] = [];
@@ -77,23 +113,31 @@ class FakeStore implements EvidenceStorePort {
   }
 }
 
-describe("buildReactorEvidenceRecord", () => {
-  it("produces a governed, schema-valid, identifier-continuous SCORED record", () => {
-    const record = buildReactorEvidenceRecord(makeScored());
+describe("buildReactorEvidenceRecord (v2)", () => {
+  it("produces a governed, schema-valid, identifier-continuous SCORED v2 record", () => {
+    const record = buildReactorEvidenceRecord(makeScored(), makeContext());
 
-    expect(record.schema).toBe("afi.scored-signal-evidence.v1");
+    expect(record.schema).toBe("afi.scored-signal-evidence.v2");
     expect(record.lifecycleState).toBe("SCORED");
     expect(record.finalized).toBe(false);
     // complete strategy triple carried at top level
     expect(record.analystId).toBe("froggy");
     expect(record.strategyId).toBe("trend_pullback_v1");
     expect(record.strategyVersion).toBe("1.0.0");
-    // carries the canonical projection + provenance record
+    // carries the canonical projection + provenance record (preimages UNCHANGED)
     expect(record.scoredSignal.schema).toBe("afi.scored-signal.v1");
     expect(record.provenanceRecord.schema).toBe("afi.provenance-record.v1");
     expect(record.provenanceRecord.inputHash).toBeTruthy();
     expect(record.provenanceRecord.outputHash).toBeTruthy();
+    // v2's one addition: the REQUIRED composition provenance
+    expect(record.composition.schema).toBe("afi.composition-ref.v1");
+    expect(record.composition.executionSummaryHash.domainTag).toBe("afi.d2.execution-summary");
+    expect(record.composition.enrichmentHash.domainTag).toBe("afi.d2.enrichment-bundle");
 
+    // the FULL record valid against the VENDORED v2 schema
+    const v2 = validateEvidenceRecordV2(record);
+    expect(v2.errors).toEqual([]);
+    expect(v2.ok).toBe(true);
     // sub-artifacts valid against their governed afi-config D2 schemas
     expect(validateScoredSignalV1(record.scoredSignal).ok).toBe(true);
     expect(validateProvenanceRecordV1(record.provenanceRecord).ok).toBe(true);
@@ -104,16 +148,51 @@ describe("buildReactorEvidenceRecord", () => {
     expect(record.provenanceRecord.canonicalizationVersion).toBe(record.canonicalizationVersion);
   });
 
-  it("rejects a score missing the strategyVersion triple member", () => {
-    const scored = makeScored({ analystScore: { strategyVersion: undefined } });
-    expect(() => buildReactorEvidenceRecord(scored)).toThrow(ReactorEvidenceConstructionError);
+  it("the v1→v2 evolution left the projection/provenance PREIMAGES unchanged (hashes are composition-independent)", () => {
+    const a = buildReactorEvidenceRecord(makeScored(), makeContext());
+    const b = buildReactorEvidenceRecord(makeScored(), {
+      ...makeContext(),
+      composition: {
+        ...makeContext().composition,
+        executionSummaryHash: canonicalHashOf({ other: true }, DOMAIN_TAGS.executionSummary),
+      },
+    });
+    expect(a.provenanceRecord.inputHash).toEqual(b.provenanceRecord.inputHash);
+    expect(a.provenanceRecord.outputHash).toEqual(b.provenanceRecord.outputHash);
+    expect(a.scoredSignal).toEqual(b.scoredSignal);
   });
 
-  // Governed scoring-profile stamp (PR-UWR-STAMP / RC-6). The stamp is REQUIRED
-  // on every canonical evidence record and is built from the source the
-  // composition path ACTUALLY scored with — propagated, never re-derived.
+  it("rejects a score missing the strategyVersion triple member", () => {
+    const scored = makeScored({ analystScore: { strategyVersion: undefined } });
+    expect(() => buildReactorEvidenceRecord(scored, makeContext())).toThrow(
+      ReactorEvidenceConstructionError
+    );
+  });
+
+  it("FAILS CLOSED without composition provenance (all-or-nothing; no v1 emission path remains)", () => {
+    expect(() => buildReactorEvidenceRecord(makeScored(), undefined)).toThrow(
+      ReactorEvidenceConstructionError
+    );
+    expect(() => buildReactorEvidenceRecord(makeScored(), null)).toThrow(
+      ReactorEvidenceConstructionError
+    );
+  });
+
+  it("FAILS CLOSED on PARTIAL composition provenance (a missing pin refuses to submit)", () => {
+    const context = makeContext();
+    delete (context.composition as unknown as Record<string, unknown>).enrichmentHash;
+    expect(() => buildReactorEvidenceRecord(makeScored(), context)).toThrow(
+      /Partial composition provenance/
+    );
+  });
+
+  // Governed scoring-profile stamp (PR-UWR-STAMP / RC-6), now REGISTRY-BACKED
+  // (FCP-GOV D-FCP-9 item 5): recognition flows from the resolved registration.
   it("stamps the governed profile, discriminating builtin as builtin-value-identity", () => {
-    const record = buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: "builtin" }));
+    const record = buildReactorEvidenceRecord(
+      makeScored({ uwrResolvedSource: "builtin" }),
+      makeContext()
+    );
     expect(record.uwrProfile).toBeDefined();
     expect(record.uwrProfile.source).toBe("builtin-value-identity");
     expect(record.uwrProfile.profileId).toBeTruthy();
@@ -122,10 +201,16 @@ describe("buildReactorEvidenceRecord", () => {
   });
 
   it("discriminates a registry-resolved score as registry-consumed", () => {
-    const record = buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: "registry" }));
+    const record = buildReactorEvidenceRecord(
+      makeScored({ uwrResolvedSource: "registry" }),
+      makeContext()
+    );
     expect(record.uwrProfile.source).toBe("registry-consumed");
     // Only `source` differs — profile identity metadata is byte-identical.
-    const builtin = buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: "builtin" }));
+    const builtin = buildReactorEvidenceRecord(
+      makeScored({ uwrResolvedSource: "builtin" }),
+      makeContext()
+    );
     expect(record.uwrProfile.profileId).toBe(builtin.uwrProfile.profileId);
     expect(record.uwrProfile.status).toBe(builtin.uwrProfile.status);
     expect(record.uwrProfile.decisionRef).toBe(builtin.uwrProfile.decisionRef);
@@ -135,39 +220,86 @@ describe("buildReactorEvidenceRecord", () => {
     // An unpropagated/unknown source must never be silently omitted or guessed:
     // omission would masquerade as a pre-program record (RC-6).
     expect(() =>
-      buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: undefined }))
+      buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: undefined }), makeContext())
     ).toThrow(ReactorEvidenceConstructionError);
     expect(() =>
-      buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: "fallback" }))
+      buildReactorEvidenceRecord(makeScored({ uwrResolvedSource: "fallback" }), makeContext())
     ).toThrow(ReactorEvidenceConstructionError);
   });
 
-  it("FAILS CLOSED for a profile identity this Reactor cannot stamp (no unstamped evidence)", () => {
-    // The governed contract is analyst-neutral; this Reactor emits only the
-    // profile it supports. An unsupported identity cannot produce canonical
-    // evidence here — an implementation limit, surfaced honestly.
+  it("stamps ANY registered identity through the generic registry-backed mechanism (no froggy conditional)", () => {
+    const scored = makeScored({
+      analystScore: {
+        analystId: "atlas-probe",
+        strategyId: "multi_branch_v1",
+        strategyVersion: "1.0.0",
+      },
+    });
+    const record = buildReactorEvidenceRecord(
+      scored,
+      makeContext({
+        registration: {
+          analystId: "atlas-probe",
+          strategyId: "multi_branch_v1",
+          strategyVersion: "1.0.0",
+          uwrProfileRef: { profileId: "uwr-weighted-lifts-v0.1" },
+        },
+      })
+    );
+    expect(record.uwrProfile.profileId).toBe("uwr-weighted-lifts-v0.1");
+    expect(record.uwrProfile.source).toBe("builtin-value-identity");
+  });
+
+  it("FAILS CLOSED when the scorer identity does not match the resolved registration", () => {
+    // The registration resolved froggy; a score claiming another identity
+    // must not be stamped (recognition governance never granted it).
     const other = makeScored({ analystScore: { analystId: "kestrel" } });
-    expect(() => buildReactorEvidenceRecord(other)).toThrow(ReactorEvidenceConstructionError);
+    expect(() => buildReactorEvidenceRecord(other, makeContext())).toThrow(
+      ReactorEvidenceConstructionError
+    );
+  });
+
+  it("FAILS CLOSED when the registration references an unregistered UWR profile", () => {
+    const context = makeContext({
+      registration: {
+        analystId: "froggy",
+        strategyId: "trend_pullback_v1",
+        strategyVersion: "1.0.0",
+        uwrProfileRef: { profileId: "uwr-unregistered-v9" },
+      },
+    });
+    expect(() => buildReactorEvidenceRecord(makeScored(), context)).toThrow(
+      ReactorEvidenceConstructionError
+    );
   });
 });
 
-describe("submitScoredSignalEvidence", () => {
+describe("submitScoredSignalEvidence (v2)", () => {
   it("submits and reports an inserted outcome (persistence succeeded)", async () => {
     const store = new FakeStore("inserted");
-    const out = await submitScoredSignalEvidence(makeScored(), store, SILENT);
+    const out = await submitScoredSignalEvidence(makeScored(), store, makeContext(), SILENT);
     expect(out.outcome).toBe("inserted");
     expect(out.lifecycleState).toBe("SCORED");
     expect(store.submissions).toHaveLength(1);
     expect(store.submissions[0].signalId).toBe("sig-reactor-unit-1");
+    expect(store.submissions[0].schema).toBe("afi.scored-signal-evidence.v2");
+    expect(store.submissions[0].composition.schema).toBe("afi.composition-ref.v1");
   });
 
   it("reports an idempotent duplicate as a (still successful) persisted state", async () => {
-    const out = await submitScoredSignalEvidence(makeScored(), new FakeStore("idempotent"), SILENT);
+    const out = await submitScoredSignalEvidence(
+      makeScored(),
+      new FakeStore("idempotent"),
+      makeContext(),
+      SILENT
+    );
     expect(out.outcome).toBe("idempotent-duplicate");
   });
 
   it("maps a conflicting duplicate to a first-class 409 conflict", async () => {
-    await expect(submitScoredSignalEvidence(makeScored(), new FakeStore("conflict"), SILENT)).rejects.toMatchObject({
+    await expect(
+      submitScoredSignalEvidence(makeScored(), new FakeStore("conflict"), makeContext(), SILENT)
+    ).rejects.toMatchObject({
       name: "ReactorEvidencePersistenceError",
       category: "conflict",
       httpStatus: 409,
@@ -175,7 +307,9 @@ describe("submitScoredSignalEvidence", () => {
   });
 
   it("maps an unavailable store to a first-class 503 (persistence did not succeed)", async () => {
-    await expect(submitScoredSignalEvidence(makeScored(), new FakeStore("persistence"), SILENT)).rejects.toMatchObject({
+    await expect(
+      submitScoredSignalEvidence(makeScored(), new FakeStore("persistence"), makeContext(), SILENT)
+    ).rejects.toMatchObject({
       category: "persistence",
       httpStatus: 503,
     });
@@ -185,15 +319,34 @@ describe("submitScoredSignalEvidence", () => {
     // conviction 1.5 survives projection but violates the governed schema (max 1).
     const store = new FakeStore("inserted");
     const scored = makeScored({ analystScore: { conviction: 1.5 } });
-    await expect(submitScoredSignalEvidence(scored, store, SILENT)).rejects.toMatchObject({
+    await expect(
+      submitScoredSignalEvidence(scored, store, makeContext(), SILENT)
+    ).rejects.toMatchObject({
       category: "validation",
       httpStatus: 500,
     });
     expect(store.submissions).toHaveLength(0); // invalid record never reached the store
   });
 
+  it("rejects a record whose composition violates the vendored v2 schema BEFORE submission", async () => {
+    const store = new FakeStore("inserted");
+    const context = makeContext();
+    // A malformed hash value survives construction shape checks but violates
+    // the canonical-hash schema $ref'd by the vendored v2 schema.
+    (context.composition.manifestHash as { value: string }).value = "not-a-sha256";
+    await expect(
+      submitScoredSignalEvidence(makeScored(), store, context, SILENT)
+    ).rejects.toMatchObject({ category: "validation", httpStatus: 500 });
+    expect(store.submissions).toHaveLength(0);
+  });
+
   it("propagates a persistence failure as a thrown error — never a silent success", async () => {
-    const promise = submitScoredSignalEvidence(makeScored(), new FakeStore("persistence"), SILENT);
+    const promise = submitScoredSignalEvidence(
+      makeScored(),
+      new FakeStore("persistence"),
+      makeContext(),
+      SILENT
+    );
     await expect(promise).rejects.toBeInstanceOf(ReactorEvidencePersistenceError);
     // and does NOT resolve to an outcome
     await expect(promise).rejects.toBeDefined();

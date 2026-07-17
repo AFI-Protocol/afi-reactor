@@ -264,7 +264,10 @@ function generateIngestHash(cpj: CpjV01Payload): string {
  * @param cpj - Validated CPJ v0.1 payload
  * @returns Mapping result with USS payload or error details
  */
-export function mapCpjToUssV11(cpj: CpjV01Payload): CpjMappingResult {
+export function mapCpjToUssV11(
+  cpj: CpjV01Payload,
+  resolvedStrategy: { strategyId: string }
+): CpjMappingResult {
   const now = new Date().toISOString();
 
   // Normalize symbol to AFI canonical format with strict validation
@@ -323,7 +326,11 @@ export function mapCpjToUssV11(cpj: CpjV01Payload): CpjMappingResult {
       symbol: canonicalSymbol,
       market: marketType,
       timeframe: cpj.extracted.timeframeHint || "unknown",
-      strategy: "cpj-ingested", // CPJ signals don't have strategy at ingest
+      // The RESOLVED registered strategyId (W3 spec section 4 — replaces the
+      // removed cpj-ingested constant; the provider binding's
+      // defaultStrategy resolves BEFORE this mapping. Documented intentional
+      // oracle diff class 1 — test/oracle/INTENTIONAL_DIFFS.md).
+      strategy: resolvedStrategy.strategyId,
       direction,
     },
   };

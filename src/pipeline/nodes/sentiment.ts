@@ -4,11 +4,11 @@
  * Wraps the EXISTING production kernel (W3 spec section 5):
  * computeFroggySentiment (Coinalyze funding/positioning heuristics) — with
  * the ACTUAL signal symbol/timeframe mapped to the provider's symbol
- * convention instead of the retired hardcoded 'BTCUSDT_PERP.A' literal.
+ * convention instead of the retired hardcoded BTC-perp literal.
  *
  * Symbol mapping (documented per spec):
  *   Coinalyze aggregates Binance perpetuals under
- *   '<BASE><QUOTE>_PERP.A' (e.g. BTCUSDT_PERP.A). The canonical AFI symbol
+ *   '<BASE><QUOTE>_PERP.A'. The canonical AFI symbol
  *   ('BTC/USDT' — or the already-concatenated 'BTCUSDT' some providers send)
  *   maps by stripping the '/' separator, uppercasing, and appending
  *   '_PERP.A'. A node config 'symbolOverride' bypasses the mapping entirely

@@ -42,6 +42,7 @@ import {
   UWR_STAMP_SOURCE_BUILTIN,
   UWR_STAMP_SOURCE_REGISTRY,
   uwrProfileStampFor,
+  type RecognizedStrategyRegistration,
 } from "../../src/config/uwrProfilePin.js";
 import type { UwrProfileStamp } from "../../src/types/ReactorScoredSignalV1.js";
 import type { FroggyEnrichedView } from "../../node_modules/afi-core/analysts/froggy.enrichment_adapter.js";
@@ -54,6 +55,16 @@ const INSTALLED_REGISTRY = path.resolve(REPO_ROOT, UWR_REGISTRY_RELATIVE_PATH);
 const RECOGNIZED = {
   analystId: "froggy",
   strategyId: "trend_pullback_v1",
+};
+
+// FCP-GOV D-FCP-9 item 5: recognition is REGISTRY-BACKED — the stamp site
+// consumes the resolved, boot-validated analyst-strategy registration
+// (triple + uwrProfileRef) instead of a hardcoded froggy identity gate.
+const RECOGNIZED_REGISTRATION: RecognizedStrategyRegistration = {
+  analystId: "froggy",
+  strategyId: "trend_pullback_v1",
+  strategyVersion: "1.0.0",
+  uwrProfileRef: { profileId: "uwr-weighted-lifts-v0.1" },
 };
 
 /** Same minimal-but-representative enriched view as uwrRuntimeProfile.test.ts. */
@@ -73,17 +84,19 @@ function enrichedFixture(): FroggyEnrichedView {
   };
 }
 
-/** Mirrors how a stamp site consumes the composition path's output:
- * stampFor(analystScore, PROPAGATED source) — never re-derived here. (The legacy
- * vault-write stamp site was deleted with the legacy store; the canonical
- * evidence stamp site is wired under the afi-config uwrProfile contract.) */
+/** Mirrors how the canonical evidence stamp site consumes the composition
+ * path's output: stampFor(analystScore, PROPAGATED source, RESOLVED
+ * registration) — the source is never re-derived here, and recognition is
+ * registry-backed (src/evidence/reactorEvidenceRecord.ts passes the resolved
+ * registration of the executed strategy). */
 function stampFromPluginOutput(analyzed: {
   analysis: { analystScore: { analystId?: string; strategyId?: string } };
   uwrResolvedSource: "builtin" | "registry";
 }): UwrProfileStamp | undefined {
   return uwrProfileStampFor(
     analyzed.analysis.analystScore,
-    analyzed.uwrResolvedSource
+    analyzed.uwrResolvedSource,
+    RECOGNIZED_REGISTRATION
   );
 }
 
@@ -262,7 +275,9 @@ describe("PR-UWR-STAMP-SEMANTICS: discriminator values are the governed RC-6 nam
 // honesty condition, and the gate-ordering negatives.
 describe("PR-UWR-STAMP-SEMANTICS: uwrProfileStampFor source discriminator (unit)", () => {
   it("registry source stamps the exact registry-consumed shape", () => {
-    expect(uwrProfileStampFor({ ...RECOGNIZED }, "registry")).toEqual({
+    expect(
+      uwrProfileStampFor({ ...RECOGNIZED }, "registry", RECOGNIZED_REGISTRATION)
+    ).toEqual({
       profileId: "uwr-weighted-lifts-v0.1",
       status: "testnet-provisional",
       decisionRef: "afi-governance/decisions/uwr-profile-pin-v0.1.md",
@@ -271,8 +286,8 @@ describe("PR-UWR-STAMP-SEMANTICS: uwrProfileStampFor source discriminator (unit)
   });
 
   it("identity/value metadata is IDENTICAL across sources — only the discriminator differs", () => {
-    const builtin = uwrProfileStampFor({ ...RECOGNIZED }, "builtin");
-    const registry = uwrProfileStampFor({ ...RECOGNIZED }, "registry");
+    const builtin = uwrProfileStampFor({ ...RECOGNIZED }, "builtin", RECOGNIZED_REGISTRATION);
+    const registry = uwrProfileStampFor({ ...RECOGNIZED }, "registry", RECOGNIZED_REGISTRATION);
     const { source: b, ...builtinRest } = builtin!;
     const { source: r, ...registryRest } = registry!;
     expect(builtinRest).toEqual(registryRest);
@@ -289,32 +304,49 @@ describe("PR-UWR-STAMP-SEMANTICS: uwrProfileStampFor source discriminator (unit)
   it("THROWS on an unpropagated/unknown source with a stampable identity (RC-6 honesty)", () => {
     // Omitting the stamp instead would masquerade as a pre-program record.
     expect(() =>
-      uwrProfileStampFor({ ...RECOGNIZED }, undefined as any)
+      uwrProfileStampFor({ ...RECOGNIZED }, undefined as any, RECOGNIZED_REGISTRATION)
     ).toThrow(/refusing to stamp/);
     expect(() =>
-      uwrProfileStampFor({ ...RECOGNIZED }, "fallback" as any)
+      uwrProfileStampFor({ ...RECOGNIZED }, "fallback" as any, RECOGNIZED_REGISTRATION)
     ).toThrow(/refusing to stamp/);
   });
 
-  it("the UP-10 identity gate PRECEDES the source discriminator — unrecognized identities never stamp, regardless of source", () => {
-    // Pins the ordering: an unrecognized identity returns undefined even in
-    // registry mode (registry mode must NOT bypass UP-10), and even with an
-    // unknown source (the identity gate refuses before stampSourceFor could
-    // throw). A refactor that discriminated the source first would break
-    // exactly these.
+  it("the registry-backed identity gate PRECEDES the source discriminator — unrecognized identities never stamp, regardless of source", () => {
+    // Pins the ordering (registry-backed form of the former UP-10 gate): an
+    // identity that mismatches the resolved registration returns undefined
+    // even in registry mode, and even with an unknown source (the identity
+    // gate refuses before stampSourceFor could throw). A refactor that
+    // discriminated the source first would break exactly these.
     expect(
-      uwrProfileStampFor({ ...RECOGNIZED, analystId: "other-analyst" }, "registry")
+      uwrProfileStampFor(
+        { ...RECOGNIZED, analystId: "other-analyst" },
+        "registry",
+        RECOGNIZED_REGISTRATION
+      )
     ).toBeUndefined();
     expect(
       uwrProfileStampFor(
         { ...RECOGNIZED, strategyId: "other_strategy_v9" },
-        "registry"
+        "registry",
+        RECOGNIZED_REGISTRATION
       )
     ).toBeUndefined();
     expect(
-      uwrProfileStampFor({ analystId: "other-analyst" }, "fallback" as any)
+      uwrProfileStampFor(
+        { analystId: "other-analyst" },
+        "fallback" as any,
+        RECOGNIZED_REGISTRATION
+      )
     ).toBeUndefined();
-    expect(uwrProfileStampFor(null, "fallback" as any)).toBeUndefined();
+    expect(
+      uwrProfileStampFor(null, "fallback" as any, RECOGNIZED_REGISTRATION)
+    ).toBeUndefined();
+    // No registration resolved → nothing is ever stamped (recognition is
+    // registry-backed, never silent), regardless of source.
+    expect(uwrProfileStampFor({ ...RECOGNIZED }, "registry", undefined)).toBeUndefined();
+    expect(
+      uwrProfileStampFor({ ...RECOGNIZED }, "fallback" as any, undefined)
+    ).toBeUndefined();
   });
 });
 

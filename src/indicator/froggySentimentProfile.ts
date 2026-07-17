@@ -24,15 +24,17 @@ import {
  * Fetches funding rate and open interest data from Coinalyze,
  * then derives sentiment signals using Froggy's heuristics.
  *
- * Default symbol: "BTCUSDT_PERP.A" (Binance BTC perp)
- * Can be overridden for other assets (ETH, SOL, etc.)
+ * The caller supplies the Coinalyze symbol EXPLICITLY (the sentiment node
+ * maps the signal's canonical symbol to the provider convention
+ * '<BASE><QUOTE>_PERP.A' — src/pipeline/nodes/sentiment.ts). There is no
+ * hardcoded default symbol (D-FCP-5: no hardcoded routing identity).
  *
- * @param symbol - Coinalyze symbol (e.g. "BTCUSDT_PERP.A")
+ * @param symbol - Coinalyze symbol ('<BASE><QUOTE>_PERP.A' convention)
  * @param timeframe - Timeframe for history ("1h" or "1d")
  * @returns SentimentLensV1 payload or null if data unavailable
  */
 export async function computeFroggySentiment(
-  symbol: string = "BTCUSDT_PERP.A",
+  symbol: string,
   timeframe: "1h" | "1d" = "1h"
 ): Promise<SentimentLensV1["payload"] | null> {
   try {

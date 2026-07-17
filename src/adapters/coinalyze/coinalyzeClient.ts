@@ -86,7 +86,7 @@ export function __resetCoinalyzeClientStateForTests(): void {
 /**
  * Fetch perp metrics from Coinalyze API
  *
- * @param symbol - Coinalyze symbol (e.g. "BTCUSDT_PERP.A" for Binance BTC perp)
+ * @param symbol - Coinalyze symbol ('<BASE><QUOTE>_PERP.A' convention, Binance perp aggregate)
  * @param timeframe - Timeframe for history ("1h" or "1d")
  * @param options - Injectable timeout/TTL/fetch/clock (tests)
  * @returns CoinalyzePerpMetrics or throws error

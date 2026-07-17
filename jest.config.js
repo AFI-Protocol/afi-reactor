@@ -56,6 +56,9 @@ export default {
     "**/test/guardrails/uwrStampSemantics.test.ts",
     "**/test/guardrails/no-legacy-ingest.test.ts",
     "**/test/guardrails/no-legacy-reactor-vault.test.ts",
+    // SLOT-FCP-REACTOR stage B: no hardcoded composition identity in the
+    // ACTIVE runtime (cleanup-pending allowlist emptied by SLOT-FCP-CLEANUP).
+    "**/test/guardrails/no-hardcoded-composition.test.ts",
     "**/test/state-management.test.ts",
     "**/test/integration/state-lifecycle.test.ts",
     "**/src/dag/__tests__/*.test.ts",

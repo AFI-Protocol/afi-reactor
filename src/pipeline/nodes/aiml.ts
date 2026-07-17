@@ -57,16 +57,6 @@ export function createAimlNode(deps: AimlNodeDeps = PRODUCTION_DEPS): AnalysisNo
       }
       const view = input;
 
-      if (!deps.isConfigured()) {
-        ctx.logger.info("tiny-brains not configured; view passes through unaugmented");
-        return ok(view, [
-          {
-            class: "service-unconfigured",
-            detail: "TINY_BRAINS_URL unset; aiMl augmentation skipped",
-          },
-        ]);
-      }
-
       // Identical projection to the live froggy-enrichment-adapter.
       const tinyBrainsInput: TinyBrainsFroggyInput = {
         signalId: view.signalId,
@@ -79,9 +69,23 @@ export function createAimlNode(deps: AimlNodeDeps = PRODUCTION_DEPS): AnalysisNo
         newsFeatures: view.newsFeatures || undefined,
       };
 
+      // Call the client EXACTLY like the live adapter does (the client's own
+      // fail-soft surface returns null when TINY_BRAINS_URL is unset or the
+      // service yields nothing) — byte-equivalent behavior at the client
+      // seam. The configuration probe only CLASSIFIES the recorded
+      // degradation (D-FCP-8: never silent).
       const prediction = await deps.fetchAiMl(tinyBrainsInput);
 
       if (!prediction) {
+        if (!deps.isConfigured()) {
+          ctx.logger.info("tiny-brains not configured; view passes through unaugmented");
+          return ok(view, [
+            {
+              class: "service-unconfigured",
+              detail: "TINY_BRAINS_URL unset; aiMl augmentation skipped",
+            },
+          ]);
+        }
         ctx.logger.warn("tiny-brains yielded no prediction (fail-soft, recorded)");
         return ok(view, [
           {

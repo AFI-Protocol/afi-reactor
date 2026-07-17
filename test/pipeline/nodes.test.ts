@@ -316,14 +316,20 @@ describe("aiml node", () => {
     }) as unknown as FroggyEnrichedView;
 
   it("TINY_BRAINS_URL unset → passthrough + recorded 'service-unconfigured'", async () => {
+    // The node calls the client EXACTLY like the live adapter (whose client
+    // fail-softs to null when unconfigured); the probe only classifies the
+    // recorded degradation.
+    let clientCalled = false;
     const node = createAimlNode({
       isConfigured: () => false,
       fetchAiMl: (async () => {
-        throw new Error("must not be called");
+        clientCalled = true;
+        return null;
       }) as never,
     });
     const view = mergedView();
     const result = await node.run(view, ctx());
+    expect(clientCalled).toBe(true); // adapter-equivalent client seam behavior
     expect(result.output).toBe(view); // passthrough, unaugmented
     expect(result.degradations.map((d) => d.class)).toEqual(["service-unconfigured"]);
   });
