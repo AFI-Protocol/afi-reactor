@@ -42,7 +42,6 @@ import { buildFroggyTrendPullbackInputFromEnriched } from "afi-core/analysts/fro
 import { scoreFroggyTrendPullback } from "afi-core/analysts/froggy.trend_pullback_v1.js";
 import { defaultUwrConfig } from "afi-core/validators/UniversalWeightingRule.js";
 import type { FroggyEnrichedView } from "afi-core/analysts/froggy.enrichment_adapter.js";
-import froggyEnrichmentAdapter from "../../plugins/froggy-enrichment-adapter.plugin.js";
 
 function ctx(config: Record<string, unknown> = {}): NodeRunContext {
   return {
@@ -420,74 +419,75 @@ describe("mergeEnrichedView node — byte-level agreement with the live adapter 
     return clone;
   }
 
-  it("assembles FroggyEnrichedView + lenses + _priceFeedMetadata field-by-field identical to plugins/froggy-enrichment-adapter.plugin.ts", async () => {
-    const previousTinyBrains = process.env.TINY_BRAINS_URL;
-    delete process.env.TINY_BRAINS_URL; // the adapter's aiMl fetch becomes a no-op
-    try {
-      // ---- the live adapter, DAG-mode multi-parent input ----
-      const baseSignal = {
-        signalId: "sig-graph-proof-0001",
-        score: 0.5,
-        confidence: 0.5,
-        timestamp: "2026-07-16T00:00:00.000Z",
-        meta: {
-          symbol: "BTC/USDT",
-          market: "perp",
-          timeframe: "1h",
-          strategy: "trend_pullback_v1",
-          direction: "long" as const,
-        },
-      };
-      const adapterOutput = await froggyEnrichmentAdapter.run({
-        parents: ["froggy-enrichment-tech-pattern", "froggy-enrichment-sentiment-news"],
-        inputs: {
-          "froggy-enrichment-tech-pattern": {
-            ...baseSignal,
-            _techPatternEnrichment: {
-              technical: technicalPayload,
-              pattern: patternPayload,
-              priceSource: "demo",
-              enrichedAt: "2026-07-16T00:00:01.000Z",
-            },
+  it("assembles the FROZEN FroggyEnrichedView + lenses + _priceFeedMetadata (the byte contract the deleted legacy adapter plugin proved; end-to-end bytes are pinned by the oracle enriched goldens)", async () => {
+    const node = createMergeEnrichedViewNode();
+    const result = await node.run(
+      {
+        parents: {
+          technical: {
+            category: "technical",
+            technical: technicalPayload,
+            candles: [],
+            priceSource: "demo",
           },
-          "froggy-enrichment-sentiment-news": {
-            ...baseSignal,
-            _sentimentNewsEnrichment: {
-              sentiment: sentimentObject,
-              news: newsObject,
-              newsFeatures,
-              enrichedAt: "2026-07-16T00:00:01.000Z",
-              sources: ["coinalyze"],
-            },
-          },
+          pattern: { category: "pattern", pattern: patternPayload },
+          sentiment: { category: "sentiment", sentiment: sentimentObject },
+          news: { category: "news", news: newsObject, newsFeatures },
         },
-      });
+      },
+      ctx()
+    );
 
-      // ---- the merge node, namespaced parents keyed by nodeId ----
-      const node = createMergeEnrichedViewNode();
-      const result = await node.run(
+    // FROZEN merged view: captured from the merge node at the moment the
+    // legacy froggy-enrichment-adapter plugin was deleted (D-FCP-9), when the
+    // two were proven field-by-field identical. Any diff here is a behavior
+    // change to the merged-view contract and must be reviewed as such.
+    expect(stripVolatile(result.output as Record<string, unknown>)).toEqual({
+      signalId: "sig-graph-proof-0001",
+      symbol: "BTC/USDT",
+      market: "perp",
+      timeframe: "1h",
+      technical: {
+        emaDistancePct: 1.8,
+        isInValueSweetSpot: true,
+        brokeEmaWithBody: false,
+        indicators: { rsi: 58.3, ema_20: 101.5, ema_50: 99.2, volume_ratio: 1.4 },
+      },
+      pattern: patternPayload,
+      sentiment: sentimentObject,
+      news: newsObject,
+      newsFeatures,
+      enrichmentMeta: {
+        categories: ["technical", "pattern", "sentiment", "news"],
+        enrichedBy: "froggy-enrichment-adapter",
+      },
+      lenses: [
+        { type: "technical", version: "v1", payload: technicalPayload },
+        { type: "pattern", version: "v1", payload: patternPayload },
         {
-          parents: {
-            technical: {
-              category: "technical",
-              technical: technicalPayload,
-              candles: [],
-              priceSource: "demo",
-            },
-            pattern: { category: "pattern", pattern: patternPayload },
-            sentiment: { category: "sentiment", sentiment: sentimentObject },
-            news: { category: "news", news: newsObject, newsFeatures },
+          type: "sentiment",
+          version: "v1",
+          payload: {
+            perpSentimentScore: 62,
+            positioningBias: "crowded-long",
+            fundingRegime: "elevated",
           },
         },
-        ctx()
-      );
-
-      const adapterView = stripVolatile(adapterOutput as unknown as Record<string, unknown>);
-      const nodeView = stripVolatile(result.output as Record<string, unknown>);
-      expect(nodeView).toEqual(adapterView);
-    } finally {
-      if (previousTinyBrains !== undefined) process.env.TINY_BRAINS_URL = previousTinyBrains;
-    }
+        { type: "news", version: "v1", payload: newsObject },
+      ],
+      _priceFeedMetadata: {
+        priceSource: "demo",
+        venueType: "demo",
+        marketType: "perp",
+        technicalIndicators: technicalPayload,
+        patternSignals: patternPayload,
+      },
+      _enrichmentSummary:
+        "Applied enrichment legos: technical, pattern, sentiment, news. " +
+        "Trend: bullish (EMA20=101.50, RSI=58). Pattern: hammer. " +
+        "Regime: markup (trending, normal vol, greed)",
+    });
+    expect(result.degradations).toEqual([]);
   });
 
   it("skipped/degraded parents contribute nothing (empty namespaces, never fabricated data)", async () => {
