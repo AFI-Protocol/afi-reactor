@@ -123,7 +123,7 @@ AFI-Reactor is now documented and structured for safe extension by Factory.ai / 
 ### What NOT to Do
 
 - ❌ Do not add token minting or emissions logic to afi-reactor (belongs in `afi-token`)
-- ❌ Do not add infrastructure/deployment code (belongs in `afi-infra` or `afi-ops`)
+- ❌ Do not add infrastructure/deployment code (belongs in `afi-infra`)
 - ❌ Do not allow agents to bypass validation or call each other directly
 - ❌ Do not hard-code network dependencies or RPC URLs in tests
 
@@ -139,7 +139,7 @@ The following are explicitly **OUT OF SCOPE** for AFI-Reactor and belong in othe
 - Token supply cap and governance
 - On-chain token contracts
 
-### Infrastructure (`afi-infra`, `afi-ops`)
+### Infrastructure (`afi-infra`)
 - Deployment scripts and Terraform
 - Kubernetes configurations
 - CI/CD pipelines (beyond basic validation)
