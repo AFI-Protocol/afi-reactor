@@ -59,8 +59,6 @@ export default {
     // SLOT-FCP-REACTOR stage B: no hardcoded composition identity in the
     // ACTIVE runtime (cleanup-pending allowlist emptied by SLOT-FCP-CLEANUP).
     "**/test/guardrails/no-hardcoded-composition.test.ts",
-    "**/test/state-management.test.ts",
-    "**/test/integration/state-lifecycle.test.ts",
     // SLOT-FCP-REACTOR stage A: executor core, hashing KATs, vendored-closure
     // drift guard, registry boot validation, graph proofs, node units.
     "**/test/pipeline/**/*.test.ts",
