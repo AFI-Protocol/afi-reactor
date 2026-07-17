@@ -258,11 +258,55 @@ To configure TradingView alerts to send webhooks to this server:
 }
 ```
 
-**Note**: For production use, you should:
+**Note**: For production use of the **dev/demo TradingView webhook**, you should:
 - Deploy the server to a public endpoint (not localhost)
 - Use HTTPS (not HTTP)
 - Set `WEBHOOK_SHARED_SECRET` for authentication
 - Implement rate limiting and request validation
+
+This guidance concerns the dev/demo webhook. It does **not** apply to the direct
+CPJ ingest route (`POST /api/ingest/cpj`), which is an internal trusted service
+boundary and is not intended for direct public exposure — see
+[Ingress trust boundaries](#ingress-trust-boundaries).
+
+---
+
+## Ingress trust boundaries
+
+The Reactor is the **execution engine**, not a general public trust gateway. Two
+ingress paths reach it, and they have different exposure postures.
+
+- **`POST /api/webhooks/tradingview`** — the dev/demo webhook above; a Gateway
+  client (`afi-gateway`, `POST /api/v1/signals`) is the intended structured-ingress
+  front for it in a governed topology.
+- **`POST /api/ingest/cpj`** — the direct community-provider-journal ingest, an
+  **internal trusted service-to-service boundary**. It is **not** a public API,
+  **not** an alternative public route around the Gateway, and **not** the
+  designated public Institute oracle API. On this route, authentication is optional
+  (a single shared secret via `WEBHOOK_SHARED_SECRET`, checked against a request-body
+  field when set) and provider identity is self-asserted — which is exactly why it
+  must not be exposed directly to the public internet.
+
+**Designated public/partner posture.** Any future Institute-operated public or
+partner CPJ access must terminate at a **separate authenticated oracle-ingress
+boundary** — the designated AFI Research Institute oracle-ingress reference service,
+or another conforming external trust boundary — which authenticates, registers
+sources, and rate-limits before forwarding to this internal route:
+
+```text
+Institute or approved collector
+  → Institute oracle-ingress service (auth · source registration · quotas · provider binding · validation · audit)
+  → internal Reactor CPJ route (POST /api/ingest/cpj)
+  → CPJ → USS → canonical AFI processing
+```
+
+That external oracle-ingress service is **designated, not implemented or deployed**.
+This document does not change, rename, move, or expose the CPJ route — regardless of
+exposure, provider-to-strategy binding, CPJ schema validation, and provenance
+attribution remain **mandatory** on it, while ingest deduplication/replay protection is
+opt-in (`AFI_INGEST_DEDUPE=1`) and off by default. See
+[`AFI-GOV-AUTHORITY-INSTITUTE-REFERENCE-SERVICES-v0.1` (INST-GOV)](https://github.com/AFI-Protocol/afi-governance/blob/main/decisions/research-institute-reference-services-v0.1.md)
+and the [reference-services spec](https://github.com/AFI-Protocol/afi-docs/blob/main/specs/AFI_RESEARCH_INSTITUTE_REFERENCE_SERVICES.v0.1.md).
 
 ---
 
