@@ -1,0 +1,23 @@
+{
+  "schema": "afi.pipeline.v1",
+  "pipelineId": "proof-one-category",
+  "pipelineVersion": "v1.0.0",
+  "description": "CONFORMANCE FIXTURE (non-production): a single analysis category feeding the scorer directly — the minimal admissible composition.",
+  "entry": "technical",
+  "nodes": [
+    {
+      "id": "technical",
+      "category": "technical",
+      "pluginId": "afi-analysis-technical",
+      "pluginVersion": "1.0.0",
+      "config": { "candleLimit": 200 }
+    },
+    {
+      "id": "scorer",
+      "category": "scorer",
+      "pluginId": "afi-scorer-froggy-trend-pullback",
+      "pluginVersion": "1.0.0"
+    }
+  ],
+  "edges": [{ "from": "technical", "to": "scorer" }]
+}

@@ -1,0 +1,53 @@
+{
+  "schema": "afi.pipeline.v1",
+  "pipelineId": "proof-conditional-node",
+  "pipelineVersion": "v1.0.0",
+  "description": "CONFORMANCE FIXTURE (non-production): a condition-gated edge (bounded declarative predicate tree over validated node outputs — pure data, never code) activating the news branch only when the technical stage reports elevated volatility; the join treats the gated parent as optional.",
+  "entry": "technical",
+  "nodes": [
+    {
+      "id": "technical",
+      "category": "technical",
+      "pluginId": "afi-analysis-technical",
+      "pluginVersion": "1.0.0"
+    },
+    {
+      "id": "news",
+      "category": "news",
+      "pluginId": "afi-analysis-news",
+      "pluginVersion": "1.0.0",
+      "config": { "windowHours": 4 }
+    },
+    {
+      "id": "merge",
+      "category": "merge",
+      "pluginId": "afi-merge-enriched-view",
+      "pluginVersion": "1.0.0",
+      "join": {
+        "policy": "all",
+        "merge": { "strategy": "namespace-by-node", "conflictRule": "error" }
+      }
+    },
+    {
+      "id": "scorer",
+      "category": "scorer",
+      "pluginId": "afi-scorer-froggy-trend-pullback",
+      "pluginVersion": "1.0.0"
+    }
+  ],
+  "edges": [
+    {
+      "from": "technical",
+      "to": "news",
+      "condition": {
+        "all": [
+          { "exists": "/nodes/technical/output/atrPct" },
+          { "gte": { "path": "/nodes/technical/output/atrPct", "value": 2 } }
+        ]
+      }
+    },
+    { "from": "technical", "to": "merge" },
+    { "from": "news", "to": "merge", "optional": true },
+    { "from": "merge", "to": "scorer" }
+  ]
+}

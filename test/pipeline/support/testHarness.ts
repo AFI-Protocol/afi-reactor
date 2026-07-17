@@ -22,10 +22,11 @@ import type {
   PipelineManifest,
 } from "../../../src/pipeline/manifestTypes.js";
 
-/** The factory conformance proof graphs (read from the afi-factory file: dependency). */
+/** The factory conformance proof graphs (vendored byte-copies of
+ *  afi-factory@9f88ede fixtures/conformance — see the provenance README). */
 export const CONFORMANCE_DIR = join(
   process.cwd(),
-  "node_modules/afi-factory/fixtures/conformance"
+  "test/pipeline/fixtures/conformance"
 );
 
 export function loadConformanceFixture(name: string): PipelineManifest {

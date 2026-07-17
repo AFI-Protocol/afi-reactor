@@ -1,0 +1,33 @@
+{
+  "schema": "afi.pipeline.v1",
+  "pipelineId": "proof-critical-category-failure",
+  "pipelineVersion": "v1.0.0",
+  "description": "CONFORMANCE FIXTURE (non-production): a critical category — pattern declares critical:true with the explicit 'abort' policy, so a pattern failure aborts the whole run (fail-fast, no degradation path).",
+  "entry": "technical",
+  "nodes": [
+    {
+      "id": "technical",
+      "category": "technical",
+      "pluginId": "afi-analysis-technical",
+      "pluginVersion": "1.0.0"
+    },
+    {
+      "id": "pattern",
+      "category": "pattern",
+      "pluginId": "afi-analysis-pattern",
+      "pluginVersion": "1.0.0",
+      "critical": true,
+      "failurePolicy": "abort"
+    },
+    {
+      "id": "scorer",
+      "category": "scorer",
+      "pluginId": "afi-scorer-froggy-trend-pullback",
+      "pluginVersion": "1.0.0"
+    }
+  ],
+  "edges": [
+    { "from": "technical", "to": "pattern", "fromPort": "candles" },
+    { "from": "pattern", "to": "scorer" }
+  ]
+}
