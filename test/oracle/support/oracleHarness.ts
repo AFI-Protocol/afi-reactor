@@ -24,10 +24,29 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { EvidenceStorePort, EvidenceSubmitResult } from "../../../src/evidence/submitScoredSignalEvidence.js";
 import { VOLATILE_TIMESTAMP_KEYS } from "../../../src/pipeheads/provenance/canonicalHashV1.js";
+import {
+  __resetRuntimeCompositionForTests,
+  __setRuntimeCompositionOverridesForTests,
+} from "../../../src/config/runtimeComposition.js";
 
 /** Jest runs from the repo root (repo idiom — see test/pipeheads/*.test.ts). */
 export const GOLDENS_DIR = path.resolve(process.cwd(), "test/oracle/goldens");
 export const FIXTURES_DIR = path.resolve(process.cwd(), "test/oracle/fixtures");
+
+/**
+ * The oracle's registry-root OVERLAY (test-only): byte-equal copies of the
+ * official froggy registries PLUS the oracle-fixture provider bindings
+ * (oracle-provider-tv-webhook for the committed TV fixtures' providerId,
+ * oracle-no-default-webhook for the unauthorized-strategy error row) and the
+ * registration amended to admit them. Production resolution reads
+ * node_modules/afi-config — the overlay exists ONLY so the committed oracle
+ * fixtures resolve without registering test providers in the governed
+ * registries.
+ */
+export const ORACLE_CONFIG_ROOT = path.resolve(
+  process.cwd(),
+  "test/oracle/fixtures/afi-config"
+);
 
 /** The sanctioned regeneration flag. Set ONLY by `npm run oracle:regen`. */
 export const REGEN_ENV = "UPDATE_ORACLE_GOLDENS";
@@ -205,7 +224,13 @@ export function installOracleEnv(): () => void {
   // deterministic "unknown" regime summary (patternRegimeProfile fail-soft).
   process.env.PATTERN_REGIME_PROVIDER = "off";
 
+  // Point the boot-validated runtime composition at the oracle overlay root
+  // (the committed fixtures' provider bindings). Same builtin plugin registry
+  // as production; only the registry ROOT differs (test seam).
+  __setRuntimeCompositionOverridesForTests({ configRoot: ORACLE_CONFIG_ROOT });
+
   return () => {
+    __resetRuntimeCompositionForTests();
     for (const [k, v] of saved) {
       if (v === undefined) delete process.env[k];
       else process.env[k] = v;

@@ -1,0 +1,20 @@
+{
+  "schema": "afi.provider-strategy-binding.v1",
+  "bindingId": "example-inactive-webhook",
+  "providerId": "example-retired-provider",
+  "providerType": "webhook",
+  "authenticatedBy": "route-secret",
+  "allowedStrategies": [
+    {
+      "analystId": "froggy",
+      "strategyId": "trend_pullback_v1",
+      "strategyVersion": "1.0.0"
+    }
+  ],
+  "defaultStrategy": {
+    "analystId": "froggy",
+    "strategyId": "trend_pullback_v1",
+    "strategyVersion": "1.0.0"
+  },
+  "status": "inactive"
+}

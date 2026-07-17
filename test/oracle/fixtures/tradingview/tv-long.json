@@ -4,7 +4,7 @@
   "symbol": "BTCUSDT",
   "market": "perp",
   "timeframe": "1h",
-  "strategy": "froggy_trend_pullback_v1",
+  "strategy": "trend_pullback_v1",
   "direction": "long",
   "setupSummary": "Bullish pullback into value (oracle fixture)",
   "notes": "ORACLE-EQUIVALENCE committed fixture - fixed content, never edit casually",

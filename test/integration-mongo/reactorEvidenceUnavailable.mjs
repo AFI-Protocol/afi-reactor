@@ -50,7 +50,7 @@ async function main() {
       schema: "afi.cpj.v0.1",
       provenance: {
         providerType: "telegram",
-        providerId: "telegram-channel-it",
+        providerId: "oracle-telegram-channel-1", // a REGISTERED cpj provider binding (resolution is fail-closed)
         messageId: "it-cpj-unavailable-1",
         postedAt: "2026-01-15T10:00:00Z",
       },
