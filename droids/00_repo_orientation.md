@@ -28,7 +28,7 @@ DAG orchestrator implementing the 15-node signal processing pipeline. This is th
 **This repo does NOT handle**:
 - ❌ Signal validation (that's afi-core)
 - ❌ Agent personas (that's afi-core)
-- ❌ Deployment (that's afi-ops)
+- ❌ Deployment (that's afi-infra)
 - ❌ Smart contracts (that's afi-token)
 
 ---

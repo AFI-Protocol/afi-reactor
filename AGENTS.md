@@ -99,7 +99,7 @@ npm run mentor-eval
 - `test/` — Jest tests
 
 **Depends on**: afi-core (runtime, validators)
-**Consumed by**: afi-ops (deployment), afi-infra (templates), Eliza gateways (via HTTP/WS APIs)
+**Consumed by**: afi-infra (templates), Eliza gateways (via HTTP/WS APIs)
 
 **Boundary with afi-core**:
 - `afi-reactor` = orchestration (DAG wiring, pipeline execution)

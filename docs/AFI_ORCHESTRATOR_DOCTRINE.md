@@ -122,13 +122,13 @@ Emissions, rewards, and AFI token rules live in afi-token; Reactor just emits ev
 
 ### 9. No infra glue in afi-reactor
 
-Deployment, Terraform, K8s, etc. live in afi-infra / afi-ops. Reactor exposes clean interfaces they can target.
+Deployment, Terraform, K8s, etc. live in afi-infra. Reactor exposes clean interfaces they can target.
 
 **Rationale:** Orchestration logic should be infrastructure-agnostic.
 
 **Examples:**
 - ✅ Reactor exposes HTTP/gRPC API
-- ✅ afi-ops deploys reactor as container
+- ✅ afi-infra deploys reactor as container
 - ❌ Reactor containing Dockerfile
 - ❌ Reactor with K8s manifests
 
@@ -143,7 +143,7 @@ Move it or refactor it until afi-reactor remains the single, boringly-obvious br
 **Examples:**
 - ✅ Moving agent logic to afi-core
 - ✅ Moving token logic to afi-token
-- ✅ Moving infra to afi-ops
+- ✅ Moving infra to afi-infra
 - ❌ "Just this one exception..."
 - ❌ "It's easier to put it here..."
 
@@ -203,7 +203,7 @@ Move it or refactor it until afi-reactor remains the single, boringly-obvious br
                     afi-reactor
 
 ┌─────────────────────────────────────────────────────────┐
-│                 afi-ops / afi-infra                     │
+│                        afi-infra                        │
 │  (Deployment - The Infrastructure)                      │
 │                                                          │
 │  • Deploys reactor as service                            │
@@ -234,7 +234,7 @@ Does it control WHEN and HOW agents run?
             └─ NO
                 │
                 Does it deploy or monitor infrastructure?
-                ├─ YES → afi-ops / afi-infra
+                ├─ YES → afi-infra
                 └─ NO → Probably doesn't belong in AFI Protocol
 ```
 

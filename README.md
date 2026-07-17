@@ -217,7 +217,7 @@ All commits to `main` trigger a full CI run with:
 
 8. **No token/econ logic in afi-reactor** - Emissions, rewards, and AFI token rules live in afi-token; Reactor just emits events/hooks.
 
-9. **No infra glue in afi-reactor** - Deployment, Terraform, K8s, etc. live in afi-infra / afi-ops. Reactor exposes clean interfaces they can target.
+9. **No infra glue in afi-reactor** - Deployment, Terraform, K8s, etc. live in afi-infra. Reactor exposes clean interfaces they can target.
 
 10. **If orchestration logic doesn't fit this doctrine, it's in the wrong repo** - Move it or refactor it until afi-reactor remains the single, boringly-obvious brain.
 

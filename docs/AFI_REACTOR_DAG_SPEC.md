@@ -19,7 +19,7 @@ AFI-Reactor defines:
 AFI-Reactor is **NOT** responsible for:
 - Token minting or emissions logic (see `afi-token` repo)
 - Individual agent intelligence or ML models
-- Infrastructure deployment (see `afi-infra` and `afi-ops`)
+- Infrastructure deployment (see `afi-infra`)
 
 ---
 

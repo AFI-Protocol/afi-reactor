@@ -1,7 +1,7 @@
 /**
  * LOCAL / SIMULATED execution agent.
  * Does not talk to real Binance or any exchange — demo/CLI/testing only.
- * Real exchange connectors live in AFI-OPS or external execution repos, not here.
+ * Real exchange connectors live in external execution repos, not here.
  */
 export async function execute(signal: any): Promise<any> {
   console.log("📦 [Binance-Local] Execution agent loaded...");

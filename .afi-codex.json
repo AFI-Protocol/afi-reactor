@@ -19,7 +19,6 @@
     "afi-math"
   ],
   "consumers": [
-    "afi-ops",
     "afi-infra"
   ],
   "droid_ready": true,
