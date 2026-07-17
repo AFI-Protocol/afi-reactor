@@ -1,0 +1,287 @@
+{
+  "analystScore": {
+    "analystId": "froggy",
+    "assetClass": "crypto",
+    "baseAsset": "BTC",
+    "conviction": 0.5916666666666667,
+    "direction": "neutral",
+    "holdingHorizon": "swing",
+    "instrumentType": "linear-perp",
+    "marketType": "perp",
+    "quoteAsset": "USDT",
+    "riskBucket": "medium",
+    "scoredAt": "<CLOCK>",
+    "signalTimeframe": "1h",
+    "strategyId": "trend_pullback_v1",
+    "strategyVersion": "1.0.0",
+    "tags": [
+      "trend-following",
+      "pullback",
+      "ema-based"
+    ],
+    "uwrAxes": {
+      "execution": 0.6666666666666666,
+      "insight": 0.4,
+      "risk": 0.9,
+      "structure": 0.4
+    },
+    "uwrScore": 0.5916666666666667
+  },
+  "canonicalUss": {
+    "facts": {
+      "direction": "long",
+      "market": "perp",
+      "strategy": "froggy_trend_pullback_v1",
+      "symbol": "BTCUSDT",
+      "timeframe": "1h"
+    },
+    "provenance": {
+      "ingestHash": "b80d89ee142c66b9bc7f3150a8c70c5c44fcef1112503ebf99bfbbee6d21e086",
+      "ingestedAt": "<CLOCK>",
+      "providerId": "oracle-provider-tv",
+      "providerRef": "froggy_trend_pullback_v1",
+      "providerType": "tradingview",
+      "signalId": "oracle-tv-long-0001",
+      "source": "tradingview-webhook"
+    },
+    "schema": "afi.usignal.v1.1"
+  },
+  "decayParams": {
+    "greeksTemplateId": "decay-swing-v1",
+    "halfLifeMinutes": 720
+  },
+  "endpoint": "/api/webhooks/tradingview",
+  "evidenceRecord": {
+    "analystId": "froggy",
+    "canonicalizationVersion": "afi.hash.v1",
+    "finalized": false,
+    "lifecycleState": "SCORED",
+    "provenanceRecord": {
+      "canonicalizationVersion": "afi.hash.v1",
+      "domainTags": [
+        "afi.d2.signal-input",
+        "afi.d2.scored-output"
+      ],
+      "inputHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.signal-input",
+        "value": "7cf10e6132dc99201ba97f0684d9ec50076f8d36c7b88a2a653839900d191439"
+      },
+      "outputHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.scored-output",
+        "value": "67ebebdad6a07dcda20216326fe72768ded9c2912631f27022319f78ca88f0ac"
+      },
+      "schema": "afi.provenance-record.v1",
+      "schemaVersions": {
+        "input": "afi.usignal.v1.1",
+        "output": "afi.scored-signal.v1"
+      },
+      "signalId": "oracle-tv-long-0001"
+    },
+    "recordVersion": 1,
+    "schema": "afi.scored-signal-evidence.v1",
+    "scoredSignal": {
+      "analystId": "froggy",
+      "conviction": 0.5916666666666667,
+      "direction": "neutral",
+      "provenanceRecordRef": "provenance-record:oracle-tv-long-0001",
+      "providerId": "oracle-provider-tv",
+      "riskBucket": "medium",
+      "schema": "afi.scored-signal.v1",
+      "signalId": "oracle-tv-long-0001",
+      "strategyId": "trend_pullback_v1",
+      "strategyVersion": "1.0.0",
+      "uwrAxes": {
+        "execution": 0.6666666666666666,
+        "insight": 0.4,
+        "risk": 0.9,
+        "structure": 0.4
+      },
+      "uwrScore": 0.5916666666666667
+    },
+    "signalId": "oracle-tv-long-0001",
+    "strategyId": "trend_pullback_v1",
+    "strategyVersion": "1.0.0",
+    "uwrProfile": {
+      "decisionRef": "afi-governance/decisions/uwr-profile-pin-v0.1.md",
+      "profileId": "uwr-weighted-lifts-v0.1",
+      "source": "registry-consumed",
+      "status": "testnet-provisional"
+    }
+  },
+  "httpResponse": {
+    "_priceFeedMetadata": {
+      "marketType": "perp",
+      "patternSignals": {
+        "bearishEngulfing": false,
+        "bullishEngulfing": false,
+        "insideBar": true,
+        "patternConfidence": 65,
+        "patternName": "pin bar",
+        "pinBar": true,
+        "regime": {
+          "cyclePhase": "unknown",
+          "topBottomRisk": "neutral",
+          "trendState": "choppy",
+          "volRegime": "normal"
+        },
+        "structureBias": "lower-lows",
+        "trendPullbackConfirmed": false
+      },
+      "priceSource": "demo",
+      "technicalIndicators": {
+        "atr14": 570.2640858689773,
+        "ema20": 49996.24399889079,
+        "ema50": 50023.438454448326,
+        "emaDistancePct": 0.12667804556691256,
+        "isInValueSweetSpot": true,
+        "rsi14": 50.587295212999244,
+        "trendBias": "range",
+        "volumeRatio": 0.39991209275832834
+      },
+      "venueType": "demo"
+    },
+    "analystScore": {
+      "analystId": "froggy",
+      "assetClass": "crypto",
+      "baseAsset": "BTC",
+      "conviction": 0.5916666666666667,
+      "direction": "neutral",
+      "holdingHorizon": "swing",
+      "instrumentType": "linear-perp",
+      "marketType": "perp",
+      "quoteAsset": "USDT",
+      "riskBucket": "medium",
+      "scoredAt": "<CLOCK>",
+      "signalTimeframe": "1h",
+      "strategyId": "trend_pullback_v1",
+      "strategyVersion": "1.0.0",
+      "tags": [
+        "trend-following",
+        "pullback",
+        "ema-based"
+      ],
+      "uwrAxes": {
+        "execution": 0.6666666666666666,
+        "insight": 0.4,
+        "risk": 0.9,
+        "structure": 0.4
+      },
+      "uwrScore": 0.5916666666666667
+    },
+    "decayParams": {
+      "greeksTemplateId": "decay-swing-v1",
+      "halfLifeMinutes": 720
+    },
+    "lenses": [
+      {
+        "payload": {
+          "atr14": 570.2640858689773,
+          "ema20": 49996.24399889079,
+          "ema50": 50023.438454448326,
+          "emaDistancePct": 0.12667804556691256,
+          "isInValueSweetSpot": true,
+          "rsi14": 50.587295212999244,
+          "trendBias": "range",
+          "volumeRatio": 0.39991209275832834
+        },
+        "type": "technical",
+        "version": "v1"
+      },
+      {
+        "payload": {
+          "bearishEngulfing": false,
+          "bullishEngulfing": false,
+          "insideBar": true,
+          "patternConfidence": 65,
+          "patternName": "pin bar",
+          "pinBar": true,
+          "regime": {
+            "cyclePhase": "unknown",
+            "topBottomRisk": "neutral",
+            "trendState": "choppy",
+            "volRegime": "normal"
+          },
+          "structureBias": "lower-lows",
+          "trendPullbackConfirmed": false
+        },
+        "type": "pattern",
+        "version": "v1"
+      },
+      {
+        "payload": {
+          "hasShockEvent": false,
+          "headlines": [],
+          "items": [],
+          "shockDirection": "none"
+        },
+        "type": "news",
+        "version": "v1"
+      }
+    ],
+    "meta": {
+      "direction": "long",
+      "source": "tradingview-webhook",
+      "strategy": "froggy_trend_pullback_v1",
+      "symbol": "BTCUSDT",
+      "timeframe": "1h"
+    },
+    "persistence": {
+      "lifecycleState": "SCORED",
+      "outcome": "inserted",
+      "recordVersion": 1,
+      "signalId": "oracle-tv-long-0001"
+    },
+    "rawUss": {
+      "facts": {
+        "direction": "long",
+        "market": "perp",
+        "strategy": "froggy_trend_pullback_v1",
+        "symbol": "BTCUSDT",
+        "timeframe": "1h"
+      },
+      "provenance": {
+        "ingestHash": "b80d89ee142c66b9bc7f3150a8c70c5c44fcef1112503ebf99bfbbee6d21e086",
+        "ingestedAt": "<CLOCK>",
+        "providerId": "oracle-provider-tv",
+        "providerRef": "froggy_trend_pullback_v1",
+        "providerType": "tradingview",
+        "signalId": "oracle-tv-long-0001",
+        "source": "tradingview-webhook"
+      },
+      "schema": "afi.usignal.v1.1"
+    },
+    "scoredAt": "<CLOCK>",
+    "signalId": "oracle-tv-long-0001",
+    "uwrResolvedSource": "registry"
+  },
+  "inputHash": {
+    "algorithm": "sha256",
+    "canonicalizationVersion": "afi.hash.v1",
+    "domainTag": "afi.d2.signal-input",
+    "value": "7cf10e6132dc99201ba97f0684d9ec50076f8d36c7b88a2a653839900d191439"
+  },
+  "outputHash": {
+    "algorithm": "sha256",
+    "canonicalizationVersion": "afi.hash.v1",
+    "domainTag": "afi.d2.scored-output",
+    "value": "67ebebdad6a07dcda20216326fe72768ded9c2912631f27022319f78ca88f0ac"
+  },
+  "scorerInput": {
+    "atrRegime": "normal",
+    "brokeEmaWithBody": false,
+    "dailyBias": "neutral",
+    "distanceFromDailyEmaPct": 0.12667804556691256,
+    "haFlatBackConfirmed": false,
+    "liquiditySwept": false,
+    "pulledBackIntoSweetSpot": true,
+    "rrMultiplePlanned": 2,
+    "triggerPatternQuality": 2,
+    "weeklyBias": "neutral"
+  },
+  "uwrMode": "registry",
+  "uwrResolvedSource": "registry"
+}

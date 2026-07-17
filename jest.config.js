@@ -2,6 +2,16 @@ export default {
   preset: 'ts-jest/presets/default-esm',
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
+    // ORACLE-EQUIVALENCE: the oracle harness imports the real server, which
+    // loads two ESM-only compiled deps (afi-core's @afi-protocol/afi-math decay
+    // kernels + afi-infra's evidence store). Down-level ONLY those published
+    // .js files to CJS (pure syntax transform of the real shipped code — see
+    // test/oracle/support/esmDepCjsTransform.cjs). Keys are checked in order,
+    // and these patterns match .js only, so ts-jest still owns every .ts file.
+    '@afi-protocol[\\\\/]afi-math[\\\\/].+\\.js$':
+      '<rootDir>/test/oracle/support/esmDepCjsTransform.cjs',
+    'afi-infra[\\\\/]dist[\\\\/].+\\.js$':
+      '<rootDir>/test/oracle/support/esmDepCjsTransform.cjs',
     '^.+\\.tsx?$': [
       'ts-jest',
       {
@@ -23,10 +33,19 @@ export default {
     // guardrail tests load under jest; transformIgnorePatterns already opts
     // afi-core into ts-jest transform.
     '^afi-core/validators/(.*)\\.js$': '<rootDir>/node_modules/afi-core/validators/$1.ts',
-    '^afi-core/analysts/(.*)\\.js$': '<rootDir>/node_modules/afi-core/analysts/$1.ts'
+    '^afi-core/analysts/(.*)\\.js$': '<rootDir>/node_modules/afi-core/analysts/$1.ts',
+    // ORACLE-EQUIVALENCE: the oracle harness imports the REAL server (which
+    // imports afi-core/decay); jest cannot resolve that package-exports value
+    // subpath either — map it to the file:-linked TypeScript source the same
+    // way as the validators/analysts subpaths above.
+    '^afi-core/decay$': '<rootDir>/node_modules/afi-core/src/decay/index.ts',
+    // afi-infra's package exports declare only the "import" condition, which
+    // jest's CJS resolution cannot match — map the root subpath to the real
+    // compiled entry (down-leveled to CJS by the oracle transform above).
+    '^afi-infra$': '<rootDir>/node_modules/afi-infra/dist/evidence/index.js'
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(afi-core)/)'
+    'node_modules/(?!(afi-core|afi-infra|@afi-protocol)/)'
   ],
   testEnvironment: 'node',
   testMatch: [
@@ -42,6 +61,10 @@ export default {
     "**/src/dag/__tests__/*.test.ts",
     "**/test/pipeheads/**/*.test.ts",
     "**/test/evidence/**/*.test.ts",
+    // ORACLE-EQUIVALENCE: the behavioral-oracle harness is part of the DEFAULT
+    // run (non-skippable); only the real-Mongo half lives in the gated
+    // test:oracle:mongo script (repo IT convention).
+    "**/test/oracle/*.test.ts",
   ],
   testPathIgnorePatterns: [
     "<rootDir>/dist/",

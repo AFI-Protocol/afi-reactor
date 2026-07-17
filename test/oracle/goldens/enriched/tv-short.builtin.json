@@ -1,0 +1,336 @@
+{
+  "analystScore": {
+    "analystId": "froggy",
+    "assetClass": "crypto",
+    "axisNotes": {
+      "execution": "Trigger pattern quality is low for this setup."
+    },
+    "baseAsset": "BTC",
+    "conviction": 0.42500000000000004,
+    "direction": "neutral",
+    "holdingHorizon": "swing",
+    "instrumentType": "linear-perp",
+    "marketType": "perp",
+    "quoteAsset": "USDT",
+    "rationale": "Trigger pattern quality is low for this setup.",
+    "riskBucket": "medium",
+    "scoredAt": "<CLOCK>",
+    "signalTimeframe": "4h",
+    "strategyId": "trend_pullback_v1",
+    "strategyVersion": "1.0.0",
+    "tags": [
+      "trend-following",
+      "pullback",
+      "ema-based"
+    ],
+    "uwrAxes": {
+      "execution": 0,
+      "insight": 0.4,
+      "risk": 0.9,
+      "structure": 0.4
+    },
+    "uwrScore": 0.42500000000000004
+  },
+  "canonicalUss": {
+    "facts": {
+      "direction": "short",
+      "market": "perp",
+      "strategy": "froggy_trend_pullback_v1",
+      "symbol": "ETHUSDT",
+      "timeframe": "4h"
+    },
+    "provenance": {
+      "ingestHash": "ffa140b9d44342e258401ba56d1d2c9fbbabaa22977ecfd89a8606490ef231c0",
+      "ingestedAt": "<CLOCK>",
+      "providerId": "oracle-provider-tv",
+      "providerRef": "froggy_trend_pullback_v1",
+      "providerType": "tradingview",
+      "signalId": "oracle-tv-short-0001",
+      "source": "tradingview-webhook"
+    },
+    "schema": "afi.usignal.v1.1"
+  },
+  "decayParams": {
+    "greeksTemplateId": "decay-swing-v1",
+    "halfLifeMinutes": 720
+  },
+  "endpoint": "/api/webhooks/tradingview",
+  "evidenceRecord": {
+    "analystId": "froggy",
+    "canonicalizationVersion": "afi.hash.v1",
+    "finalized": false,
+    "lifecycleState": "SCORED",
+    "provenanceRecord": {
+      "canonicalizationVersion": "afi.hash.v1",
+      "domainTags": [
+        "afi.d2.signal-input",
+        "afi.d2.scored-output"
+      ],
+      "inputHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.signal-input",
+        "value": "d603dc985718db3b56336085f41a080011e4bc50ad559623156b68460ca8a6c5"
+      },
+      "outputHash": {
+        "algorithm": "sha256",
+        "canonicalizationVersion": "afi.hash.v1",
+        "domainTag": "afi.d2.scored-output",
+        "value": "cafdbce20a60d141209886829b92b19160758478f7a070bd874681ecd194e2aa"
+      },
+      "schema": "afi.provenance-record.v1",
+      "schemaVersions": {
+        "input": "afi.usignal.v1.1",
+        "output": "afi.scored-signal.v1"
+      },
+      "signalId": "oracle-tv-short-0001"
+    },
+    "recordVersion": 1,
+    "schema": "afi.scored-signal-evidence.v1",
+    "scoredSignal": {
+      "analystId": "froggy",
+      "conviction": 0.42500000000000004,
+      "direction": "neutral",
+      "provenanceRecordRef": "provenance-record:oracle-tv-short-0001",
+      "providerId": "oracle-provider-tv",
+      "riskBucket": "medium",
+      "schema": "afi.scored-signal.v1",
+      "signalId": "oracle-tv-short-0001",
+      "strategyId": "trend_pullback_v1",
+      "strategyVersion": "1.0.0",
+      "uwrAxes": {
+        "execution": 0,
+        "insight": 0.4,
+        "risk": 0.9,
+        "structure": 0.4
+      },
+      "uwrScore": 0.42500000000000004
+    },
+    "signalId": "oracle-tv-short-0001",
+    "strategyId": "trend_pullback_v1",
+    "strategyVersion": "1.0.0",
+    "uwrProfile": {
+      "decisionRef": "afi-governance/decisions/uwr-profile-pin-v0.1.md",
+      "profileId": "uwr-weighted-lifts-v0.1",
+      "source": "builtin-value-identity",
+      "status": "testnet-provisional"
+    }
+  },
+  "httpResponse": {
+    "_priceFeedMetadata": {
+      "marketType": "perp",
+      "patternSignals": {
+        "bearishEngulfing": false,
+        "bullishEngulfing": false,
+        "insideBar": false,
+        "pinBar": false,
+        "regime": {
+          "cyclePhase": "unknown",
+          "externalLabels": {
+            "fearGreedLabel": "greed",
+            "fearGreedValue": 56,
+            "notes": "FG=56 (greed). Price at 100% of 90d range"
+          },
+          "topBottomRisk": "neutral",
+          "trendState": "uptrend",
+          "volRegime": "low"
+        },
+        "structureBias": "lower-lows",
+        "trendPullbackConfirmed": false
+      },
+      "priceSource": "demo",
+      "technicalIndicators": {
+        "atr14": 31.682075317091098,
+        "ema20": 2995.7445905266545,
+        "ema50": 2996.409633835594,
+        "emaDistancePct": 0.2706436977661548,
+        "isInValueSweetSpot": true,
+        "rsi14": 51.5458437981575,
+        "trendBias": "range",
+        "volumeRatio": 0.8943215117759108
+      },
+      "venueType": "demo"
+    },
+    "analystScore": {
+      "analystId": "froggy",
+      "assetClass": "crypto",
+      "axisNotes": {
+        "execution": "Trigger pattern quality is low for this setup."
+      },
+      "baseAsset": "BTC",
+      "conviction": 0.42500000000000004,
+      "direction": "neutral",
+      "holdingHorizon": "swing",
+      "instrumentType": "linear-perp",
+      "marketType": "perp",
+      "quoteAsset": "USDT",
+      "rationale": "Trigger pattern quality is low for this setup.",
+      "riskBucket": "medium",
+      "scoredAt": "<CLOCK>",
+      "signalTimeframe": "4h",
+      "strategyId": "trend_pullback_v1",
+      "strategyVersion": "1.0.0",
+      "tags": [
+        "trend-following",
+        "pullback",
+        "ema-based"
+      ],
+      "uwrAxes": {
+        "execution": 0,
+        "insight": 0.4,
+        "risk": 0.9,
+        "structure": 0.4
+      },
+      "uwrScore": 0.42500000000000004
+    },
+    "decayParams": {
+      "greeksTemplateId": "decay-swing-v1",
+      "halfLifeMinutes": 720
+    },
+    "lenses": [
+      {
+        "payload": {
+          "atr14": 31.682075317091098,
+          "ema20": 2995.7445905266545,
+          "ema50": 2996.409633835594,
+          "emaDistancePct": 0.2706436977661548,
+          "isInValueSweetSpot": true,
+          "rsi14": 51.5458437981575,
+          "trendBias": "range",
+          "volumeRatio": 0.8943215117759108
+        },
+        "type": "technical",
+        "version": "v1"
+      },
+      {
+        "payload": {
+          "bearishEngulfing": false,
+          "bullishEngulfing": false,
+          "insideBar": false,
+          "pinBar": false,
+          "regime": {
+            "cyclePhase": "unknown",
+            "externalLabels": {
+              "fearGreedLabel": "greed",
+              "fearGreedValue": 56,
+              "notes": "FG=56 (greed). Price at 100% of 90d range"
+            },
+            "topBottomRisk": "neutral",
+            "trendState": "uptrend",
+            "volRegime": "low"
+          },
+          "structureBias": "lower-lows",
+          "trendPullbackConfirmed": false
+        },
+        "type": "pattern",
+        "version": "v1"
+      },
+      {
+        "payload": {
+          "fundingRegime": "normal",
+          "perpSentimentScore": 51,
+          "positioningBias": "balanced"
+        },
+        "type": "sentiment",
+        "version": "v1"
+      },
+      {
+        "payload": {
+          "hasShockEvent": true,
+          "headlines": [
+            "Oracle recorded headline A",
+            "Oracle recorded headline B"
+          ],
+          "items": [
+            {
+              "publishedAt": "2026-01-15T09:30:00.000Z",
+              "source": "oracle-wire",
+              "title": "Oracle recorded headline A",
+              "url": "https://example.invalid/a"
+            },
+            {
+              "publishedAt": "2026-01-15T08:45:00.000Z",
+              "source": "oracle-wire",
+              "title": "Oracle recorded headline B",
+              "url": "https://example.invalid/b"
+            }
+          ],
+          "shockDirection": "bullish"
+        },
+        "type": "news",
+        "version": "v1"
+      },
+      {
+        "payload": {
+          "ensembleScore": 0.85,
+          "modelTags": [
+            "bull"
+          ]
+        },
+        "type": "aiMl",
+        "version": "v1"
+      }
+    ],
+    "meta": {
+      "direction": "short",
+      "source": "tradingview-webhook",
+      "strategy": "froggy_trend_pullback_v1",
+      "symbol": "ETHUSDT",
+      "timeframe": "4h"
+    },
+    "persistence": {
+      "lifecycleState": "SCORED",
+      "outcome": "inserted",
+      "recordVersion": 1,
+      "signalId": "oracle-tv-short-0001"
+    },
+    "rawUss": {
+      "facts": {
+        "direction": "short",
+        "market": "perp",
+        "strategy": "froggy_trend_pullback_v1",
+        "symbol": "ETHUSDT",
+        "timeframe": "4h"
+      },
+      "provenance": {
+        "ingestHash": "ffa140b9d44342e258401ba56d1d2c9fbbabaa22977ecfd89a8606490ef231c0",
+        "ingestedAt": "<CLOCK>",
+        "providerId": "oracle-provider-tv",
+        "providerRef": "froggy_trend_pullback_v1",
+        "providerType": "tradingview",
+        "signalId": "oracle-tv-short-0001",
+        "source": "tradingview-webhook"
+      },
+      "schema": "afi.usignal.v1.1"
+    },
+    "scoredAt": "<CLOCK>",
+    "signalId": "oracle-tv-short-0001",
+    "uwrResolvedSource": "builtin"
+  },
+  "inputHash": {
+    "algorithm": "sha256",
+    "canonicalizationVersion": "afi.hash.v1",
+    "domainTag": "afi.d2.signal-input",
+    "value": "d603dc985718db3b56336085f41a080011e4bc50ad559623156b68460ca8a6c5"
+  },
+  "outputHash": {
+    "algorithm": "sha256",
+    "canonicalizationVersion": "afi.hash.v1",
+    "domainTag": "afi.d2.scored-output",
+    "value": "cafdbce20a60d141209886829b92b19160758478f7a070bd874681ecd194e2aa"
+  },
+  "scorerInput": {
+    "atrRegime": "normal",
+    "brokeEmaWithBody": false,
+    "dailyBias": "neutral",
+    "distanceFromDailyEmaPct": 0.2706436977661548,
+    "haFlatBackConfirmed": false,
+    "liquiditySwept": false,
+    "pulledBackIntoSweetSpot": true,
+    "rrMultiplePlanned": 2,
+    "triggerPatternQuality": 0,
+    "weeklyBias": "neutral"
+  },
+  "uwrMode": "builtin",
+  "uwrResolvedSource": "builtin"
+}
