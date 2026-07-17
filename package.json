@@ -14,8 +14,6 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "start:demo": "node dist/src/server.js",
-    "simulate-signal": "node dist/ops/runner/simulate-full-pipeline.js",
-    "simulate-from-vault": "node dist/ops/runner/simulate-full-pipeline.js --from-vault",
     "replay-vault": "node dist/ops/runner/replay-vault-signals.js",
     "codex-lint": "node dist/ops/codexLint.js",
     "mentor-eval": "node dist/ops/mentorChain.js",
@@ -25,7 +23,7 @@
     "test:integration:unavailable": "node test/integration-mongo/reactorEvidenceUnavailable.mjs",
     "test:integration:mongo": "node test/integration-mongo/reactorEvidencePersistence.mjs",
     "test:integration:shutdown": "node test/integration-mongo/reactorShutdown.mjs",
-    "validate-all": "npm run build && npm run codex-lint && npm run simulate-signal && npm run mentor-eval",
+    "validate-all": "npm run build && npm run codex-lint && npm run mentor-eval",
     "esm:check": "bash scripts/esm-check.sh"
   },
   "devDependencies": {
@@ -42,8 +40,7 @@
     "@types/mongodb": "^4.0.6",
     "afi-config": "file:../afi-config",
     "afi-core": "file:../afi-core",
-    "afi-factory": "file:../afi-factory",
-    "afi-infra": "git+https://github.com/AFI-Protocol/afi-infra.git#d263154c062ba9d630aff8785755d58d996d7976",
+    "afi-infra": "git+https://github.com/AFI-Protocol/afi-infra.git#459861b5edd3dfbfe58b1d34a66ae960f3dd00b1",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "ccxt": "^4.5.63",

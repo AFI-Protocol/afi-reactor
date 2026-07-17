@@ -1,0 +1,53 @@
+{
+  "schema": "afi.pipeline.v1",
+  "pipelineId": "proof-repeated-same-category",
+  "pipelineVersion": "v1.0.0",
+  "description": "CONFORMANCE FIXTURE (non-production): two nodes of the SAME category (news) binding the same multiInstance plugin with different parameters (4h and 24h windows), merged under distinct namespaces.",
+  "entry": "technical",
+  "nodes": [
+    {
+      "id": "technical",
+      "category": "technical",
+      "pluginId": "afi-analysis-technical",
+      "pluginVersion": "1.0.0"
+    },
+    {
+      "id": "news-fast",
+      "category": "news",
+      "pluginId": "afi-analysis-news",
+      "pluginVersion": "1.0.0",
+      "config": { "windowHours": 4 }
+    },
+    {
+      "id": "news-slow",
+      "category": "news",
+      "pluginId": "afi-analysis-news",
+      "pluginVersion": "1.0.0",
+      "config": { "windowHours": 24 }
+    },
+    {
+      "id": "merge",
+      "category": "merge",
+      "pluginId": "afi-merge-enriched-view",
+      "pluginVersion": "1.0.0",
+      "join": {
+        "policy": "all",
+        "merge": { "strategy": "namespace-by-node", "conflictRule": "error" }
+      }
+    },
+    {
+      "id": "scorer",
+      "category": "scorer",
+      "pluginId": "afi-scorer-froggy-trend-pullback",
+      "pluginVersion": "1.0.0"
+    }
+  ],
+  "edges": [
+    { "from": "technical", "to": "news-fast" },
+    { "from": "technical", "to": "news-slow" },
+    { "from": "technical", "to": "merge" },
+    { "from": "news-fast", "to": "merge" },
+    { "from": "news-slow", "to": "merge" },
+    { "from": "merge", "to": "scorer" }
+  ]
+}

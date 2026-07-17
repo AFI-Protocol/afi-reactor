@@ -37,7 +37,7 @@
  *  - Execution summary: canonical, timestamp-free, ordered by wave then
  *    nodeId (src/pipeline/executionSummary.ts) + executionSummaryHash.
  */
-import type { CanonicalUss } from "../services/pipelineRunner.js";
+import type { CanonicalUss } from "../types/canonicalUss.js";
 import { evaluatePredicate, type ConditionEnv } from "./conditions.js";
 import {
   buildExecutionSummary,

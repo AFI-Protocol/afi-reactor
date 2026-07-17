@@ -5,46 +5,58 @@
  * selection, provider routing, and UWR recognition all flow from the
  * boot-validated registries.
  *
- * CLEANUP-PENDING ALLOWLIST: the superseded old-path files stay PRESENT but
- * UNREFERENCED from the live path until the SLOT-FCP-CLEANUP PR deletes them
- * (D-FCP-9 — deliberately, so this slot's diff stays reviewable). The cleanup
- * PR must EMPTY this allowlist. Nothing outside it may carry a banned
- * pattern.
+ * CLEANUP-PENDING ALLOWLIST: EMPTY. SLOT-FCP-CLEANUP executed the D-FCP-9
+ * removal list (the superseded scoring service, runners, static pipeline
+ * wiring, duplicated type surfaces, old combined plugins, and the src/dag
+ * scaffold are DELETED — git history is the archive). Nothing may ever be
+ * re-allowlisted: every file carries the full ban set.
  */
 import { describe, it, expect } from "@jest/globals";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const REPO_ROOT = process.cwd();
 
 /**
- * The EXACT cleanup-pending file set (D-FCP-9 removal list, as it exists in
- * this repo today). The cleanup PR deletes these files and empties this list.
+ * The D-FCP-9 cleanup-pending set is EMPTY (the cleanup PR deleted the files
+ * and emptied this list, as the slot required). It stays declared so the
+ * emptiness itself is pinned by a test below.
  */
-const CLEANUP_PENDING = new Set<string>([
-  // superseded scoring service + static pipeline wiring
+const CLEANUP_PENDING = new Set<string>();
+
+/**
+ * Paths removed by D-FCP-9 that must never resurface (file or directory).
+ */
+const REMOVED_PATHS = [
+  "src/dag",
+  "src/state",
   "src/services/froggyScoringService.ts",
-  "src/services/pipelineRunner.ts", // linear runPipeline + runPipelineDag
+  "src/services/pipelineRunner.ts",
   "src/config/froggyPipeline.ts",
   "src/config/enrichmentProfiles.ts",
-  // superseded type surfaces
   "src/types/dag.ts",
   "src/types/pipeline.ts",
-  // the old plugin implementations (plugins/ dir)
+  "src/adapters/exchanges/demoPriceFeedAdapter.ts",
   "plugins/froggy-enrichment-tech-pattern.plugin.ts",
   "plugins/froggy-enrichment-sentiment-news.plugin.ts",
   "plugins/froggy-enrichment-adapter.plugin.ts",
   "plugins/froggy.trend_pullback_v1.plugin.ts",
-]);
+  "core/dag-engine.ts",
+  "config/dag.codex.json",
+];
 
-/** src/dag/ is cleanup-pending WHOLESALE (experimental DAG engine, D-FCP-9). */
-const CLEANUP_PENDING_DIRS = ["src/dag/"];
-
-function isCleanupPending(rel: string): boolean {
-  const norm = rel.split(path.sep).join("/");
-  if (CLEANUP_PENDING.has(norm)) return true;
-  return CLEANUP_PENDING_DIRS.some((d) => norm.startsWith(d));
-}
+/**
+ * Import-specifier fragments of the removed modules: no active module may
+ * import any of them, under any relative prefix.
+ */
+const REMOVED_IMPORT_FRAGMENTS = [
+  "froggyPipeline",
+  "froggyScoringService",
+  "pipelineRunner",
+  "enrichmentProfiles",
+  "types/dag",
+  "types/pipeline",
+];
 
 /** Recursively collect .ts files under dir (skips node_modules/dist). */
 function tsFiles(dir: string): string[] {
@@ -71,7 +83,6 @@ function offenders(
   const hits: string[] = [];
   for (const root of roots) {
     for (const rel of tsFiles(path.resolve(REPO_ROOT, root))) {
-      if (isCleanupPending(rel)) continue;
       const content = readFileSync(path.resolve(REPO_ROOT, rel), "utf8");
       if (matches(content, rel)) hits.push(rel);
     }
@@ -79,10 +90,27 @@ function offenders(
   return hits.sort();
 }
 
-describe("no-hardcoded-composition (active runtime; cleanup-pending files allowlisted)", () => {
-  it("the cleanup-pending allowlist names only files that still exist (stale rows must be dropped)", () => {
-    for (const rel of CLEANUP_PENDING) {
-      expect({ rel, exists: existsSyncSafe(rel) }).toEqual({ rel, exists: true });
+describe("no-hardcoded-composition (active runtime; D-FCP-9 cleanup executed)", () => {
+  it("the cleanup-pending allowlist is EMPTY and stays empty (D-FCP-9 executed; nothing may be re-allowlisted)", () => {
+    expect([...CLEANUP_PENDING]).toEqual([]);
+  });
+
+  it("every D-FCP-9-removed path stays deleted (git history is the archive)", () => {
+    const survivors = REMOVED_PATHS.filter((rel) =>
+      existsSync(path.resolve(REPO_ROOT, rel))
+    );
+    expect(survivors).toEqual([]);
+  });
+
+  it("no module imports a D-FCP-9-removed module (src/ + plugins/)", () => {
+    for (const fragment of REMOVED_IMPORT_FRAGMENTS) {
+      const re = new RegExp(
+        `from\\s+["'][^"']*${fragment.replace(/[./]/g, "\\$&")}(\\.js)?["']`
+      );
+      expect({
+        fragment,
+        offenders: offenders(["src", "plugins"], (c) => re.test(c)),
+      }).toEqual({ fragment, offenders: [] });
     }
   });
 
@@ -128,14 +156,45 @@ describe("no-hardcoded-composition (active runtime; cleanup-pending files allowl
     }
   });
 
-  it("no active src/ module imports the superseded src/dag engine", () => {
+  it("no active module imports the deleted src/dag engine (src/ + plugins/)", () => {
     expect(
-      offenders(["src"], (c) => /from\s+["'][^"']*\/dag\//.test(c) || /from\s+["']\.\.?\/dag["']/.test(c))
+      offenders(
+        ["src", "plugins"],
+        (c) => /from\s+["'][^"']*\/dag\//.test(c) || /from\s+["']\.\.?\/dag["']/.test(c)
+      )
     ).toEqual([]);
   });
 
   it("no active src/ module imports afi-factory (authoring stays out of the runtime)", () => {
     expect(offenders(["src"], (c) => /from\s+["']afi-factory/.test(c))).toEqual([]);
+  });
+
+  it("no synthetic price-feed registration or silent demo default in src/", () => {
+    // The deterministic synthetic adapter lives ONLY under test/support/ and
+    // enters the registry ONLY through registerPriceFeedAdapterForTests.
+    // src/ may never import a demo/deterministic adapter module ...
+    expect(
+      offenders(["src"], (c) =>
+        /from\s+["'][^"']*(demo|deterministic)PriceFeedAdapter/i.test(c)
+      )
+    ).toEqual([]);
+    // ... never register a 'demo' entry in an adapter map ...
+    expect(
+      offenders(["src"], (c) => /\bdemo\s*:\s*[A-Za-z_$][\w$]*/.test(c))
+    ).toEqual([]);
+    // ... never set AFI_PRICE_FEED_SOURCE to demo itself ...
+    expect(
+      offenders(["src"], (c) =>
+        /AFI_PRICE_FEED_SOURCE\s*(\]\s*)?=\s*["']demo["']/.test(c)
+      )
+    ).toEqual([]);
+    // ... and the registry keeps NO NODE_ENV-conditional default of any kind.
+    const registry = readFileSync(
+      path.resolve(REPO_ROOT, "src/adapters/exchanges/priceFeedRegistry.ts"),
+      "utf8"
+    );
+    expect(registry).not.toMatch(/NODE_ENV[^\n]*["']test["']/);
+    expect(registry).not.toMatch(/["']demo["']\s*[,;]?\s*$/m);
   });
 
   it("the live server routes score ONLY through resolution + the graph executor", () => {
@@ -147,12 +206,3 @@ describe("no-hardcoded-composition (active runtime; cleanup-pending files allowl
     expect(server).toContain("initRuntimeComposition");
   });
 });
-
-function existsSyncSafe(rel: string): boolean {
-  try {
-    readFileSync(path.resolve(REPO_ROOT, rel));
-    return true;
-  } catch {
-    return false;
-  }
-}

@@ -4,8 +4,7 @@
   "status": "active",
   "language": "typescript",
   "entrypoints": [
-    "src/cli/run-dag.ts",
-    "src/cli/replay-signals.ts"
+    "src/server.ts"
   ],
   "provides": [
     "dag-orchestration",

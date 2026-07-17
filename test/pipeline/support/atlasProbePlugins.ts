@@ -4,7 +4,7 @@
  * under test/ exclusively: production source contains NO mock implementations;
  * binding them is data injection through the composition test seam.
  */
-import type { CanonicalUss } from "../../../src/services/pipelineRunner.js";
+import type { CanonicalUss } from "../../../src/types/canonicalUss.js";
 import {
   ok,
   type AnalysisNodePlugin,

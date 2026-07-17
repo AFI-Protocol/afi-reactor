@@ -1,8 +1,9 @@
 /**
  * The FIFTEEN graph proofs (program section 9.3) over the factory conformance
- * fixtures (afi-factory fixtures/conformance/, read through the file:
- * dependency) with injected DETERMINISTIC test plugin implementations via a
- * test-registry overlay — production source contains NO mocks.
+ * fixtures (vendored byte-copies of afi-factory@9f88ede fixtures/conformance/
+ * under test/pipeline/fixtures/conformance/) with injected DETERMINISTIC test
+ * plugin implementations via a test-registry overlay — production source
+ * contains NO mocks.
  */
 import { jest } from "@jest/globals";
 

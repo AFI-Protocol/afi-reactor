@@ -17,14 +17,7 @@ For global droid behavior and terminology, see:
 
 ## Canonical Scored-Only Pipeline
 
-afi-reactor is **scored-only**. The Froggy trend-pullback pipeline is defined in **`src/config/froggyPipeline.ts`** (single source of truth) and runs 6 stages:
-
-1. **uss-telemetry-deriver** (internal) — derive routing/debug fields from canonical USS v1.1 into `context.telemetry`
-2. **froggy-enrichment-tech-pattern** — technical + chart-pattern enrichment (OHLCV) *(parallel branch 1)*
-3. **froggy-enrichment-sentiment-news** — sentiment + news enrichment via external APIs *(parallel branch 2)*
-4. **froggy-enrichment-adapter** — merge enrichment legos + optional AI/ML (Tiny Brains, fail-soft)
-5. **froggy-analyst** — run `trend_pullback_v1` strategy from afi-core, compute UWR score
-6. **tssd-vault-write** (internal) — persist scored signal to the Reactor-owned MongoDB collection
+afi-reactor is **scored-only**. There is no hardcoded pipeline in source: composition flows from the boot-validated registries (`src/config/runtimeComposition.ts`), the strategy resolves from the provider binding (`src/config/strategyResolution.ts`), and the registered pipeline manifest is executed by the generic graph executor (`src/pipeline/executor.ts` via `src/services/graphScoringService.ts`). The registered froggy composition enriches (technical+pattern ∥ sentiment+news → merge, optional AI/ML fail-soft), scores `trend_pullback_v1` from afi-core (UWR), and persists the governed evidence record through the packaged afi-infra canonical store.
 
 **Output**: a scored-only `ReactorScoredSignalV1` — `{ signalId, rawUss, lenses?, _priceFeedMetadata?, analystScore { uwrScore, uwrAxes { structure, execution, risk, insight } }, scoredAt, decayParams, meta }`. There is **no** `validatorDecision` and **no** execution block.
 
@@ -50,12 +43,6 @@ npm run esm:check
 # Validate all DAG configs and Codex metadata
 npm run validate-all
 
-# Simulate signal processing
-npm run simulate-signal
-
-# Simulate from vault
-npm run simulate-from-vault
-
 # Replay vault for determinism testing
 npm run replay-vault
 
@@ -76,12 +63,6 @@ npm run start:demo
 ## Run Locally / Dev Workflow
 
 ```bash
-# Simulate a signal through the DAG
-npm run simulate-signal
-
-# Simulate from vault
-npm run simulate-from-vault
-
 # Replay vault for determinism testing
 npm run replay-vault
 
@@ -99,11 +80,8 @@ npm run mentor-eval
 **Purpose**: Orchestrate signal pipelines via DAG. **Not** for business logic, token economics, or agent personas.
 
 **Key directories**:
-- `src/cli/` — CLI entrypoints (run-dag.ts, replay-signals.ts)
-- `src/dag/` — Flexible DAG infrastructure (DAGBuilder, DAGExecutor, PluginRegistry)
-- `src/dag/nodes/` — Core node types (AnalystNode, ExecutionNode, ObserverNode)
-- `src/dag/plugins/` — Plugin implementations (ScoutNode, NewsNode, SentimentNode, PatternRecognitionNode, SignalIngressNode, TechnicalIndicatorsNode, AiMlNode)
-- `src/state/` — State management (StateManager, StateSerializer, StateValidator)
+- `src/cli/` — CLI entrypoints (run-pipehead-demo.ts)
+- `src/pipeline/` — the manifest-driven graph executor (executor, registryLoader, nodeSdk, hashing, category nodes)
 - `src/aiMl/` — AI/ML provider integration (MLProviderRegistry, TinyBrainsProvider)
 - `src/adapters/` — External service adapters (Coinalyze, CoinGecko, exchanges)
 - `src/collectors/` — Data collectors (Telegram, MTProto)
@@ -112,8 +90,7 @@ npm run mentor-eval
 - `src/enrichment/` — Enrichment logic (pattern recognition, technical indicators)
 - `src/indicator/` — Indicator profiles and kernels
 - `src/news/` — News providers and features
-- `src/novelty/` — Novelty detection and baseline fetching
-- `src/services/` — Business logic services (FroggyDemoService, pipelineRunner)
+- `src/services/` — Business logic services (graphScoringService, ingestDedupeService)
 - `src/uss/` — USS (Universal Signal Schema) mappers and validators
 - `src/utils/` — Utility functions (marketUtils)
 - `src/types/` — TypeScript type definitions
@@ -579,271 +556,32 @@ This agent connects to the `TechnicalIndicatorsNode` plugin in the DAG, providin
 ### Related Documentation
 
 - [Flexible DAG Architecture](#flexible-dag-architecture) - How DAG nodes are composed and executed
-- [Node Types](#node-types) - Core nodes and plugin nodes in the DAG
 - [afi-gateway Integration](#afi-gateway-integration) - ElizaOS agent integration
 - [AFI Orchestrator Doctrine](../AFI_ORCHESTRATOR_DOCTRINE.md) - Guidelines for agent behavior
 
 ---
 
-## Flexible DAG Architecture
+## Graph Executor Architecture
 
-afi-reactor implements a **flexible, plugin-based DAG system** that allows dynamic pipeline construction and execution. This architecture replaces the previous fixed 15-node pipeline with a composable, extensible system.
+Pipeline composition is data, not code. The single execution path is the
+generic graph executor:
 
-### Core Components
+- `src/pipeline/registryLoader.ts` — loads + AJV-validates the governed
+  registries (pipelines, analysis plugins, strategy registrations, provider
+  bindings) and verifies canonical afi.hash.v1 pins at boot (fail-closed).
+- `src/config/runtimeComposition.ts` — the boot-validated composition seam
+  (`initRuntimeComposition`); tests may inject overlay registry roots.
+- `src/config/strategyResolution.ts` — resolves the provider binding to a
+  registered strategy triple (never free text).
+- `src/pipeline/executor.ts` — executes the REGISTERED pipeline manifest
+  (categories, ports, join determinism, failure policies) over the plugin
+  registry; `src/services/graphScoringService.ts` drives it for the live
+  scored endpoints and stamps `afi.composition-ref.v1` provenance.
+- `src/pipeline/nodes/` — the production category nodes (technical, pattern,
+  sentiment, news, aiml, mergeEnrichedView, scorer).
 
-#### DAGBuilder
-Located in `src/dag/DAGBuilder.ts`, the DAGBuilder is responsible for:
-- **DAG Construction**: Builds DAGs from analyst configurations
-- **Dependency Resolution**: Resolves dependencies between nodes and validates no cycles exist
-- **Topological Sorting**: Determines execution order using Kahn's algorithm
-- **Execution Level Grouping**: Groups nodes by execution level for parallel execution
-- **Validation**: Validates DAG structure and node configurations
-
-Key methods:
-- `buildFromConfig(config: AnalystConfig): DAGBuildResult` - Builds DAG from configuration
-- `validateDAG(dag: DAG): ValidationResult` - Validates DAG structure
-- `topologicalSort(dag: DAG): string[]` - Returns nodes in topological order
-- `getExecutionLevels(dag: DAG): string[][]` - Groups nodes by execution level
-
-#### DAGExecutor
-Located in `src/dag/DAGExecutor.ts`, the DAGExecutor is responsible for:
-- **DAG Execution**: Executes DAGs with sequential and parallel execution patterns
-- **Error Handling**: Provides retry logic, cancellation support, and error recovery
-- **Metrics Tracking**: Collects execution metrics (timing, success/failure rates)
-- **Execution Context**: Manages execution state and context
-- **Node Execution**: Executes individual nodes with dependency checking
-
-Key methods:
-- `execute(dag: DAG, initialState?: PipelineState, options?: ExecutionOptions): Promise<ExecutionResult>` - Executes DAG
-- `executeSequential(dag: DAG, initialState?: PipelineState, options?: ExecutionOptions): Promise<ExecutionResult>` - Sequential execution
-- `executeParallel(dag: DAG, initialState?: PipelineState, options?: ExecutionOptions): Promise<ExecutionResult>` - Parallel execution
-- `cancelExecution(executionId: string, reason?: string): Promise<void>` - Cancels running execution
-
-Execution options:
-- `timeout?: number` - Maximum execution time in milliseconds
-- `maxRetries?: number` - Maximum number of retries for failed nodes
-- `retryDelay?: number` - Delay between retries in milliseconds
-- `continueOnError?: boolean` - Continue execution on non-critical failures
-- `failFast?: boolean` - Fail fast on first error
-- `maxParallelNodes?: number` - Maximum number of parallel nodes
-- `trackMemoryUsage?: boolean` - Track memory usage during execution
-- `enableLogging?: boolean` - Enable detailed logging
-
-#### PluginRegistry
-Located in `src/dag/PluginRegistry.ts`, the PluginRegistry is responsible for:
-- **Plugin Registration**: Registers and manages all DAG plugins
-- **Plugin Discovery**: Discovers plugins from the plugins directory
-- **Plugin Validation**: Validates plugins implement the Pipehead interface
-- **Plugin Retrieval**: Retrieves plugins by name or type
-- **Plugin Lifecycle**: Manages plugin enable/disable state
-
-Built-in plugins:
-- **Enrichment plugins**: TechnicalIndicatorsNode, PatternRecognitionNode, SentimentNode, NewsNode, AiMlNode
-- **Ingress plugins**: ScoutNode, SignalIngressNode
-
-Key methods:
-- `registerPlugin(plugin: Pipehead): PluginRegistrationResult` - Registers a plugin
-- `getPlugin(name: string): Pipehead | undefined` - Gets plugin by name
-- `getPluginsByType(type: PluginType): Pipehead[]` - Gets plugins by type
-- `initialize(): PluginDiscoveryResult` - Initializes registry with built-in plugins
-- `enablePlugin(name: string): boolean` - Enables a plugin
-- `disablePlugin(name: string): boolean` - Disables a plugin
-
-### State Management
-
-#### StateManager
-Located in `src/state/StateManager.ts`, the StateManager is responsible for:
-- **State Management**: Manages Pipeline state with thread-safe updates
-- **History Tracking**: Maintains state history for rollback capabilities
-- **Execution Metrics**: Tracks execution metrics from trace entries
-- **Rollback Support**: Provides rollback to previous state or checkpoint
-
-Key methods:
-- `getState(): PipelineState` - Gets current state
-- `updateState(updater: (state: PipelineState) => PipelineState): Promise<void>` - Updates state
-- `getStateHistory(): PipelineState[]` - Gets state history
-- `rollbackState(): boolean` - Rolls back to previous state
-- `createCheckpoint(): number` - Creates a checkpoint
-- `rollbackToCheckpoint(index: number): boolean` - Rolls back to checkpoint
-
-#### StateSerializer
-Located in `src/state/StateSerializer.ts`, the StateSerializer is responsible for:
-- **State Serialization**: Serializes Pipeline state to JSON
-- **State Deserialization**: Deserializes JSON to Pipeline state
-- **Codex Compatibility**: Ensures state is Codex-replayable
-
-#### StateValidator
-Located in `src/state/StateValidator.ts`, the StateValidator is responsible for:
-- **State Validation**: Validates Pipeline state structure and content
-- **Schema Validation**: Validates state against schema definitions
-- **Error Reporting**: Reports validation errors and warnings
-
-### AI/ML Provider Integration
-
-#### MLProviderRegistry
-Located in `src/aiMl/providers/MLProviderRegistry.ts`, the MLProviderRegistry is responsible for:
-- **Provider Registration**: Registers ML provider factories
-- **Provider Selection**: Selects best provider based on priority, availability, and capabilities
-- **Lazy Initialization**: Creates provider instances on demand
-- **Health Monitoring**: Monitors provider health status
-- **Fallback Mechanism**: Provides fallback providers for failures
-
-Key methods:
-- `registerProvider(providerId: string, factory: MLProviderFactory): void` - Registers a provider factory
-- `getBestProvider(input: MLProviderInput): Promise<MLProvider | undefined>` - Gets best provider
-- `initializeAll(): Promise<void>` - Initializes all enabled providers
-- `getHealthStatus(): Promise<Map<string, MLProviderHealth>>` - Gets health status
-
-#### TinyBrainsProvider
-Located in `src/aiMl/providers/TinyBrainsProvider.ts`, the TinyBrainsProvider is responsible for:
-- **AI/ML Predictions**: Provides AI/ML predictions for trading signals
-- **Conviction Scoring**: Calculates conviction scores for signals
-- **Direction Prediction**: Predicts market direction (long/short)
-- **Regime Detection**: Detects market regimes
-- **Risk Flagging**: Flags high-risk signals
-
-### Plugin System
-
-The plugin system allows dynamic composition of DAG pipelines:
-
-1. **Plugin Registration**: Plugins are registered with the PluginRegistry
-2. **Plugin Discovery**: Plugins are discovered from the plugins directory
-3. **Plugin Validation**: Plugins are validated to implement the Pipehead interface
-4. **Plugin Execution**: Plugins are executed by the DAGExecutor based on DAG structure
-
-Plugin types:
-- **Enrichment plugins**: Add enrichment data to signals (technical indicators, patterns, sentiment, news, AI/ML)
-- **Ingress plugins**: Provide signal input (scout, signal ingress)
-- **Required plugins**: Core pipeline nodes (analyst, execution, observer)
-
-### Execution Flow
-
-1. **Scout nodes** execute first (independent signal sources, no dependencies)
-2. **Signal Ingress nodes** execute second (may depend on Scout)
-3. **Enrichment nodes** execute in parallel where possible (based on dependencies)
-4. **Required nodes** execute last (analyst, execution, observer)
-
-This flexible architecture allows analysts to configure custom pipelines by selecting and ordering plugins as needed.
-
----
-
-## Node Types
-
-afi-reactor uses two categories of nodes: **core nodes** and **plugin nodes**.
-
-### Core Nodes
-
-Core nodes are required nodes that are always present in the DAG and handle fundamental pipeline operations.
-
-#### AnalystNode
-Located in `src/dag/nodes/AnalystNode.ts`, the AnalystNode is responsible for:
-- Loading analyst configuration from afi-factory
-- Initializing the enrichment pipeline
-- Preparing signals for enrichment
-- Aggregating all enrichment results (including AI/ML predictions)
-- Scoring signals from Scout nodes using ensemble ML models and AI/ML predictions
-- Generating narratives and interpretations based on enriched signals
-
-Key responsibilities:
-- Load analyst configuration from afi-factory
-- Validate analyst configuration
-- Initialize enrichment pipeline
-- Prepare signal for enrichment
-- Aggregate enrichment results from all enrichment nodes (including AI/ML)
-- Score signals using ensemble ML models and AI/ML predictions
-- Generate narratives based on enriched signals
-
-#### ExecutionNode
-Located in `src/dag/nodes/ExecutionNode.ts`, the ExecutionNode is responsible for:
-- Aggregating enrichment results from all enrichment nodes
-- Validating enrichment results
-- Generating final scored signal
-- Preparing signal for observer
-
-Key responsibilities:
-- Aggregate enrichment results from all enrichment nodes
-- Validate enrichment results
-- Generate final scored signal
-- Prepare signal for observer
-
-#### ObserverNode
-Located in `src/dag/nodes/ObserverNode.ts`, the ObserverNode is responsible for:
-- Observing the final scored signal
-- Logging execution metrics
-- Publishing signal to downstream consumers
-- Adding trace entries for execution tracking
-
-Key responsibilities:
-- Retrieve scored signal from state
-- Validate scored signal
-- Log execution metrics
-- Publish signal to downstream consumers (message queues, webhooks, databases)
-
-### Plugin Nodes
-
-Plugin nodes are optional, composable nodes that provide specific functionality. They can be enabled/disabled and ordered as needed.
-
-#### ScoutNode
-Located in `src/dag/plugins/ScoutNode.ts`, the ScoutNode is responsible for:
-- Scouting for new signals from external sources or AFI-native models
-- Discovering potential trading opportunities
-- Submitting signals to the enrichment pipeline
-- Tracking signal submissions for reward attribution
-
-Key characteristics:
-- Executes BEFORE enrichment stage (no dependencies)
-- Discovers signals from external sources or AFI-native models
-- Does NOT perform scoring (that's Analyst's responsibility)
-- Does NOT enrich signals (that's Enrichers' responsibility)
-- Tracks submissions for reward attribution (important for third-party Scouts)
-
-#### NewsNode
-Located in `src/dag/plugins/NewsNode.ts`, the NewsNode is responsible for:
-- Fetching news data from news providers
-- Extracting news features
-- Storing news enrichment results
-
-#### SentimentNode
-Located in `src/dag/plugins/SentimentNode.ts`, the SentimentNode is responsible for:
-- Fetching sentiment data from sentiment providers
-- Calculating sentiment scores
-- Storing sentiment enrichment results
-
-#### PatternRecognitionNode
-Located in `src/dag/plugins/PatternRecognitionNode.ts`, the PatternRecognitionNode is responsible for:
-- Detecting chart patterns
-- Calculating pattern metrics
-- Storing pattern recognition enrichment results
-
-#### SignalIngressNode
-Located in `src/dag/plugins/SignalIngressNode.ts`, the SignalIngressNode is responsible for:
-- Ingesting external signals
-- Normalizing signal format
-- Storing signal ingress results
-
-#### TechnicalIndicatorsNode
-Located in `src/dag/plugins/TechnicalIndicatorsNode.ts`, the TechnicalIndicatorsNode is responsible for:
-- Calculating technical indicators
-- Storing technical indicator enrichment results
-
-#### AiMlNode
-Located in `src/dag/plugins/AiMlNode.ts`, the AiMlNode is responsible for:
-- Calling AI/ML providers for predictions
-- Storing AI/ML enrichment results (conviction scores, direction, regime, risk flags)
-
-### Node Type Distinction
-
-**Core nodes**:
-- Always present in the DAG
-- Handle fundamental pipeline operations
-- Cannot be disabled or removed
-- Execute in fixed order (analyst → execution → observer)
-
-**Plugin nodes**:
-- Optional and composable
-- Can be enabled/disabled
-- Can be ordered as needed
-- Execute based on DAG configuration and dependencies
+There is no hardcoded pipeline, no mock plugin, and no scaffold DAG engine in
+production source (guardrail: `test/guardrails/no-hardcoded-composition.test.ts`).
 
 ---
 
@@ -970,16 +708,18 @@ are captured here.
 
 ### Sibling repos are mandatory and live beside the repo
 
-`package.json` links `afi-core`, `afi-factory`, and `afi-config` via `file:../`
-(afi-core also pulls in `afi-math`). With the repo checked out at `/workspace`,
-`../` resolves to `/`, so the siblings must exist at `/afi-core`,
-`/afi-factory`, `/afi-math`, and **`/afi-config`** (required since Mission
-1.5-B made afi-config a real schema dependency of the canonical USS validator).
-If any sibling is missing, clone it beside the repo (creating dirs under `/`
-needs `sudo`):
+`package.json` links `afi-core` and `afi-config` via `file:../` (afi-core also
+pulls in `afi-math`). With the repo checked out at `/workspace`, `../` resolves
+to `/`, so the siblings must exist at `/afi-core`, `/afi-math`, and
+**`/afi-config`** (required since Mission 1.5-B made afi-config a real schema
+dependency of the canonical USS validator). afi-factory is NOT a dependency:
+authoring stays in afi-factory, and the executor conformance fixtures are
+vendored byte-copies under `test/pipeline/fixtures/conformance/`. If any
+sibling is missing, clone it beside the repo (creating dirs under `/` needs
+`sudo`):
 
 ```bash
-for r in afi-core afi-factory afi-math afi-config; do
+for r in afi-core afi-math afi-config; do
   sudo mkdir -p /$r && sudo chown -R "$USER" /$r
   git clone https://github.com/AFI-Protocol/$r.git /$r
 done
@@ -1033,13 +773,12 @@ The webhook returns a scored-only `ReactorScoredSignalV1`
 ### Known caveats (pre-existing, verified 2026-07-02)
 
 - `npm run codex-lint` (and therefore `npm run validate-all`) fails because
-  `tsc` does not copy `config/*.json` into `dist/`, so
-  `dist/config/dag.codex.json` is absent. CI runs `build` + `test`, not
-  `validate-all`.
+  `tsc` does not copy `config/*.json` into `dist/`, so the codex manifests are
+  absent under `dist/config/`. CI runs `build` + `test`, not `validate-all`.
 - The repo-wide `npm run esm:check` still flags a handful of pre-existing
   legacy files importing without `.js` extensions (e.g.
-  `src/aiMl/providers/TinyBrainsProvider.ts`, `src/state/StateManager.ts`,
-  `test/uss/*`). This predates Mission 1.5-B and does not affect build/test.
+  `src/aiMl/providers/TinyBrainsProvider.ts`, `test/uss/*`). This predates
+  Mission 1.5-B and does not affect build/test.
   The scoped pipehead gates (`npx tsc -p tsconfig.pipeheads.json`,
   `bash scripts/esm-check-pipeheads.sh`) pass clean.
 

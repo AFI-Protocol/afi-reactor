@@ -208,8 +208,10 @@ describe("oracle error table — configuration fail-closed (500)", () => {
   afterAll(() => resetEvidenceStore());
 
   it("AFI_PRICE_FEED_SOURCE unset in production runtime → 500 (fail closed, no silent demo)", async () => {
-    // getDefaultPriceSource() falls back to demo ONLY under NODE_ENV=test; the
-    // production runtime fails closed. Flip both for exactly one request.
+    // getDefaultPriceSource() has NO fallback of any kind (the NODE_ENV=test
+    // demo default was removed with the synthetic feed): unset fails closed
+    // everywhere. Flip to production for exactly one request to pin the
+    // production posture byte-for-byte.
     const savedNodeEnv = process.env.NODE_ENV;
     delete process.env.AFI_PRICE_FEED_SOURCE;
     process.env.NODE_ENV = "production";

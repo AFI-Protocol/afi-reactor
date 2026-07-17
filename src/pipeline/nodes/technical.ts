@@ -13,7 +13,7 @@
  * manifest edge fromPort 'candles'.
  *
  * Failure semantics:
- *  - AFI_PRICE_FEED_SOURCE unset outside NODE_ENV=test →
+ *  - AFI_PRICE_FEED_SOURCE unset →
  *    NodeConfigurationError (ALWAYS fatal — D-FCP-8 honest failure).
  *  - Provider/data errors (fetch failure, empty candles) throw ordinary
  *    errors: the executor applies the node's declared failurePolicy.

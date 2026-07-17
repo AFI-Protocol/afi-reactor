@@ -42,20 +42,25 @@ Volatile/administrative fields are **removed before serialization**. Exclusion a
 
 | Artifact type | Excluded top-level fields | Domain tag |
 |---|---|---|
-| `afi.pipeline.v1` | `description`, `metadata` | `afi.factory.pipeline-manifest` |
+| `afi.pipeline.v1` | `description`, `metadata` | `afi.d2.composition-manifest` |
 | `afi.pipeline-template.v1` | `description`, `metadata` | `afi.factory.pipeline-template` |
 | `afi.analysis-plugin.v1` | `description`, `metadata` | `afi.factory.plugin-manifest` (single manifest) |
-| plugin **set** (composition) | per-manifest `description`, `metadata`; set serialized as an array sorted by (`pluginId`, `pluginVersion`) | `afi.factory.plugin-set` |
-| `afi.analyst-strategy-config.v1` | `metadata` | `afi.factory.analyst-config` |
+| plugin **set** (composition) | n/a — hash material is the derived `afi.plugin-set.v1` object below, not the manifests | `afi.d2.plugin-set` |
+| `afi.analyst-strategy-config.v1` | `metadata` | `afi.d2.analyst-config` |
 | `afi.analyst-strategy-registration.v1` | `registeredAt` | `afi.factory.strategy-registration` |
 | `afi.provider-strategy-binding.v1` | *(none)* | `afi.factory.provider-binding` |
 | `afi.composition-ref.v1` | *(none)* | `afi.factory.composition-ref` |
-| execution summary (operational object) | must be authored timestamp-free (District 2 hash doctrine) — nothing to exclude | `afi.reactor.execution-summary` |
+| execution summary (`afi.execution-summary.v1` derived object) | must be authored timestamp-free (District 2 hash doctrine) — nothing to exclude | `afi.d2.execution-summary` |
+| enrichment bundle (timestamp-free canonical projection, `afi.enrichment-bundle.v1`) | volatile fields (e.g. `enrichedAt`) are excluded by the projection itself | `afi.d2.enrichment-bundle` |
+
+> **Amendment (W3a, per accepted `afi-governance/decisions/factory-configurable-pipelines-v1` D-FCP-7):** the three composition domain tags are the D-FCP-7 registered tags shipped by the accepted afi-factory implementation — `afi.d2.composition-manifest` (`manifestHash`), `afi.d2.analyst-config` (`analystConfigHash`), `afi.d2.plugin-set` (`pluginSetHash`). This table previously listed `afi.factory.pipeline-manifest` / `afi.factory.analyst-config` for those rows and an array-of-stripped-manifests plugin-set rule; the accepted decision + shipped rule supersede that text. **`pluginSetHash` rule (shipped):** the hash material is the derived object
+> `{"schema":"afi.plugin-set.v1","plugins":[{"pluginId":…,"pluginVersion":…,"implementationVersion":…},…]}`
+> with `plugins` sorted by `pluginId` (then `pluginVersion` for repeated ids; plain string comparison). Domain tags are **carried** in the `CanonicalHash` object, never part of the hash material, so the digest algorithm (§1–§2) and every governed KAT vector (§4) are unchanged by this amendment.
 
 Notes:
 - Excluded fields are removed **whether or not** they validate — annotations can never perturb a hash.
 - The pipeline `nodes`/`edges` arrays keep authored order (array rule); two manifests differing only in node ORDER are **different manifests** with different hashes. Determinism of execution comes from the graph semantics, not from hash normalization.
-- The plugin **set** hash serializes the set as a JSON array of the stripped manifests sorted by `pluginId` then `pluginVersion` (both plain string comparison), so set hashing is order-insensitive by construction.
+- The plugin **set** hash is computed over the derived `afi.plugin-set.v1` object (pluginId/pluginVersion/implementationVersion triples sorted by `pluginId` then `pluginVersion`, plain string comparison), so set hashing is order-insensitive by construction and independent of manifest annotation fields.
 
 ## 4. Known-answer tests (KATs)
 

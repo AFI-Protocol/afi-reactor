@@ -47,7 +47,37 @@ import {
 // relative mapper resolves the identical module at runtime.
 import { scoreFroggyTrendPullbackFromEnriched } from "../../node_modules/afi-core/analysts/froggy.trend_pullback_v1.js";
 import type { FroggyEnrichedView } from "../../node_modules/afi-core/analysts/froggy.enrichment_adapter.js";
-import froggyAnalystPlugin from "../../plugins/froggy.trend_pullback_v1.plugin.js";
+import { scorerFroggyTrendPullbackNode } from "../../src/pipeline/nodes/scorerFroggyTrendPullback.js";
+import { SILENT_NODE_LOGGER, type NodeRunContext } from "../../src/pipeline/nodeSdk.js";
+
+/** The LIVE scoring seam (D-FCP-9: the old froggy analyst plugin is deleted;
+ * the scorer node composes the identical afi-core kernels and emits the
+ * identical {…enriched, analysis, uwrResolvedSource} envelope). */
+type ScoredEnvelope = FroggyEnrichedView & {
+  analysis: { analystScore: { analystId?: string; strategyId?: string } };
+  uwrResolvedSource: "builtin" | "registry";
+};
+
+function nodeCtx(): NodeRunContext {
+  return {
+    signal: {
+      schema: "afi.usignal.v1.1",
+      provenance: {
+        source: "test",
+        providerId: "uwr-runtime-profile-test-provider",
+        signalId: "sig-uwr-runtime-profile-test",
+      },
+    },
+    config: {},
+    logger: SILENT_NODE_LOGGER,
+    abort: new AbortController().signal,
+  };
+}
+
+async function runScorer(enriched: FroggyEnrichedView): Promise<ScoredEnvelope> {
+  const result = await scorerFroggyTrendPullbackNode.run(enriched, nodeCtx());
+  return result.output as ScoredEnvelope;
+}
 
 // Repo idiom (see test/pipeheads/*.test.ts): jest runs from the repo root.
 const REPO_ROOT = process.cwd();
@@ -435,14 +465,14 @@ describe("PR-UWR-RUNTIME-READ: plugin call-site equivalence (the changed consume
 
   it("builtin default: plugin run() output is identical to scoreFroggyTrendPullbackFromEnriched", async () => {
     const enriched = enrichedFixture();
-    const viaPlugin = await froggyAnalystPlugin.run(enriched);
+    const viaPlugin = await runScorer(enriched);
     const reference = scoreFroggyTrendPullbackFromEnriched(enrichedFixture());
     expect(normalized(viaPlugin.analysis)).toEqual(normalized(reference));
     // No response-contract leakage: output shape = enriched + analysis +
     // uwrResolvedSource only. (uwrResolvedSource was added by
     // PR-UWR-STAMP-SEMANTICS — uwr-runtime-consumption-v0.1.md §7 row
     // flipped via afi-governance PR #13 — to propagate the RC-6 source to
-    // the vault-write stamp; froggyScoringService copies enumerated fields
+    // the vault-write stamp; graphScoringService copies enumerated fields
     // into the response contract, so this plugin-boundary field never
     // reaches ReactorScoredSignalV1.)
     expect(Object.keys(viaPlugin).sort()).toEqual(
@@ -461,7 +491,7 @@ describe("PR-UWR-RUNTIME-READ: plugin call-site equivalence (the changed consume
     async () => {
       process.env[UWR_PROFILE_SOURCE_ENV] = "registry";
       __resetUwrRuntimeConfigForTests();
-      const viaPlugin = await froggyAnalystPlugin.run(enrichedFixture());
+      const viaPlugin = await runScorer(enrichedFixture());
       const reference = scoreFroggyTrendPullbackFromEnriched(enrichedFixture());
       expect(normalized(viaPlugin.analysis)).toEqual(normalized(reference));
       // RC-6 propagation: a successful registry resolution — and only a

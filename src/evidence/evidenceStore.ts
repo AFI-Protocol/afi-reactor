@@ -16,7 +16,7 @@
  */
 
 import { MongoScoredSignalEvidenceStore } from "afi-infra";
-import type { ScoredSignalEvidenceRecord } from "afi-infra";
+import type { ScoredSignalEvidenceRecordV2 } from "afi-infra";
 import type { EvidenceStorePort } from "./submitScoredSignalEvidence.js";
 
 let injected: EvidenceStorePort | null = null;
@@ -46,15 +46,15 @@ export function getEvidenceStore(): EvidenceStorePort {
     // Anti-corruption bridge (the Reactor's single afi-infra submit boundary):
     // the Reactor's port carries its own STRICT governed-record mirror
     // (ReactorEvidenceRecord, keyed on the Reactor's District-2 provenance
-    // types); afi-infra's store takes the equivalent `ScoredSignalEvidenceRecord`.
-    // The two are the SAME governed afi.scored-signal-evidence.v1 record at
+    // types); afi-infra's store takes the equivalent `ScoredSignalEvidenceRecordV2`.
+    // The two are the SAME governed afi.scored-signal-evidence.v2 record at
     // runtime and differ only by the open `[k: string]: unknown` index signature
     // afi-infra's ergonomic mirror types declare — a compile-time-only nominal
     // gap. The store re-validates the FULL record against the authoritative
     // governed afi-config JSON Schema on submit, so the runtime contract is
     // enforced by afi-infra, not this cast.
     cached = {
-      submit: (record) => store.submit(record as unknown as ScoredSignalEvidenceRecord),
+      submit: (record) => store.submit(record as unknown as ScoredSignalEvidenceRecordV2),
     };
   }
   return cached;

@@ -25,12 +25,6 @@ jobs:
           repository: AFI-Protocol/afi-core
           path: afi-core
 
-      - name: Checkout afi-factory (sibling dependency)
-        uses: actions/checkout@v4
-        with:
-          repository: AFI-Protocol/afi-factory
-          path: afi-factory
-
       - name: Checkout afi-math (kernel guard dependency)
         uses: actions/checkout@v4
         with:
@@ -160,8 +154,10 @@ jobs:
         env:
           AFI_EVIDENCE_MONGODB_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0
           AFI_EVIDENCE_DB_NAME: afi_scored_signal_evidence_it
-          # Deterministic, hermetic enrichment (demo is the default; pinned here
-          # so the proof never depends on a live price feed or a runner override).
+          # Deterministic, hermetic enrichment: the deterministic test feed is
+          # injected by the proof through the guarded test seam (the runtime
+          # registers NO synthetic feed and has NO default source) and selected
+          # explicitly here so the proof never depends on a live price feed.
           AFI_PRICE_FEED_SOURCE: demo
         run: |
           echo "🧪 Proving both scored endpoints persist through the real afi-infra store on real MongoDB..."

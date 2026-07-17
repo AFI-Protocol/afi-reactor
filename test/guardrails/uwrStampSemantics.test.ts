@@ -46,7 +46,8 @@ import {
 } from "../../src/config/uwrProfilePin.js";
 import type { UwrProfileStamp } from "../../src/types/ReactorScoredSignalV1.js";
 import type { FroggyEnrichedView } from "../../node_modules/afi-core/analysts/froggy.enrichment_adapter.js";
-import froggyAnalystPlugin from "../../plugins/froggy.trend_pullback_v1.plugin.js";
+import { scorerFroggyTrendPullbackNode } from "../../src/pipeline/nodes/scorerFroggyTrendPullback.js";
+import { SILENT_NODE_LOGGER, type NodeRunContext } from "../../src/pipeline/nodeSdk.js";
 
 // Repo idiom (see test/pipeheads/*.test.ts): jest runs from the repo root.
 const REPO_ROOT = process.cwd();
@@ -66,6 +67,42 @@ const RECOGNIZED_REGISTRATION: RecognizedStrategyRegistration = {
   strategyVersion: "1.0.0",
   uwrProfileRef: { profileId: "uwr-weighted-lifts-v0.1" },
 };
+
+/** The LIVE scoring seam (D-FCP-9: the old froggy analyst plugin is deleted;
+ * the scorer node composes the identical afi-core kernels and emits the
+ * identical {…enriched, analysis, uwrResolvedSource} envelope). */
+type ScoredEnvelope = FroggyEnrichedView & {
+  analysis: {
+    analystScore: {
+      analystId?: string;
+      strategyId?: string;
+      uwrScore?: number;
+      uwrAxes?: Record<string, number>;
+    };
+  };
+  uwrResolvedSource: "builtin" | "registry";
+};
+
+function nodeCtx(): NodeRunContext {
+  return {
+    signal: {
+      schema: "afi.usignal.v1.1",
+      provenance: {
+        source: "test",
+        providerId: "uwr-stamp-semantics-test-provider",
+        signalId: "sig-uwr-stamp-semantics-test",
+      },
+    },
+    config: {},
+    logger: SILENT_NODE_LOGGER,
+    abort: new AbortController().signal,
+  };
+}
+
+async function runScorer(enriched: FroggyEnrichedView): Promise<ScoredEnvelope> {
+  const result = await scorerFroggyTrendPullbackNode.run(enriched, nodeCtx());
+  return result.output as ScoredEnvelope;
+}
 
 /** Same minimal-but-representative enriched view as uwrRuntimeProfile.test.ts. */
 function enrichedFixture(): FroggyEnrichedView {
@@ -125,7 +162,7 @@ afterEach(() => {
 
 describe("PR-UWR-STAMP-SEMANTICS: builtin (default) mode stamps builtin-value-identity", () => {
   it("end-to-end: plugin scores with builtin and the stamp discriminates builtin", async () => {
-    const analyzed = await froggyAnalystPlugin.run(enrichedFixture());
+    const analyzed = await runScorer(enrichedFixture());
     expect(analyzed.uwrResolvedSource).toBe("builtin");
 
     const stamp = stampFromPluginOutput(analyzed);
@@ -151,13 +188,13 @@ describe("PR-UWR-STAMP-SEMANTICS: registry mode stamps registry-consumed only af
     "end-to-end: successful registry resolution flows to a registry-consumed stamp",
     async () => {
       // Baseline: the SAME fixture scored under builtin (default).
-      const builtinAnalyzed = await froggyAnalystPlugin.run(enrichedFixture());
+      const builtinAnalyzed = await runScorer(enrichedFixture());
       expect(builtinAnalyzed.uwrResolvedSource).toBe("builtin");
 
       process.env[UWR_PROFILE_SOURCE_ENV] = "registry";
       __resetUwrRuntimeConfigForTests();
 
-      const analyzed = await froggyAnalystPlugin.run(enrichedFixture());
+      const analyzed = await runScorer(enrichedFixture());
       // The plugin can only have gotten here if the registry was read and
       // RC-5-validated: resolution is fail-closed (RC-4), so "registry"
       // as a propagated source IS proof of successful consumption.
@@ -194,10 +231,10 @@ describe("PR-UWR-STAMP-SEMANTICS: failed resolution produces NO stamp (RC-4 × R
     process.env[UWR_PROFILE_SOURCE_ENV] = "fallback";
     __resetUwrRuntimeConfigForTests();
 
-    await expect(froggyAnalystPlugin.run(enrichedFixture())).rejects.toThrow(
+    await expect(runScorer(enrichedFixture())).rejects.toThrow(
       UwrRuntimeProfileError
     );
-    await expect(froggyAnalystPlugin.run(enrichedFixture())).rejects.toMatchObject({
+    await expect(runScorer(enrichedFixture())).rejects.toMatchObject({
       reason: "invalid-source-flag",
     });
   });
@@ -209,7 +246,7 @@ describe("PR-UWR-STAMP-SEMANTICS: failed resolution produces NO stamp (RC-4 × R
     __resetUwrRuntimeConfigForTests();
     process.chdir(tempDir);
     try {
-      await expect(froggyAnalystPlugin.run(enrichedFixture())).rejects.toMatchObject({
+      await expect(runScorer(enrichedFixture())).rejects.toMatchObject({
         reason: "registry-unreadable",
       });
     } finally {
@@ -224,14 +261,14 @@ describe("PR-UWR-STAMP-SEMANTICS: failed resolution produces NO stamp (RC-4 × R
     __resetUwrRuntimeConfigForTests();
     process.chdir(tempDir);
     try {
-      await expect(froggyAnalystPlugin.run(enrichedFixture())).rejects.toThrow();
+      await expect(runScorer(enrichedFixture())).rejects.toThrow();
     } finally {
       process.chdir(REPO_ROOT);
     }
 
     delete process.env[UWR_PROFILE_SOURCE_ENV];
     __resetUwrRuntimeConfigForTests();
-    const analyzed = await froggyAnalystPlugin.run(enrichedFixture());
+    const analyzed = await runScorer(enrichedFixture());
     const stamp = stampFromPluginOutput(analyzed);
     expect(stamp!.source).toBe(UWR_STAMP_SOURCE_BUILTIN);
   });
@@ -354,8 +391,10 @@ describe("PR-UWR-STAMP-SEMANTICS: source is PROPAGATED end-to-end, never re-deri
   const read = (rel: string) =>
     readFileSync(path.resolve(REPO_ROOT, rel), "utf8");
 
-  it("the plugin composition path propagates the source it actually scored with", () => {
-    const src = read("plugins/froggy.trend_pullback_v1.plugin.ts");
+  it("the scorer-node composition path propagates the source it actually scored with", () => {
+    // D-FCP-9: the legacy analyst plugin is deleted; the single scoring seam
+    // is the scorer category node.
+    const src = read("src/pipeline/nodes/scorerFroggyTrendPullback.ts");
     // The propagated value is the resolver's own resolution result — set in
     // the same function that scored with uwrRuntime.config (fail-closed
     // resolution has already succeeded by then), so a "registry" value is

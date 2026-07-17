@@ -5,7 +5,7 @@
  * production source contains NO mock implementations (D-FCP-8); injecting a
  * registry is data injection through the executor's public seam.
  */
-import type { CanonicalUss } from "../../../src/services/pipelineRunner.js";
+import type { CanonicalUss } from "../../../src/types/canonicalUss.js";
 import type {
   AnalysisNodePlugin,
   NodeResult,
@@ -22,10 +22,11 @@ import type {
   PipelineManifest,
 } from "../../../src/pipeline/manifestTypes.js";
 
-/** The factory conformance proof graphs (read from the afi-factory file: dependency). */
+/** The factory conformance proof graphs (vendored byte-copies of
+ *  afi-factory@9f88ede fixtures/conformance — see the provenance README). */
 export const CONFORMANCE_DIR = join(
   process.cwd(),
-  "node_modules/afi-factory/fixtures/conformance"
+  "test/pipeline/fixtures/conformance"
 );
 
 export function loadConformanceFixture(name: string): PipelineManifest {
