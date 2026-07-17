@@ -17,14 +17,7 @@ For global droid behavior and terminology, see:
 
 ## Canonical Scored-Only Pipeline
 
-afi-reactor is **scored-only**. The Froggy trend-pullback pipeline is defined in **`src/config/froggyPipeline.ts`** (single source of truth) and runs 6 stages:
-
-1. **uss-telemetry-deriver** (internal) — derive routing/debug fields from canonical USS v1.1 into `context.telemetry`
-2. **froggy-enrichment-tech-pattern** — technical + chart-pattern enrichment (OHLCV) *(parallel branch 1)*
-3. **froggy-enrichment-sentiment-news** — sentiment + news enrichment via external APIs *(parallel branch 2)*
-4. **froggy-enrichment-adapter** — merge enrichment legos + optional AI/ML (Tiny Brains, fail-soft)
-5. **froggy-analyst** — run `trend_pullback_v1` strategy from afi-core, compute UWR score
-6. **tssd-vault-write** (internal) — persist scored signal to the Reactor-owned MongoDB collection
+afi-reactor is **scored-only**. There is no hardcoded pipeline in source: composition flows from the boot-validated registries (`src/config/runtimeComposition.ts`), the strategy resolves from the provider binding (`src/config/strategyResolution.ts`), and the registered pipeline manifest is executed by the generic graph executor (`src/pipeline/executor.ts` via `src/services/graphScoringService.ts`). The registered froggy composition enriches (technical+pattern ∥ sentiment+news → merge, optional AI/ML fail-soft), scores `trend_pullback_v1` from afi-core (UWR), and persists the governed evidence record through the packaged afi-infra canonical store.
 
 **Output**: a scored-only `ReactorScoredSignalV1` — `{ signalId, rawUss, lenses?, _priceFeedMetadata?, analystScore { uwrScore, uwrAxes { structure, execution, risk, insight } }, scoredAt, decayParams, meta }`. There is **no** `validatorDecision` and **no** execution block.
 

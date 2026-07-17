@@ -40,7 +40,7 @@ Expected response:
 {
   "status": "ok",
   "service": "afi-reactor",
-  "froggyPipeline": "available"
+  "composition": "available"
 }
 ```
 
@@ -58,7 +58,7 @@ Health check endpoint.
 {
   "status": "ok",
   "service": "afi-reactor",
-  "froggyPipeline": "available"
+  "composition": "available"
 }
 ```
 
@@ -268,14 +268,7 @@ To configure TradingView alerts to send webhooks to this server:
 
 ## Pipeline Flow
 
-The webhook endpoint runs the canonical **scored-only** Froggy trend-pullback pipeline (source of truth: [`src/config/froggyPipeline.ts`](../src/config/froggyPipeline.ts)):
-
-1. **USS Telemetry Deriver** (internal) → Validates the payload as canonical USS v1.1 and derives routing/debug fields into `context.telemetry` (does not mutate `rawUss`)
-2. **Froggy Enrichment (Tech + Pattern)** → Adds technical indicators and chart-pattern enrichment (OHLCV-based) — *parallel branch 1*
-3. **Froggy Enrichment (Sentiment + News)** → Adds sentiment and news enrichment via external APIs — *parallel branch 2*
-4. **Froggy Enrichment Adapter** → Merges enrichment legos (honors EnrichmentProfile) and adds optional AI/ML predictions (Tiny Brains, fail-soft)
-5. **Froggy Analyst** → Runs the `trend_pullback_v1` strategy from afi-core and computes the UWR score
-6. **TSSD Vault Write** (internal) → Persists the scored `ReactorScoredSignalV1` to the Reactor-owned MongoDB collection
+The webhook endpoint runs the canonical **scored-only** pipeline. There is no hardcoded pipeline in source: the strategy is resolved from the provider binding (`src/config/strategyResolution.ts`), and the registered pipeline manifest is executed by the generic graph executor (`src/pipeline/executor.ts`) over the boot-validated registries (`src/config/runtimeComposition.ts`). The registered froggy composition enriches (technical+pattern ∥ sentiment+news → merge, optional AI/ML fail-soft), scores `trend_pullback_v1` from afi-core (UWR score), and persists the governed evidence record through the packaged afi-infra canonical store.
 
 **Out of scope (not reactor stages):** Validator certification and trade execution are **downstream / external** concerns. The reactor emits a scored-only signal; external certification consumers and mint orchestration (`afi-mint`) act on it. Gateway clients submit drafts via the `SUBMIT_SIGNAL_DRAFT` action and retrieve the last scoring rationale via `EXPLAIN_LAST_DECISION`.
 
@@ -303,7 +296,6 @@ The webhook endpoint runs the canonical **scored-only** Froggy trend-pullback pi
 ## Related Documentation
 
 - [EnrichmentProfile Specification](../../afi-core/docs/ENRICHMENT_PROFILE_SPEC.v0.1.md)
-- [Froggy Pipeline Tests](../test/froggyPipeline.test.ts)
 - [AFI Orchestrator Doctrine](../AFI_ORCHESTRATOR_DOCTRINE.md)
 
 ---

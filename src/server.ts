@@ -130,14 +130,14 @@ app.use((req: Request, res: Response, next) => {
  * {
  *   "status": "ok",
  *   "service": "afi-reactor",
- *   "froggyPipeline": "available"
+ *   "composition": "available"
  * }
  */
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({
     status: "ok",
     service: "afi-reactor",
-    froggyPipeline: "available",
+    composition: "available",
   });
 });
 
