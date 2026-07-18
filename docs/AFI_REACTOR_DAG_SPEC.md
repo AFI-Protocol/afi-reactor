@@ -4,7 +4,7 @@
 
 **AFI-Reactor is the canonical orchestrator for Agentic Financial Intelligence (AFI).**
 
-The canonical DAG description for afi-reactor currently lives in `config/dag.codex.json` (with supporting `config/ops.codex.json` and `config/schema.codex.json`). All new DAG nodes/pipelines should be registered there and reflected in the Codex. The `codex/` directory is reserved for runtime logs (e.g., replay outputs) and is not a source of truth.
+The canonical pipeline composition for afi-reactor lives in the registered pipeline manifests loaded and boot-validated by `src/pipeline/registryLoader.ts` and executed by the one `GraphExecutor` (`src/pipeline/executor.ts`); new nodes are registered in `src/pipeline/pluginRegistry.ts` and referenced from a registered manifest. `config/dag.codex.json` (with `config/ops.codex.json` and `config/schema.codex.json`) is supporting Codex metadata, and the `codex/` directory is reserved for runtime logs (e.g., replay outputs) — neither is the source of truth for the composition.
 
 Schema entries in `config/schema.codex.json` now include an `ownerRepo` field to make multi-repo ownership explicit. It denotes which AFI repo owns the canonical schema implementation; afi-reactor treats these schemas as contracts for DAG edges, not as the underlying implementations.
 

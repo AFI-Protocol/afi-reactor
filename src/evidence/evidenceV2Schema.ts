@@ -8,7 +8,7 @@
  * guarded by test/pipeline/vendoredSchemaProvenance.test.ts). Their $refs
  * into the D2 provenance family (scored-signal / provenance-record /
  * canonical-hash, …) resolve against the merged afi-config provenance
- * schemas loaded exactly like src/pipeheads/provenance/schemaValidation.ts
+ * schemas loaded exactly like src/evidence/provenance/schemaValidation.ts
  * loads them (node_modules/afi-config, the ussValidator convention) — the
  * vendored canonical-hash.schema.json is the byte-pinned copy of the same
  * governed document, so both sources describe identical bytes.

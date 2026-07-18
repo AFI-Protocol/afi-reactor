@@ -20,8 +20,8 @@ import {
   VOLATILE_TIMESTAMP_KEYS,
   EVIDENCE_TIMESTAMP_KEYS,
   D2_DOMAIN_TAGS,
-} from "../../src/pipeheads/provenance/canonicalHashV1.js";
-import { validateCanonicalHashV1 } from "../../src/pipeheads/provenance/schemaValidation.js";
+} from "../../../src/evidence/provenance/canonicalHashV1.js";
+import { validateCanonicalHashV1 } from "../../../src/evidence/provenance/schemaValidation.js";
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 const TAG = "afi.d2.test-domain";

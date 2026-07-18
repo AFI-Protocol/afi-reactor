@@ -91,7 +91,7 @@ Identify the current DAG layout and relevant files, typically including:
 - DAG engine and orchestration code (e.g. `src/core/dag-engine.ts` or similar)
 - DAG graph or codex (e.g. `config/dag.codex.json` or similar config files)
 - Any codex/metadata that describes nodes and stages (e.g. `codex/*.json`)
-- Any existing node patterns in `src/dags/` (or equivalent)
+- Any existing node patterns in `src/pipeline/nodes/`
 
 Do **not** modify these yet; just understand how the DAG is currently modeled.
 
@@ -101,9 +101,9 @@ Do **not** modify these yet; just understand how the DAG is currently modeled.
 
 Create a new node file under the appropriate folder, for example:
 
-- `src/dags/<stage>/<nodeName>.ts`  
+- `src/pipeline/nodes/<nodeName>.ts`  
   or
-- `src/dags/<nodeName>.ts`
+- (register it in `src/pipeline/pluginRegistry.ts` with a pinned pluginId@version)
 
 Follow any existing naming and folder conventions in afi-reactor.
 

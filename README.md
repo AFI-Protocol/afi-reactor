@@ -116,66 +116,26 @@ npm run validate-all
 
 ---
 
-## 🧪 Signal Evaluation Pipehead System (D2-native reference implementation)
+## 🔏 District 2 Evidence & Provenance (live law)
 
-> **Status: pre-live reference implementation / implementation profile.** This is one
-> **example signal-evaluation path** emitting a **District 2 (D2)-compatible artifact surface**.
-> It is **not the canonical AFI pipeline**: canonical status belongs only to the approved
-> afi-config schemas, validation rules, and hash doctrine — never to a specific pipeline
-> topology, strategy, lane set, strategy view, or normalization parser.
+The District-2 provenance law — CanonicalHash v1 (`afi.hash.v1`, sha256-only,
+domain-tagged preimages, volatile-timestamp exclusion, decimal hash
+projection), the ScoredSignal v1 projection builder, and the D2 M1 schema
+validators — lives under [`src/evidence/provenance/`](src/evidence/provenance)
+and is a REQUIRED step of every live scoring run (`src/evidence/` builds and
+validates the governed `afi.scored-signal-evidence.v2` record before
+submission to the afi-infra store). Canonical status belongs only to the
+merged afi-config schemas, validation rules, and hash doctrine — never to a
+specific pipeline topology or strategy.
 
-A self-contained, fully-offline reference path under [`src/pipeheads/`](src/pipeheads) that makes
-AFI's signal-evaluation DAG **Droid-operable without making Droids the source of financial truth**.
-Droids operate the machinery (validate → five-lane fan-out → normalize → envelope → score →
-provenance); the deterministic **afi-core Froggy trend-pullback UWR scorer is
-invoked, never replaced**, and remains the source of truth.
-
-- **D2-native outward artifacts (District 2 M2):** each pass emits an `AnalystInputEnvelope v1`
-  (opaque, declared, hash-pinned strategy-local view + evidence/disclosure/lane provenance), a
-  `ScoredSignal v1` projection, a `ProvenanceRecord v1` (input/enrichment/output CanonicalHash v1
-  digests), and a `ReplayProfile v1` — all validated in-process against the merged afi-config
-  `schemas/provenance/v1/` schemas. The pre-D2 POC outward shapes (`DemoScoredSignal`,
-  `DemoReputationReceipt`, `AuditRecord`) are retired.
-- **CanonicalHash v1 (`afi.hash.v1`):** sha256-only with the required `afi.*` domain tag included
-  in the digest preimage (cross-domain reuse is impossible); volatile runtime timestamps are
-  excluded from hash material; arbitrary floats are rejected with a narrow field-specific decimal
-  hash projection for the schema-declared numeric score/enrichment/OHLCV fields.
-- **Five analysis lanes (profile-local, not protocol canon):** `technical-indicators` and
-  `pattern-recognition` are wired (real deterministic math); `news`, `social`, and `ai-ml` are
-  clearly-labeled provisional fixtures.
-- **Canonical validation & indicators (District One Hardening):** DR-001 is resolved — schema
-  validation is the canonical `validateUsignalV11` (ajv + afi-config `usignal/v1_1` schemas);
-  DR-002 is resolved — the technical lane runs the canonical `computeTechnicalEnrichment` /
-  `trading-signals` v7 indicator kernel through its injectable engine seam. Scoring remains 100%
-  afi-core, and the golden scoring values are byte-identical to the pre-D2 goldens
-  (`uwrScore 0.1875`, axes `0.15/0/0.2/0.4`); only the hash pins were re-pinned to `afi.hash.v1`.
-- **Normalization boundary:** USS v1.1 **compatibility** is canonical; the normalize pipehead is a
-  **reference adapter/profile**, not a required normalization process — other implementations may
-  normalize differently as long as they emit valid USS + D2 artifacts.
-- **Governance:** governed by `AFI_DROID_CHARTER.v0.1.md` and
-  `AFI_DROID_PIPEHEAD_ADDENDUM.v0.1.md`; introduces **no** changes to `afi-core`, `afi-math`, or `afi-config`.
-
-**Run the demo** (deterministic; prints a per-lane WIRED/PROVISIONAL summary plus four parseable
-JSON blocks — `AnalystInputEnvelope`, `ScoredSignal`, `ProvenanceRecord`, `ReplayProfile`; two runs
-are byte-identical):
-
-```bash
-node --loader ts-node/esm src/cli/run-pipehead-demo.ts
-```
-
-**Scoped checks** (new code only; see `AGENTS.md` for why the full `esm:check` is out of scope):
-
-```bash
-npx tsc -p tsconfig.pipeheads.json   # scoped typecheck
-bash scripts/esm-check-pipeheads.sh  # ESM invariants
-npm run typecheck                    # full-repo tsc --noEmit
-npm test -- --maxWorkers=2           # full Jest suite (includes pipehead tests)
-```
-
-Full design, the D2 artifact surface, the hash doctrine implementation, and the two Decision
-Records — **both resolved** (DR-001 canonical `validateUsignalV11` validation, DR-002 canonical
-`computeTechnicalEnrichment` / `trading-signals` v7 indicators) — are documented, along with the
-remaining limitations, in [`docs/PIPEHEAD_SYSTEM.md`](docs/PIPEHEAD_SYSTEM.md).
+The historical District-1 pipehead POC (a fenced, offline five-lane reference
+path) was retired under DSC-GOV
+(`afi-governance/decisions/district-surface-consolidation-v0.1.md`); its
+useful invariants were transferred to the live runtime and
+`test/evidence/provenance/`, and git history preserves the former
+implementation. Pipehead-style stage discipline survives as an architectural
+principle implemented by the current pipeline nodes (one node → one validated
+category result → merge → one scorer seam → the D2 evidence boundary).
 
 ---
 

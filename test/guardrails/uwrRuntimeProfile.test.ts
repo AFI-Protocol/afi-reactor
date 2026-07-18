@@ -79,7 +79,7 @@ async function runScorer(enriched: FroggyEnrichedView): Promise<ScoredEnvelope> 
   return result.output as ScoredEnvelope;
 }
 
-// Repo idiom (see test/pipeheads/*.test.ts): jest runs from the repo root.
+// Repo idiom (see test/evidence/provenance/*.test.ts): jest runs from the repo root.
 const REPO_ROOT = process.cwd();
 const INSTALLED_REGISTRY = path.resolve(REPO_ROOT, UWR_REGISTRY_RELATIVE_PATH);
 
@@ -409,12 +409,12 @@ describe("PR-UWR-RUNTIME-READ: source guardrails (module containment)", () => {
     return out;
   }
 
-  it("the D2 pipehead/CLI surfaces never reference the runtime profile module", () => {
-    // The pre-existing pipehead/cli ban regex (/uwrProfile|uwrProfilePin|
-    // UWR_PROFILE_/) does not match 'uwrRuntimeProfile' identifiers — this
-    // scan closes that gap WITHOUT amending the RC-7-governed bans: the
-    // golden-hashed surfaces must stay flag-ignorant.
-    for (const dir of ["src/pipeheads", "src/cli"]) {
+  it("the D2 provenance surfaces never reference the runtime profile module", () => {
+    // The stamp-ban regex (/uwrProfile|uwrProfilePin|UWR_PROFILE_/) does not
+    // match 'uwrRuntimeProfile' identifiers — this scan closes that gap: the
+    // golden-hashed surfaces must stay flag-ignorant. Dirs updated under
+    // DSC-GOV D-DSC-8 (relocated D2 law + extracted carrier module).
+    for (const dir of ["src/evidence/provenance", "src/evidence/analysis"]) {
       const abs = path.resolve(REPO_ROOT, dir);
       if (!existsSync(abs)) continue;
       const offenders = scanTsTree(abs, content =>

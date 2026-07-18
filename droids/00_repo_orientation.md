@@ -6,14 +6,13 @@
 
 ## What This Repo Does
 
-DAG orchestrator implementing the 15-node signal processing pipeline. This is the ONLY orchestrator in AFI—agents are nodes, not orchestrators.
+DAG orchestrator implementing the manifest-driven GraphExecutor pipeline (registered pipeline manifests → category nodes → merge → scorer → evidence). This is the ONLY orchestrator in AFI—agents are nodes, not orchestrators.
 
 **Key Capabilities**:
-- DAG orchestration (15-node pipeline)
+- Manifest-driven graph execution (one GraphExecutor)
 - Signal pipeline management
+- Canonical evidence construction (District-2 provenance law)
 - Codex replay
-- Validator coordination
-- Mentor coordination
 
 ---
 
@@ -44,21 +43,14 @@ This document contains the 10 Commandments of AFI orchestration. Violating these
 ## Key Files to Know
 
 ```
-src/cli/
-  run-dag.ts              # DAG execution entrypoint
-  replay-signals.ts       # Codex replay
-  
-src/dags/
-  [DAG node implementations]
-  
-codex/
-  [Codex configuration]
-  
-config/
-  [DAG configuration files]
-  
-plugins/
-  [Plugin implementations]
+src/server.ts             # boot + the two scoring ingresses
+src/pipeline/             # GraphExecutor, registry loader, category nodes
+src/config/               # runtime composition (the ONE executor), UWR pins
+src/evidence/             # evidence record + District-2 provenance law
+src/providers/            # the provider-adapter framework (PBF-GOV)
+codex/                    # Codex configuration
+config/                   # configuration files
+plugins/                  # plugin implementations
 ```
 
 ---
@@ -75,8 +67,8 @@ npm test
 # Build
 npm run build
 
-# Run DAG (dev)
-npm run dag:dev
+# Run the server (after build)
+npm run start:demo
 ```
 
 ---

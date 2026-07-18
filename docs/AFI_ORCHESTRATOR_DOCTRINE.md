@@ -15,8 +15,8 @@ All canonical pipelines, DAGs, and routing logic live here—not in afi-core, no
 **Rationale:** Single source of truth for orchestration prevents fragmentation and ensures deterministic behavior.
 
 **Examples:**
-- ✅ DAG definitions in afi-reactor/src/dags/
-- ✅ Pipeline configs in afi-reactor/codex/
+- ✅ The GraphExecutor + category nodes in afi-reactor/src/pipeline/
+- ✅ Registered pipeline manifests loaded by afi-reactor/src/pipeline/registryLoader.ts
 - ❌ Pipeline logic scattered in afi-core
 
 ---

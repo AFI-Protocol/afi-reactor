@@ -13,7 +13,8 @@
  *     ('builtin-value-identity' / 'registry-consumed');
  *   - the 'registries/uwr-profiles' string ban across src/ (single authorized
  *     loader module);
- *   - the src/pipeheads + src/cli pin-identifier bans (golden byte-stability);
+ *   - the D2 provenance-surface pin-identifier bans (golden byte-stability;
+ *     dirs relocated per DSC-GOV D-DSC-8);
  *   - the pinned profile metadata VALUES (UP-2: profileId / status /
  *     decisionRef unchanged);
  *   - the test-only sibling registry cross-check (UP-12).
@@ -37,7 +38,7 @@ import {
   type RecognizedStrategyRegistration,
 } from "../../src/config/uwrProfilePin.js";
 
-// Repo idiom (see test/pipeheads/*.test.ts): jest runs from the repo root.
+// Repo idiom (see test/evidence/provenance/*.test.ts): jest runs from the repo root.
 const REPO_ROOT = process.cwd();
 const SIBLING_REGISTRY = path.resolve(
   REPO_ROOT,
@@ -204,10 +205,11 @@ describe("PR-UWR-STAMP: source guardrails (PRESERVED unchanged by FCP-GOV §14)"
     expect(offenders).toEqual([]);
   });
 
-  it("the stamp stays out of the D2 pipehead surface (golden byte-stability, UP-5/UP-11)", () => {
-    // The D2 M2 goldens hash the ScoredSignal v1 projection built under
-    // src/pipeheads. The stamp must never enter that surface.
-    for (const dir of ["src/pipeheads", "src/cli"]) {
+  it("the stamp stays out of the D2 provenance surface (golden byte-stability, UP-5/UP-11; dirs updated under DSC-GOV D-DSC-8)", () => {
+    // The D2 goldens hash the ScoredSignal v1 projection built by
+    // src/evidence/provenance. The stamp must never enter that surface (nor
+    // the extracted carrier module).
+    for (const dir of ["src/evidence/provenance", "src/evidence/analysis"]) {
       const abs = path.resolve(REPO_ROOT, dir);
       if (!existsSync(abs)) continue;
       const offenders = scanTree(abs, content =>

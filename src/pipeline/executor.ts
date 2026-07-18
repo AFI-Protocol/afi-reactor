@@ -1,7 +1,7 @@
 /**
  * GraphExecutor — the manifest-driven DAG executor of the V1 configurable
- * pipelines program (W3 spec section 2; evolved from runPipelineDag, which
- * stays untouched until the cleanup PR).
+ * pipelines program (W3 spec section 2) — AFI's sole signal-evaluation
+ * executor (DSC-GOV D-DSC-1).
  *
  * Semantics (all FIXED by the spec):
  *  - Kahn waves over the manifest edges; Promise.all within a wave (bounded

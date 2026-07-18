@@ -80,9 +80,9 @@ npm run mentor-eval
 **Purpose**: Orchestrate signal pipelines via DAG. **Not** for business logic, token economics, or agent personas.
 
 **Key directories**:
-- `src/cli/` — CLI entrypoints (run-pipehead-demo.ts)
 - `src/pipeline/` — the manifest-driven graph executor (executor, registryLoader, nodeSdk, hashing, category nodes)
-- `src/aiMl/` — AI/ML provider integration (MLProviderRegistry, TinyBrainsProvider)
+- `src/aiMl/` — Tiny Brains HTTP clients (tinyBrainsClient for the live aiMl node, patternServiceClient for the pattern provider adapter)
+- `src/evidence/` — canonical evidence construction + District-2 provenance law (`provenance/`: CanonicalHash v1, projection builders, D2 schema validation; `analysis/`: the internal scoring carrier)
 - `src/adapters/` — External service adapters (Coinalyze, CoinGecko, exchanges)
 - `src/collectors/` — Data collectors (Telegram, MTProto)
 - `src/core/` — Core services (VaultService)
@@ -603,13 +603,8 @@ production source (guardrail: `test/guardrails/no-hardcoded-composition.test.ts`
 
 ### Feature Branches
 
-Current feature branches may contain experimental or in-development features:
-
-- **feat/dag-infrastructure**: Flexible DAG system with plugin architecture, state management, and AI/ML provider integration
-  - Introduces DAGBuilder, DAGExecutor, PluginRegistry
-  - Adds StateManager, StateSerializer, StateValidator
-  - Implements MLProviderRegistry and TinyBrainsProvider
-  - Migrates from fixed 15-node pipeline to flexible, plugin-based architecture
+There are no long-lived feature branches; work lands via short-lived
+mission/feature branches merged through pull requests.
 
 **Branch Protection Rules**:
 - Direct pushes to `main` are disabled
@@ -684,8 +679,7 @@ Current feature branches may contain experimental or in-development features:
 ## Scope & Boundaries for Agents
 
 **Allowed**:
-- Add new DAG nodes to `src/dags/` (following Doctrine)
-- Improve orchestration logic in `src/cli/`
+- Add new pipeline nodes under `src/pipeline/nodes/` (following Doctrine and the registered-manifest model)
 - Add tests, update Codex configs, add plugins
 - Update `.afi-codex.json` if capabilities change
 
@@ -744,13 +738,12 @@ Mitigations:
 ### Runtime deps required for server bootability
 
 `npm run start:demo` (`dist/src/server.js`, port 8080) statically imports
-modules beyond the pipehead/test surface: `ccxt` (BloFin/Coinbase price-feed
+modules beyond the test surface: `ccxt` (BloFin/Coinbase price-feed
 adapters) and `telegram` / `node-telegram-bot-api` / `input` (Telegram
 collectors — opt-in at runtime but statically imported). These are declared in
 `package.json`; without them the server exits at startup with
 `ERR_MODULE_NOT_FOUND`. The validation/indicator stack (`ajv`, `ajv-formats`,
-`trading-signals`, `afi-config`) is canonical and wired since Mission 1.5-B
-(DR-001/DR-002 resolved) — see `docs/PIPEHEAD_SYSTEM.md`.
+`trading-signals`, `afi-config`) is canonical and wired.
 
 ### Running / smoke-testing the server
 
@@ -776,11 +769,8 @@ The webhook returns a scored-only `ReactorScoredSignalV1`
   `tsc` does not copy `config/*.json` into `dist/`, so the codex manifests are
   absent under `dist/config/`. CI runs `build` + `test`, not `validate-all`.
 - The repo-wide `npm run esm:check` still flags a handful of pre-existing
-  legacy files importing without `.js` extensions (e.g.
-  `src/aiMl/providers/TinyBrainsProvider.ts`, `test/uss/*`). This predates
-  Mission 1.5-B and does not affect build/test.
-  The scoped pipehead gates (`npx tsc -p tsconfig.pipeheads.json`,
-  `bash scripts/esm-check-pipeheads.sh`) pass clean.
+  files importing without `.js` extensions (e.g. `test/uss/*`). This is
+  long-standing and does not affect build/test.
 
 ---
 

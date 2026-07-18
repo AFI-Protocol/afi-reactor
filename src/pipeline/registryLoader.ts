@@ -26,8 +26,8 @@
  *      at request time).
  *
  * This module (and the composition root that calls it) is the ONLY reader of
- * these registries — never src/pipeheads, never src/cli (RC-7 bans
- * untouched).
+ * these registries — never the D2 evidence/provenance surfaces (RC-7 bans,
+ * dirs per DSC-GOV D-DSC-8).
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";

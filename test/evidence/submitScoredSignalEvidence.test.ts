@@ -14,7 +14,7 @@ import type { ReactorScoredSignalV1 } from "../../src/types/ReactorScoredSignalV
 import {
   validateProvenanceRecordV1,
   validateScoredSignalV1,
-} from "../../src/pipeheads/provenance/schemaValidation.js";
+} from "../../src/evidence/provenance/schemaValidation.js";
 import { validateEvidenceRecordV2 } from "../../src/evidence/evidenceV2Schema.js";
 import {
   buildReactorEvidenceRecord,

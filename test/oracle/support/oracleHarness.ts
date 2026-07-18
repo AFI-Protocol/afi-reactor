@@ -23,7 +23,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { EvidenceStorePort, EvidenceSubmitResult } from "../../../src/evidence/submitScoredSignalEvidence.js";
-import { VOLATILE_TIMESTAMP_KEYS } from "../../../src/pipeheads/provenance/canonicalHashV1.js";
+import { VOLATILE_TIMESTAMP_KEYS } from "../../../src/evidence/provenance/canonicalHashV1.js";
 import {
   __resetRuntimeCompositionForTests,
   __setRuntimeCompositionOverridesForTests,
@@ -31,7 +31,7 @@ import {
 import { registerPriceFeedAdapterForTests } from "../../../src/adapters/exchanges/priceFeedRegistry.js";
 import { demoPriceFeedAdapter } from "../../support/deterministicPriceFeedAdapter.js";
 
-/** Jest runs from the repo root (repo idiom — see test/pipeheads/*.test.ts). */
+/** Jest runs from the repo root (repo idiom — see test/evidence/provenance/*.test.ts). */
 export const GOLDENS_DIR = path.resolve(process.cwd(), "test/oracle/goldens");
 export const FIXTURES_DIR = path.resolve(process.cwd(), "test/oracle/fixtures");
 

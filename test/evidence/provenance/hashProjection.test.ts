@@ -21,11 +21,11 @@ import {
   SCORE_DECIMAL_KEYS,
   ENRICHMENT_DECIMAL_KEYS,
   OHLCV_DECIMAL_KEYS,
-} from "../../src/pipeheads/provenance/hashProjection.js";
+} from "../../../src/evidence/provenance/hashProjection.js";
 import {
   computeCanonicalHashV1,
   CanonicalHashPolicyError,
-} from "../../src/pipeheads/provenance/canonicalHashV1.js";
+} from "../../../src/evidence/provenance/canonicalHashV1.js";
 
 const TAG = "afi.d2.test-domain";
 
@@ -69,7 +69,7 @@ describe("toCanonicalDecimalString", () => {
   });
 
   it("no scaling constants exist in the provenance sources (source scan)", () => {
-    const dir = join(process.cwd(), "src/pipeheads/provenance");
+    const dir = join(process.cwd(), "src/evidence/provenance");
     const offenders = [/1e18/i, /10\s*\*\*\s*18/, /BigInt\s*\(/, /\b1000000000000000000\b/];
     for (const entry of readdirSync(dir)) {
       if (!entry.endsWith(".ts")) continue;
