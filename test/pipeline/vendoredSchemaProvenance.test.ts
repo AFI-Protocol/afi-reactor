@@ -22,11 +22,11 @@ function sha256(relPath: string): string {
 
 describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   it("pins the authorizing afi-config commit", () => {
-    // FLPR-GOV five-lane re-pin: the vendored closure now includes all five
-    // enrichment category-result contracts (sentiment + aiml added; pattern
-    // amended with the candlestick block). Placeholder until the afi-config
-    // mission branch merges; re-pinned to the merge commit in the same program.
-    expect(manifest.afiConfigCommit).toBe("pendingAfiConfigMerge");
+    // FLPR-GOV five-lane re-pin: afi-config PR #30 (five-lane provider runtime
+    // records + the candlestick pattern amendment) merged as 85d5d40; the
+    // vendored closure is byte-identical at that commit and now includes all
+    // five enrichment category-result contracts.
+    expect(manifest.afiConfigCommit).toBe("85d5d40d867dca4b08d20288d25d6b1f91ddff8d");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {

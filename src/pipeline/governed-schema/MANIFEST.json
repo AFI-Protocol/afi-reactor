@@ -1,7 +1,7 @@
 {
   "$comment": "Provenance of the vendored governed FACTORY-CONTRACT closure consumed by src/pipeline/ (canonical hashing + registry/composition schemas + the governed hashing KAT vectors + the enrichment category-result contracts). Each vendored file is a byte-identical copy of afi-config@afiConfigCommit at afiConfigPath (the afi-infra governed-schema vendoring discipline). Enforced by test/pipeline/vendoredSchemaProvenance.test.ts. Do not hand-edit; regenerate only from an owner-approved afi-config commit.",
   "afiConfigRepo": "https://github.com/AFI-Protocol/afi-config",
-  "afiConfigCommit": "pendingAfiConfigMerge",
+  "afiConfigCommit": "85d5d40d867dca4b08d20288d25d6b1f91ddff8d",
   "sources": {
     "src/pipeline/governed-schema/pipeline.schema.json": {
       "afiConfigPath": "schemas/pipeline/v1/pipeline.schema.json",
