@@ -73,7 +73,12 @@ const providerPattern: ProviderRecord = {
   recordVersion: "1.0.0",
   displayName: "AFI Local Pattern Analysis (keyless)",
   supportedCategories: ["pattern"],
-  executionClass: "local",
+  // Topology from the invoking Reactor: Tiny Brains is a first-party but
+  // SEPARATE-PROCESS service reached over (loopback) HTTP → 'remote' per the
+  // provider.schema executionClass definition ("'remote' = external API or
+  // hosted service"). Trust is first-party and the kernel is deterministic +
+  // keyless; execution class is topology, not ownership.
+  executionClass: "remote",
   deterministic: true,
   adapterId: "afi-adapter-pattern-local",
   requiresCredential: false,
