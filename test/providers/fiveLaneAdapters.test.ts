@@ -114,7 +114,7 @@ const CREDENTIAL_REFS: CredentialRefRecord[] = [
 const INSTANCES: ProviderInstanceRecord[] = [
   instance({ providerInstanceId: "pi-technical-local", category: "technical", providerId: "afi-provider-technical-local", adapterId: "afi-adapter-technical-local" }),
   instance({ providerInstanceId: "pi-pattern-candlestick", category: "pattern", providerId: "afi-provider-pattern-candlestick", adapterId: "afi-adapter-pattern-candlestick" }),
-  instance({ providerInstanceId: "pi-pattern-tiny-brains", category: "pattern", providerId: "afi-provider-pattern-tiny-brains", adapterId: "afi-adapter-pattern-tiny-brains" }),
+  instance({ providerInstanceId: "pi-pattern-tiny-brains", category: "pattern", providerId: "afi-provider-pattern-tiny-brains", adapterId: "afi-adapter-pattern-tiny-brains", invocation: { timeoutMs: 10000 } }),
   instance({ providerInstanceId: "pi-sentiment-cftc", category: "sentiment", providerId: "afi-provider-sentiment-cftc-cot", adapterId: "afi-adapter-sentiment-cftc-cot" }),
   instance({ providerInstanceId: "pi-sentiment-coinalyze", category: "sentiment", providerId: "afi-provider-sentiment-coinalyze", adapterId: "afi-adapter-sentiment-coinalyze", credentialRef: "credential-coinalyze-reference" }),
   instance({ providerInstanceId: "pi-news-edgar", category: "news", providerId: "afi-provider-news-sec-edgar", adapterId: "afi-adapter-news-sec-edgar", invocation: { windowHours: 24 } }),
@@ -238,6 +238,24 @@ describe("FLPR-GOV — pattern tiny-brains adapter (self-hosted service)", () =>
     expect(result.category).toBe("pattern");
     expect(result.motifs).toEqual(PATTERN_SERVICE_RESPONSE.motifs);
     expect(result.candlestick).toBeUndefined();
+  });
+
+  it("threads the instance's invocation.timeoutMs and ctx.abort to the service client", async () => {
+    let seenTimeout: number | undefined;
+    let seenAborted: boolean | undefined;
+    const rt = buildRuntime([
+      createPatternTinyBrainsAdapter({
+        callService: (async (_req: unknown, options: { timeoutMs?: number; abort?: AbortSignal }) => {
+          seenTimeout = options?.timeoutMs;
+          seenAborted = options?.abort ? options.abort.aborted : undefined;
+          return PATTERN_SERVICE_RESPONSE;
+        }) as never,
+      }),
+    ]);
+    await rt.invoke({ providerInstanceId: "pi-pattern-tiny-brains", recordVersion: "1.0.0" }, ctx({ input: engulfingCandles() }));
+    // pi-pattern-tiny-brains carries invocation { timeoutMs: 10000 } (mirrors the governed record).
+    expect(seenTimeout).toBe(10000);
+    expect(seenAborted).toBe(false);
   });
 
   it("fails CLOSED on service error (no fabricated result, no fallback)", async () => {
