@@ -118,7 +118,7 @@ export function initRuntimeComposition(): RuntimeComposition {
     pluginRegistry,
     configRoot: overrides?.configRoot,
     providerRecords,
-    providerAdapterIds: builtinProviderAdapters().map((a) => a.adapterId),
+    providerAdapterKeys: builtinProviderAdapters().map((a) => `${a.adapterId}@${a.adapterVersion}`),
   });
   const executor = new GraphExecutor({
     registry: pluginRegistry,

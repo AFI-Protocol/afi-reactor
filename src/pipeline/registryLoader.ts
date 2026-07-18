@@ -119,12 +119,16 @@ export interface ValidateRuntimeConfigOptions {
    * The loaded governed provider/instance/credential-ref records (FLPR-GOV
    * D-FLPR-4 explicit-selection law). When present, EVERY analysis-lane node
    * in every registered pipeline MUST carry a providerInstanceRef that
-   * resolves to an ACTIVE instance of the node's category whose adapter is in
-   * the build-time adapter set — fail closed, no silent fallback.
+   * resolves to an ACTIVE instance of the node's category, whose provider is
+   * ACTIVE, whose adapter (id@version) is in the build-time adapter set, and
+   * whose credential (when the provider requires one) exists, is ACTIVE, and
+   * is tenant/provider-scoped to the instance — fail closed, no silent
+   * fallback. Status lifecycles are enforced HERE (the selection point), so
+   * retained-but-unreferenced records may be disabled without refusing boot.
    */
   providerRecords?: ProviderRecordStoreInput;
-  /** The build-time registered provider adapter ids (static allowlist). */
-  providerAdapterIds?: readonly string[];
+  /** The build-time registered provider adapter keys ('adapterId@adapterVersion'). */
+  providerAdapterKeys?: readonly string[];
 }
 
 function defaultConfigRoot(): string {
@@ -354,9 +358,11 @@ export function loadProviderRecords(
           if (!cred) {
             issues.push(`provider-instance ${file}: unknown credentialRef '${record.credentialRef}'`);
           } else {
-            if (cred.status !== "active") {
-              issues.push(`provider-instance ${file}: credentialRef '${record.credentialRef}' is not active`);
-            }
+            // Identity scoping is a STRUCTURAL truth (hard here); the
+            // credential's active/disabled STATUS is a lifecycle state and is
+            // enforced at the selection point (validateRuntimeConfig) so the
+            // governed disable-without-deletion revocation flow on an
+            // unreferenced instance cannot take the whole reactor down.
             if (cred.tenant !== record.tenant) {
               issues.push(`provider-instance ${file}: cross-tenant credentialRef '${record.credentialRef}'`);
             }
@@ -473,7 +479,7 @@ export function validateRuntimeConfig(
     analysisPlugins.set(key, manifest);
   }
 
-  // Index the governed provider instances for the explicit-selection checks.
+  // Index the governed provider records for the explicit-selection checks.
   const providerInstanceIndex = options.providerRecords
     ? new Map(
         (options.providerRecords.providerInstances ?? []).map((i) => [
@@ -482,8 +488,14 @@ export function validateRuntimeConfig(
         ])
       )
     : undefined;
-  const providerAdapterIdSet = options.providerAdapterIds
-    ? new Set(options.providerAdapterIds)
+  const providerIndex = options.providerRecords
+    ? new Map((options.providerRecords.providers ?? []).map((p) => [p.providerId, p]))
+    : undefined;
+  const credentialIndex = options.providerRecords
+    ? new Map((options.providerRecords.credentialRefs ?? []).map((c) => [c.credentialRef, c]))
+    : undefined;
+  const providerAdapterKeySet = options.providerAdapterKeys
+    ? new Set(options.providerAdapterKeys)
     : undefined;
 
   // ---- pipelines ----
@@ -577,10 +589,35 @@ export function validateRuntimeConfig(
                 `pipeline ${key}: node '${node.id}' category '${node.category}' != provider instance category '${instance.category}'`
               );
             }
-            if (providerAdapterIdSet && !providerAdapterIdSet.has(instance.adapterId)) {
+            const adapterKey = `${instance.adapterId}@${instance.adapterVersion}`;
+            if (providerAdapterKeySet && !providerAdapterKeySet.has(adapterKey)) {
               issues.push(
-                `pipeline ${key}: node '${node.id}' provider instance '${refKey}' names adapter '${instance.adapterId}' which is not in the static build-time adapter registry`
+                `pipeline ${key}: node '${node.id}' provider instance '${refKey}' names adapter '${adapterKey}' which is not in the static build-time adapter registry`
               );
+            }
+            const provider = providerIndex?.get(instance.providerId);
+            if (providerIndex && !provider) {
+              issues.push(
+                `pipeline ${key}: node '${node.id}' provider instance '${refKey}' references unknown provider '${instance.providerId}'`
+              );
+            } else if (provider && provider.status !== "active") {
+              issues.push(
+                `pipeline ${key}: node '${node.id}' provider instance '${refKey}' references provider '${provider.providerId}' which is not active`
+              );
+            }
+            if (provider?.requiresCredential && credentialIndex) {
+              const cred = instance.credentialRef
+                ? credentialIndex.get(instance.credentialRef)
+                : undefined;
+              if (!cred) {
+                issues.push(
+                  `pipeline ${key}: node '${node.id}' provider instance '${refKey}' has no resolvable credentialRef for its credentialed provider`
+                );
+              } else if (cred.status !== "active") {
+                issues.push(
+                  `pipeline ${key}: node '${node.id}' provider instance '${refKey}' references credentialRef '${cred.credentialRef}' which is not active`
+                );
+              }
             }
           }
         }

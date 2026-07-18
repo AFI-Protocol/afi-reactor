@@ -23,6 +23,7 @@ import { join } from "node:path";
 import {
   RuntimeConfigValidationError,
   governedDecayTemplateIds,
+  loadProviderRecords,
   validateRuntimeConfig,
 } from "../../src/pipeline/registryLoader.js";
 import { builtinPluginRegistry, createPluginRegistry } from "../../src/pipeline/pluginRegistry.js";
@@ -266,5 +267,87 @@ describe("validateRuntimeConfig — boot refusal negatives (any invalid ACTIVE e
       })
     );
     expectBootRefusal(root, /does not admit this binding/);
+  });
+});
+
+describe("FLPR-GOV D-FLPR-4 — selection-point status-chain refusals (boot law)", () => {
+  function validateWithProviders(root: string, adapterKeys?: readonly string[]) {
+    const providerRecords = loadProviderRecords({ configRoot: root });
+    return validateRuntimeConfig({
+      pluginRegistry: testBuiltinRegistry(),
+      configRoot: root,
+      providerRecords,
+      providerAdapterKeys:
+        adapterKeys ??
+        [
+          "afi-adapter-technical-local@1.0.0",
+          "afi-adapter-pattern-candlestick@1.0.0",
+          "afi-adapter-pattern-tiny-brains@1.0.0",
+          "afi-adapter-sentiment-cftc-cot@1.0.0",
+          "afi-adapter-sentiment-coinalyze@1.0.0",
+          "afi-adapter-news-http@1.0.0",
+          "afi-adapter-news-sec-edgar@1.0.0",
+          "afi-adapter-aiml-tiny-brains@1.0.0",
+        ],
+    });
+  }
+
+  it("the shipped fixture registries pass the full selection-point chain", () => {
+    const root = scratchRoot();
+    try {
+      expect(() => validateWithProviders(root)).not.toThrow();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("REFUSES a referenced instance whose PROVIDER is inactive", () => {
+    const root = scratchRoot((r) =>
+      editJson(r, "registries/providers/afi-provider-technical-local--1.0.0.json", (doc) => {
+        doc.status = "inactive";
+      })
+    );
+    try {
+      expect(() => validateWithProviders(root)).toThrow(/provider 'afi-provider-technical-local' which is not active/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("REFUSES a referenced instance whose adapterVersion is not in the build-time set", () => {
+    const root = scratchRoot((r) =>
+      editJson(
+        r,
+        "registries/provider-instances/afi-instance-reference-technical-local--1.0.0.json",
+        (doc) => {
+          doc.adapterVersion = "1.1.0";
+        }
+      )
+    );
+    try {
+      expect(() => validateWithProviders(root)).toThrow(/afi-adapter-technical-local@1\.1\.0/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("a DISABLED credentialRef on an UNREFERENCED BYOK instance still boots (revocation without deletion)", () => {
+    const root = scratchRoot((r) => {
+      editJson(r, "registries/credential-refs/credential-coinalyze-reference--1.0.0.json", (doc) => {
+        doc.status = "disabled";
+      });
+      editJson(
+        r,
+        "registries/provider-instances/afi-instance-byok-sentiment-coinalyze--1.0.0.json",
+        (doc) => {
+          doc.status = "inactive";
+        }
+      );
+    });
+    try {
+      expect(() => validateWithProviders(root)).not.toThrow();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
