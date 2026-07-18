@@ -48,6 +48,13 @@ export interface NodeRunContext {
   logger: NodeLogger;
   /** Abort signal: per-node timeout and pipeline-wide cancellation. */
   abort: AbortSignal;
+  /**
+   * OPTIONAL non-secret provider-instance reference from the manifest node
+   * (identity + version only; PBF-GOV D-PBF-4). Present only on provider-backed
+   * nodes; a credential value NEVER appears here. Resolution happens BELOW the
+   * node in the provider-adapter layer.
+   */
+  providerInstanceRef?: { providerInstanceId: string; recordVersion: string };
 }
 
 /** One recorded degradation — never silent, never fabricated data. */

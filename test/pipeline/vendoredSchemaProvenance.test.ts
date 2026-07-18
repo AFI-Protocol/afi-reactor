@@ -22,7 +22,7 @@ function sha256(relPath: string): string {
 
 describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   it("pins the authorizing afi-config commit", () => {
-    expect(manifest.afiConfigCommit).toBe("f91ce4465b9c54bc221ba82e7a468544ffcf3fe3");
+    expect(manifest.afiConfigCommit).toBe("faa6a8a3d387a573c24f0421c02d806044a22d9e");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {
@@ -44,6 +44,12 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
       "canonical-hash.schema.json",
       "canonical-json-hashing.v1.md",
       "canonical-json-hashing.kat.json",
+      // PBF-GOV provider/BYOK + category-result closure.
+      "provider.schema.json",
+      "credential-ref.schema.json",
+      "provider-instance.schema.json",
+      "enrichment-technical.schema.json",
+      "enrichment-news.schema.json",
     ].forEach((f) => expect(covered).toContain(`src/pipeline/governed-schema/${f}`));
   });
 
@@ -64,6 +70,15 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
         "https://afi-protocol.org/schemas/scored-signal-evidence/v2/scored-signal-evidence.schema.json",
       "canonical-hash.schema.json":
         "https://afi-protocol.org/schemas/provenance/v1/canonical-hash.schema.json",
+      "provider.schema.json": "https://afi-protocol.org/schemas/provider/v1/provider.schema.json",
+      "credential-ref.schema.json":
+        "https://afi-protocol.org/schemas/credential-ref/v1/credential-ref.schema.json",
+      "provider-instance.schema.json":
+        "https://afi-protocol.org/schemas/provider-instance/v1/provider-instance.schema.json",
+      "enrichment-technical.schema.json":
+        "https://afi-protocol.org/schemas/enrichment/technical/v1/enrichment-technical.schema.json",
+      "enrichment-news.schema.json":
+        "https://afi-protocol.org/schemas/enrichment/news/v1/enrichment-news.schema.json",
     };
     for (const [file, id] of Object.entries(ids)) {
       const doc = JSON.parse(

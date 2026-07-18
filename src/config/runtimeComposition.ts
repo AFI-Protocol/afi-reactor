@@ -34,6 +34,9 @@ import {
   validateRuntimeConfig,
   type ValidatedRuntimeConfig,
 } from "../pipeline/registryLoader.js";
+import { scrubbingLogger } from "../providers/redaction.js";
+import { buildProviderRuntime } from "../providers/index.js";
+import type { ProviderRuntime } from "../providers/providerRuntime.js";
 
 export interface RuntimeComposition {
   /** The boot-validated registries + resolved active strategies. */
@@ -42,10 +45,17 @@ export interface RuntimeComposition {
   pluginRegistry: PluginRegistry;
   /** The manifest-driven executor the live endpoints score through. */
   executor: GraphExecutor;
+  /**
+   * The bounded provider-adapter runtime (PBF-GOV Wave 1). Constructed at boot
+   * so the trusted adapter registry is validated fail-closed (duplicate
+   * registration throws); the froggy production pipeline uses no provider-backed
+   * nodes, so it resolves nothing by default.
+   */
+  providerRuntime: ProviderRuntime;
 }
 
 /** Structured operational node logger (console-backed; never hash material). */
-const CONSOLE_NODE_LOGGER: NodeLogger = {
+const RAW_CONSOLE_NODE_LOGGER: NodeLogger = {
   debug(message, fields) {
     if (process.env.AFI_PIPELINE_DEBUG === "1") console.debug(`[pipeline] ${message}`, fields ?? "");
   },
@@ -59,6 +69,14 @@ const CONSOLE_NODE_LOGGER: NodeLogger = {
     console.error(`[pipeline] ${message}`, fields ?? "");
   },
 };
+
+/**
+ * The production node logger: the console logger wrapped by the secret scrubber
+ * (PBF-GOV §8.2). Every node's log message + fields are redacted before they
+ * reach the console, so a provider credential can never escape through a node
+ * log even if a field carries it.
+ */
+const CONSOLE_NODE_LOGGER: NodeLogger = scrubbingLogger(RAW_CONSOLE_NODE_LOGGER);
 
 interface CompositionOverrides {
   configRoot?: string;
@@ -91,7 +109,10 @@ export function initRuntimeComposition(): RuntimeComposition {
       );
     },
   });
-  current = { runtime, pluginRegistry, executor };
+  // Construct the bounded provider runtime at boot: the trusted adapter
+  // registry is validated fail-closed here (a duplicate registration throws).
+  const providerRuntime = buildProviderRuntime();
+  current = { runtime, pluginRegistry, executor, providerRuntime };
   return current;
 }
 

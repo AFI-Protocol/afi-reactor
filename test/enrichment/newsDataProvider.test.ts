@@ -92,12 +92,18 @@ describe("NewsDataProvider", () => {
     expect(result?.items?.[0].url).toBe("https://example.com/news-1");
     expect(result?.items?.[0].publishedAt).toBeInstanceOf(Date);
 
-    // Verify API call
+    // Verify API call. PBF-GOV §8.1: the credential rides in the X-ACCESS-KEY
+    // HEADER, and NEVER in the request URL (no key-in-URL leak).
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const callUrl = mockFetch.mock.calls[0][0] as string;
+    const callInit = mockFetch.mock.calls[0][1] as RequestInit;
     expect(callUrl).toContain("newsdata.io/api/1/crypto");
-    expect(callUrl).toContain("apikey=test-api-key-123");
     expect(callUrl).toContain("coin=btc");
+    // The key is NOT in the URL (leak closed).
+    expect(callUrl).not.toContain("apikey");
+    expect(callUrl).not.toContain(TEST_API_KEY);
+    // The key IS in the header.
+    expect((callInit.headers as Record<string, string>)["X-ACCESS-KEY"]).toBe(TEST_API_KEY);
   });
 
   it("should filter out old news outside the time window", async () => {

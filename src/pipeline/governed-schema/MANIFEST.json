@@ -1,11 +1,31 @@
 {
   "$comment": "Provenance of the vendored governed FACTORY-CONTRACT closure consumed by src/pipeline/ (canonical hashing + registry/composition schemas + the governed hashing KAT vectors). Each vendored file is a byte-identical copy of afi-config@afiConfigCommit at afiConfigPath (the afi-infra governed-schema vendoring discipline). Enforced by test/pipeline/vendoredSchemaProvenance.test.ts. Do not hand-edit; regenerate only from an owner-approved afi-config commit.",
   "afiConfigRepo": "https://github.com/AFI-Protocol/afi-config",
-  "afiConfigCommit": "f91ce4465b9c54bc221ba82e7a468544ffcf3fe3",
+  "afiConfigCommit": "faa6a8a3d387a573c24f0421c02d806044a22d9e",
   "sources": {
     "src/pipeline/governed-schema/pipeline.schema.json": {
       "afiConfigPath": "schemas/pipeline/v1/pipeline.schema.json",
-      "sha256": "f3f25bfbcf41c585c519f9931f79dfd7e91d1138bf703e9d7770f53ff83120d3"
+      "sha256": "0d0c1e74f201f518ed37ce938a932df41e1ea1343c1c8814c809ca117a9f7a2a"
+    },
+    "src/pipeline/governed-schema/provider.schema.json": {
+      "afiConfigPath": "schemas/provider/v1/provider.schema.json",
+      "sha256": "b23aed5c1b80e35ef62c0fc6e05678ae40e536f6815e3d76692265df672e379c"
+    },
+    "src/pipeline/governed-schema/credential-ref.schema.json": {
+      "afiConfigPath": "schemas/credential-ref/v1/credential-ref.schema.json",
+      "sha256": "a79f8816bf9fb54114f20eb90dc98c0921c99ba2f1ff18335d06183954f1a98d"
+    },
+    "src/pipeline/governed-schema/provider-instance.schema.json": {
+      "afiConfigPath": "schemas/provider-instance/v1/provider-instance.schema.json",
+      "sha256": "aa7dec96924f676f519779d22bc0f30899a1db47e1279c9edf5b3b5228ca6b45"
+    },
+    "src/pipeline/governed-schema/enrichment-technical.schema.json": {
+      "afiConfigPath": "schemas/enrichment/technical/v1/enrichment-technical.schema.json",
+      "sha256": "70664c8985566907673dd9a1c80c264b9943343647ee80a41e71435261c813a6"
+    },
+    "src/pipeline/governed-schema/enrichment-news.schema.json": {
+      "afiConfigPath": "schemas/enrichment/news/v1/enrichment-news.schema.json",
+      "sha256": "75b4bdb7c55718fbacee4df05ecd80c111ed969f161b6f68bbf3a84dfe71de78"
     },
     "src/pipeline/governed-schema/analysis-plugin.schema.json": {
       "afiConfigPath": "schemas/analysis-plugin/v1/analysis-plugin.schema.json",

@@ -21,6 +21,7 @@ import type {
   NewsItem,
   NewsShockDirection,
 } from "./newsProvider.js";
+import { redactSecrets } from "../providers/redaction.js";
 
 /**
  * NewsData.io API response structure
@@ -67,14 +68,36 @@ function mapSymbolToCoinQuery(symbol: string): { coin?: string; query?: string }
 }
 
 /**
- * NewsData.io provider implementation
+ * Injectable options for the NewsData.io provider. `fetchImpl` enables offline
+ * BYOK proofs (a deterministic fake transport) without a live key.
+ */
+export interface NewsDataProviderOptions {
+  fetchImpl?: typeof fetch;
+  baseUrl?: string;
+  timeoutMs?: number;
+}
+
+/**
+ * NewsData.io provider implementation.
+ *
+ * The API key is carried in the X-ACCESS-KEY request HEADER — never in the URL
+ * query string (PBF-GOV §8.1: closes the key-in-URL leak). The transport is
+ * injectable and error logs are redacted, so the credential cannot escape
+ * through a request URL, trace, or thrown error.
  */
 export class NewsDataProvider implements NewsProvider {
   private readonly apiKey: string;
-  private readonly baseUrl = "https://newsdata.io/api/1/crypto";
+  private readonly baseUrl: string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly timeoutMs: number;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, options: NewsDataProviderOptions = {}) {
     this.apiKey = apiKey;
+    this.baseUrl = options.baseUrl ?? "https://newsdata.io/api/1/crypto";
+    // Bind to the CURRENT global fetch at call time so a test's global.fetch
+    // mock (set after construction) is still honoured.
+    this.fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
+    this.timeoutMs = options.timeoutMs ?? 10000;
   }
 
   async fetchRecentNews(params: NewsProviderParams): Promise<NewsShockSummary | null> {
@@ -90,12 +113,9 @@ export class NewsDataProvider implements NewsProvider {
         console.log(`[NewsDataProvider] DEBUG: windowHours=${windowHours}`);
       }
 
-      // Build query params
-      const queryParams = new URLSearchParams({
-        apikey: this.apiKey,
-        language: "en",
-      });
-
+      // Build query params — the credential rides in the X-ACCESS-KEY HEADER,
+      // NEVER in the query string (PBF-GOV §8.1: no key-in-URL leak).
+      const queryParams = new URLSearchParams({ language: "en" });
       if (coin) {
         queryParams.set("coin", coin);
       }
@@ -103,21 +123,20 @@ export class NewsDataProvider implements NewsProvider {
         queryParams.set("q", query);
       }
 
-      // Fetch from NewsData.io
+      // The request URL is credential-free and therefore safe to log/trace.
       const url = `${this.baseUrl}?${queryParams.toString()}`;
 
       if (debugNews) {
-        // Mask API key in URL for logging
-        const maskedUrl = url.replace(/apikey=[^&]+/, `apikey=${this.apiKey.slice(0, 3)}...${this.apiKey.slice(-3)}`);
-        console.log(`[NewsDataProvider] DEBUG: Fetching ${maskedUrl}`);
+        console.log(`[NewsDataProvider] DEBUG: Fetching ${url}`);
       }
 
-      const response = await fetch(url, {
+      const response = await this.fetchImpl(url, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
+          "X-ACCESS-KEY": this.apiKey,
         },
-        signal: AbortSignal.timeout(10000), // 10s timeout
+        signal: AbortSignal.timeout(this.timeoutMs),
       });
 
       if (debugNews) {
@@ -234,7 +253,13 @@ export class NewsDataProvider implements NewsProvider {
         items,
       };
     } catch (error) {
-      console.warn(`[NewsDataProvider] Error fetching news for ${symbol}:`, error);
+      // Redact any secret material before logging the error (defense in depth:
+      // the URL is already key-free, but a transport error could carry request
+      // config with the header value).
+      console.warn(
+        `[NewsDataProvider] Error fetching news for ${symbol}:`,
+        redactSecrets(error, [this.apiKey])
+      );
       return null;
     }
   }

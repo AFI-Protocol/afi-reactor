@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/enrichment/technical/v1/enrichment-technical.schema.json",
+  "title": "AFI Enrichment Category Result — technical v1 (afi.enrichment.technical.v1)",
+  "description": "The canonical output contract for the 'technical' open analysis lane: the ONE resolved result a technical provider/plugin contributes to the scorer-facing join (afi.enrichment.technical.v1). A provider-produced technical result MUST pass this validation at the provider-adapter edge BEFORE it reaches scoring (PBF-GOV D-PBF-8); a malformed result never reaches the scorer. The category marker MUST be 'technical' (the join classifies one result per category by this marker). The indicator bundle and candle series are analysis data whose deep numeric shape is owned by the indicator layer, so nested payloads are validated leniently while the top-level shape is closed.",
+  "$comment": "BOUNDARY: category-result payload contract — this validates a runtime category output, not a stored artifact, so it carries no 'schema' const field; the discriminator is the 'category' marker. It is referenced by the analysis-plugin outputSchemaRef 'afi.enrichment.technical.v1'.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Provider Adapter & BYOK Foundations v0.1 (PBF-GOV)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/provider-byok-foundations-v0.1 (PBF-GOV) D-PBF-2/D-PBF-8 — one resolved result per category; provider output passes canonical category validation before scoring",
+    "afi-governance/decisions/factory-configurable-pipelines-v1 (FCP-GOV) D-FCP-1 — the 'technical' open lane"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "candles", "priceSource"],
+  "properties": {
+    "category": {
+      "type": "string",
+      "const": "technical",
+      "description": "Category marker. MUST be 'technical' — the deterministic one-per-category join classifies contributions by this marker."
+    },
+    "technical": {
+      "type": ["object", "null"],
+      "description": "OPTIONAL computed indicator bundle (analysis data; deep shape owned by the indicator layer). May be null/absent when indicators are unavailable."
+    },
+    "candles": {
+      "type": "array",
+      "description": "OHLCV candle series used for the computation.",
+      "items": { "type": "object" }
+    },
+    "priceSource": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Non-secret identity of the price feed/source used (e.g. 'blofin', 'coinbase')."
+    }
+  }
+}
