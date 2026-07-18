@@ -39,8 +39,16 @@ export function createProviderBackedNode(
         logger: ctx.logger,
         abort: ctx.abort,
       });
-      // The runtime already enforced result.category === instance.category and
-      // validated the canonical category contract — one result per category.
+      // The runtime already enforced result.category === the resolved instance's
+      // category and validated the canonical category contract. Additionally
+      // enforce that the resolved category matches THIS node's declared lane, so
+      // a node can never emit a foreign-category result into another lane
+      // (defends the one-result-per-category join).
+      if (result.category !== category) {
+        throw new NodeConfigurationError(
+          `provider-backed '${category}' node resolved a '${result.category}' result (provider instance category must match the node's category)`
+        );
+      }
       return ok(result);
     },
   };

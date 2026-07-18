@@ -55,6 +55,7 @@ import { createTechnicalNode } from "../../src/pipeline/nodes/technical.js";
 import { computeTechnicalEnrichment } from "../../src/enrichment/technicalIndicators.js";
 import { computeNewsFeatures } from "../../src/news/newsFeatures.js";
 import { NewsDataProvider } from "../../src/news/newsdataNewsProvider.js";
+import { DEFAULT_NEWS_SUMMARY } from "../../src/news/newsProvider.js";
 import { demoPriceFeedAdapter } from "../support/deterministicPriceFeedAdapter.js";
 import { testSignal } from "../pipeline/support/testHarness.js";
 import type { PipelineManifest } from "../../src/pipeline/manifestTypes.js";
@@ -461,6 +462,56 @@ describe("PBF-GOV — executor resolution + execution of a provider-backed node"
     // Exactly one technical result flowed to the scorer.
     expect(result.technicalSeen.category).toBe("technical");
     expect(Array.isArray(result.technicalSeen.candles)).toBe(true);
+  });
+});
+
+describe("PBF-GOV — operational controls on the BYOK path (abort + configured timeout)", () => {
+  it("threads the operator-configured invocation.timeoutMs and ctx.abort to the news transport", async () => {
+    let seenTimeout: number | undefined;
+    let seenAbortAborted: boolean | undefined;
+    const recordingAdapter = createHttpNewsAdapter({
+      createProvider: ({ timeoutMs }) => {
+        seenTimeout = timeoutMs;
+        return {
+          async fetchRecentNews(p) {
+            seenAbortAborted = p.abort?.aborted;
+            return DEFAULT_NEWS_SUMMARY;
+          },
+        };
+      },
+      computeFeatures: computeNewsFeatures,
+    });
+    const tuned: ProviderInstanceRecord = { ...instNews, providerInstanceId: "pi-news-tuned", invocation: { timeoutMs: 250 } };
+    const rt = buildRuntime({ adapters: [recordingAdapter], providerInstances: [tuned] });
+    const ac = new AbortController();
+    ac.abort();
+    await rt.invoke(
+      { providerInstanceId: "pi-news-tuned", recordVersion: "1.0.0" },
+      { signal: testSignal(), logger: SILENT_NODE_LOGGER, abort: ac.signal }
+    );
+    // operator timeout is functional (reaches the provider), and executor abort propagates to the request
+    expect(seenTimeout).toBe(250);
+    expect(seenAbortAborted).toBe(true);
+  });
+});
+
+describe("PBF-GOV — provider-backed node enforces its declared category", () => {
+  it("fails closed when the resolved instance category differs from the node's declared lane", async () => {
+    const rt = buildRuntime({ adapters: [technicalAdapter()] });
+    // node DECLARES 'news' but references a TECHNICAL provider instance
+    const node = createProviderBackedNode({ pluginId: "afi-analysis-news", pluginVersion: "1.0.0" }, "news", rt);
+    await expect(
+      node.run(
+        {},
+        {
+          signal: testSignal(),
+          config: {},
+          logger: SILENT_NODE_LOGGER,
+          abort: new AbortController().signal,
+          providerInstanceRef: { providerInstanceId: "pi-technical-local-tenant-a", recordVersion: "1.0.0" },
+        }
+      )
+    ).rejects.toThrow(/category/);
   });
 });
 

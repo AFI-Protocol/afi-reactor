@@ -17,14 +17,14 @@ import type { CategoryResult, ProviderAdapter, ProviderAdapterContext } from "..
 
 export interface HttpNewsAdapterDeps {
   /** Build a header-authenticated news provider from the resolved key + transport. */
-  createProvider: (opts: { apiKey: string; fetchImpl?: typeof fetch }) => NewsProvider;
+  createProvider: (opts: { apiKey: string; fetchImpl?: typeof fetch; timeoutMs?: number }) => NewsProvider;
   computeFeatures: typeof computeNewsFeatures;
   /** Injectable transport (default: global fetch). Injected as a fake in the proof. */
   fetchImpl?: typeof fetch;
 }
 
 const PRODUCTION_DEPS: HttpNewsAdapterDeps = {
-  createProvider: ({ apiKey, fetchImpl }) => new NewsDataProvider(apiKey, { fetchImpl }),
+  createProvider: ({ apiKey, fetchImpl, timeoutMs }) => new NewsDataProvider(apiKey, { fetchImpl, timeoutMs }),
   computeFeatures: computeNewsFeatures,
 };
 
@@ -43,14 +43,20 @@ export function createHttpNewsAdapter(deps: HttpNewsAdapterDeps = PRODUCTION_DEP
       }
       const windowRaw = ctx.config["windowHours"];
       const windowHours = typeof windowRaw === "number" ? windowRaw : 4;
+      // Operator-configured, non-secret invocation timeout (from the provider
+      // instance's invocation settings); undefined falls back to the provider default.
+      const timeoutRaw = ctx.config["timeoutMs"];
+      const timeoutMs = typeof timeoutRaw === "number" ? timeoutRaw : undefined;
       const symbol =
         typeof ctx.signal.facts?.symbol === "string" ? ctx.signal.facts.symbol : "BTCUSDT";
 
-      const provider = deps.createProvider({ apiKey: ctx.credential.headerValue, fetchImpl: deps.fetchImpl });
+      const provider = deps.createProvider({ apiKey: ctx.credential.headerValue, fetchImpl: deps.fetchImpl, timeoutMs });
 
       let summary: NewsShockSummary | null = null;
       try {
-        summary = await provider.fetchRecentNews({ symbol, windowHours });
+        // Thread the per-node abort so an executor timeout / cancellation aborts
+        // the outbound request (not just the executor).
+        summary = await provider.fetchRecentNews({ symbol, windowHours, abort: ctx.abort });
       } catch (err) {
         // Fail-soft to the declared fallback; the scrubbing logger guarantees
         // the credential never reaches the sink even if err carries it.

@@ -76,6 +76,12 @@ export interface NewsProviderParams {
   symbol: string;
   /** Lookback window in hours (default: 4) */
   windowHours?: number;
+  /**
+   * OPTIONAL caller abort signal (per-node executor timeout / pipeline
+   * cancellation). When provided, the outbound request is cancelled if the
+   * caller aborts — the provider's own deadline still applies as a fallback.
+   */
+  abort?: AbortSignal;
 }
 
 /**

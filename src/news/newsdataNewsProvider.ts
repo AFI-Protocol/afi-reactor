@@ -45,6 +45,24 @@ interface NewsDataArticle {
 }
 
 /**
+ * Combine an optional caller abort signal with an internal timeout deadline
+ * into one signal that aborts when EITHER fires. Avoids AbortSignal.any() for
+ * older Node 20.x compatibility.
+ */
+function combineAbort(caller: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+  const timer = AbortSignal.timeout(timeoutMs);
+  if (!caller) return timer;
+  const controller = new AbortController();
+  if (caller.aborted) {
+    controller.abort(caller.reason);
+    return controller.signal;
+  }
+  caller.addEventListener("abort", () => controller.abort(caller.reason), { once: true });
+  timer.addEventListener("abort", () => controller.abort(timer.reason), { once: true });
+  return controller.signal;
+}
+
+/**
  * Map AFI trading symbols to NewsData.io coin codes and search queries
  */
 function mapSymbolToCoinQuery(symbol: string): { coin?: string; query?: string } {
@@ -101,7 +119,7 @@ export class NewsDataProvider implements NewsProvider {
   }
 
   async fetchRecentNews(params: NewsProviderParams): Promise<NewsShockSummary | null> {
-    const { symbol, windowHours = 4 } = params;
+    const { symbol, windowHours = 4, abort } = params;
     const debugNews = process.env.AFI_DEBUG_NEWS === "1";
 
     try {
@@ -136,7 +154,9 @@ export class NewsDataProvider implements NewsProvider {
           "Content-Type": "application/json",
           "X-ACCESS-KEY": this.apiKey,
         },
-        signal: AbortSignal.timeout(this.timeoutMs),
+        // Cancel on EITHER the caller's abort (executor timeout / cancellation)
+        // OR the provider's own deadline, whichever fires first.
+        signal: combineAbort(abort, this.timeoutMs),
       });
 
       if (debugNews) {
