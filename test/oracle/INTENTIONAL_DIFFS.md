@@ -109,3 +109,11 @@ classes:
 
 Anything else diffing would have been a defect to fix in code, never
 absorbed into a golden.
+
+5. **Enriched-suite news lens content** (the recorded-transport swap): the
+   enriched oracle variant now records the SEC-EDGAR reference lane's fixed
+   transport instead of the retired NewsData module seam, so the enriched
+   captures' news lens bytes are the recorded filing events (source
+   `sec-edgar`, `shockDirection: "unknown"`, accession-linked items) rather
+   than the prior recorded headlines. News is score-inert (D-FLPR-5) —
+   `scorerInput`/`analystScore`/hashes verified byte-equal across the swap.

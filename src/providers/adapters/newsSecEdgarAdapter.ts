@@ -45,14 +45,24 @@ const QUERY_BY_BASE: Record<string, string> = {
   XRP: "ripple",
 };
 
-export function edgarQueryForSymbol(symbol: string): string | undefined {
-  const base = symbol.split("/")[0]?.trim().toUpperCase() ?? "";
-  const direct = QUERY_BY_BASE[base];
-  if (direct) return direct;
-  for (const [b, q] of Object.entries(QUERY_BY_BASE)) {
-    if (base.startsWith(b)) return q;
+/** Known quote suffixes stripped from concatenated symbol forms (e.g. BTCUSDT). */
+const QUOTE_SUFFIXES = ["USDT", "USDC", "USD", "PERP"];
+
+function baseAssetOf(symbol: string): string {
+  const upper = symbol.trim().toUpperCase();
+  if (upper.includes("/")) return upper.split("/")[0] ?? "";
+  for (const suffix of QUOTE_SUFFIXES) {
+    if (upper.endsWith(suffix) && upper.length > suffix.length) {
+      return upper.slice(0, upper.length - suffix.length);
+    }
   }
-  return undefined;
+  return upper;
+}
+
+export function edgarQueryForSymbol(symbol: string): string | undefined {
+  // EXACT base-asset match only — a prefix match would query another asset's
+  // filings as this signal's news (never wrong-asset data).
+  return QUERY_BY_BASE[baseAssetOf(symbol)];
 }
 
 interface EdgarHitSource {

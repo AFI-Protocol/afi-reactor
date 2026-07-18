@@ -38,10 +38,10 @@ function extractCandles(input: unknown): AfiCandle[] {
     if (
       c === null ||
       typeof c !== "object" ||
-      typeof (c as AfiCandle).open !== "number" ||
-      typeof (c as AfiCandle).high !== "number" ||
-      typeof (c as AfiCandle).low !== "number" ||
-      typeof (c as AfiCandle).close !== "number"
+      !Number.isFinite((c as AfiCandle).open) ||
+      !Number.isFinite((c as AfiCandle).high) ||
+      !Number.isFinite((c as AfiCandle).low) ||
+      !Number.isFinite((c as AfiCandle).close)
     ) {
       throw new Error("pattern candlestick adapter requires OHLC candles with finite numeric fields");
     }

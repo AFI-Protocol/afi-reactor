@@ -35,15 +35,25 @@ const MARKET_PREFIX_BY_BASE: Record<string, string> = {
   ETH: "ETHER",
 };
 
-export function cotMarketPrefixForSymbol(symbol: string): string | undefined {
-  const base = symbol.split("/")[0]?.trim().toUpperCase() ?? "";
-  const direct = MARKET_PREFIX_BY_BASE[base];
-  if (direct) return direct;
-  // Common concatenated forms (e.g. BTCUSDT) — match a mapped base prefix.
-  for (const [b, prefix] of Object.entries(MARKET_PREFIX_BY_BASE)) {
-    if (base.startsWith(b)) return prefix;
+/** Known quote suffixes stripped from concatenated symbol forms (e.g. BTCUSDT). */
+const QUOTE_SUFFIXES = ["USDT", "USDC", "USD", "PERP"];
+
+/** Base-asset extraction: slash-split first, else strip ONE known quote suffix. */
+export function baseAssetOf(symbol: string): string {
+  const upper = symbol.trim().toUpperCase();
+  if (upper.includes("/")) return upper.split("/")[0] ?? "";
+  for (const suffix of QUOTE_SUFFIXES) {
+    if (upper.endsWith(suffix) && upper.length > suffix.length) {
+      return upper.slice(0, upper.length - suffix.length);
+    }
   }
-  return undefined;
+  return upper;
+}
+
+export function cotMarketPrefixForSymbol(symbol: string): string | undefined {
+  // EXACT base-asset match only — a prefix match would present another
+  // market's positioning as this signal's sentiment (never wrong-asset data).
+  return MARKET_PREFIX_BY_BASE[baseAssetOf(symbol)];
 }
 
 function toFinite(v: unknown): number | undefined {
