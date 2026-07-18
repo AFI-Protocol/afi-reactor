@@ -1,5 +1,5 @@
 {
-  "$comment": "Provenance of the vendored governed FACTORY-CONTRACT closure consumed by src/pipeline/ (canonical hashing + registry/composition schemas + the governed hashing KAT vectors). Each vendored file is a byte-identical copy of afi-config@afiConfigCommit at afiConfigPath (the afi-infra governed-schema vendoring discipline). Enforced by test/pipeline/vendoredSchemaProvenance.test.ts. Do not hand-edit; regenerate only from an owner-approved afi-config commit.",
+  "$comment": "Provenance of the vendored governed FACTORY-CONTRACT closure consumed by src/pipeline/ (canonical hashing + registry/composition schemas + the governed hashing KAT vectors). Each vendored file is a byte-identical copy of afi-config@afiConfigCommit at afiConfigPath (the afi-infra governed-schema vendoring discipline). Enforced by test/pipeline/vendoredSchemaProvenance.test.ts. Do not hand-edit; regenerate only from an owner-approved afi-config commit. EXCEPTION (Mission 4, PENDING MERGE): an entry MAY declare its own afiConfigCommit + pendingAfiConfigMerge:true when it is vendored from an afi-config branch not yet merged into the top-level afiConfigCommit. enrichment-pattern.schema.json is vendored from the UNMERGED afi-config Mission 4 branch (afi.enrichment.pattern.v1) so the reactor pattern adapter can validate its output at the edge; it MUST be re-pinned to the afi-config merge commit (and the top-level afiConfigCommit bumped) before this reactor PR merges.",
   "afiConfigRepo": "https://github.com/AFI-Protocol/afi-config",
   "afiConfigCommit": "faa6a8a3d387a573c24f0421c02d806044a22d9e",
   "sources": {
@@ -26,6 +26,13 @@
     "src/pipeline/governed-schema/enrichment-news.schema.json": {
       "afiConfigPath": "schemas/enrichment/news/v1/enrichment-news.schema.json",
       "sha256": "75b4bdb7c55718fbacee4df05ecd80c111ed969f161b6f68bbf3a84dfe71de78"
+    },
+    "src/pipeline/governed-schema/enrichment-pattern.schema.json": {
+      "afiConfigPath": "schemas/enrichment/pattern/v1/enrichment-pattern.schema.json",
+      "sha256": "5983d563a9569ff63dec75c40a99f149fdb3abbf4a649a9a84bbb2168df2ec95",
+      "afiConfigCommit": "093d5072019c8343bab068ea43a808096b4ab4c6",
+      "pendingAfiConfigMerge": true,
+      "note": "Vendored from the UNMERGED afi-config Mission 4 branch (mission/enrichment-contracts-local-pattern-v0.1) so the pattern adapter can validate afi.enrichment.pattern.v1 at the edge. Re-pin to the afi-config merge commit and fold into the top-level afiConfigCommit before merging this reactor PR."
     },
     "src/pipeline/governed-schema/analysis-plugin.schema.json": {
       "afiConfigPath": "schemas/analysis-plugin/v1/analysis-plugin.schema.json",

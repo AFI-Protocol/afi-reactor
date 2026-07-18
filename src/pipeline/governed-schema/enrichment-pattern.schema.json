@@ -1,0 +1,193 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/enrichment/pattern/v1/enrichment-pattern.schema.json",
+  "title": "AFI Enrichment Category Result — pattern v1 (afi.enrichment.pattern.v1)",
+  "description": "The canonical output contract for the 'pattern' open analysis lane: the ONE resolved result a pattern provider/plugin contributes to the scorer-facing join (afi.enrichment.pattern.v1). A provider-produced pattern result MUST pass this validation at the provider-adapter edge BEFORE it reaches scoring (PBF-GOV D-PBF-8); a malformed result never reaches the scorer. The category marker MUST be 'pattern' (the join classifies one result per category by this marker). The result is provider-neutral and market-neutral: it carries normalized, bounded pattern OBSERVATIONS (motifs, anomaly/discord detections, change-point/regime boundaries, support/resistance pivots), each tied to deterministic input positions (and, when the analyzed series declared epoch-millisecond timestamps, an optional domain timestamp). It carries no raw matrix profile, no complete time series, no raw library output, no price/level values (levels are normalized to the analyzed series range), no scoring/UWR/rank/reward, no provider identity, and no credential material.",
+  "$comment": "BOUNDARY: category-result payload contract — this validates a runtime category output, not a stored artifact, so it carries no 'schema' const field; the discriminator is the 'category' marker. It is referenced by the analysis-plugin outputSchemaRef 'afi.enrichment.pattern.v1'. additionalProperties:false at every object level leaves no room for a raw provider payload, a credential-like field, a params bag, or an Evidence provenance stamp to ride in the result. Observations are explicit typed enums/fields — never an arbitrary object.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Provider Adapter & BYOK Foundations v0.1 (PBF-GOV)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/provider-byok-foundations-v0.1 (PBF-GOV) D-PBF-2/D-PBF-8 — one resolved result per category; provider output passes canonical category validation before scoring",
+    "afi-governance/decisions/factory-configurable-pipelines-v1 (FCP-GOV) D-FCP-1/D-FCP-5 — the 'pattern' open analysis lane; conforming providers/plugins are administrative registry updates, not per-participant governance"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "series", "motifs", "discords", "changePoints", "pivots"],
+  "properties": {
+    "category": {
+      "type": "string",
+      "const": "pattern",
+      "description": "Category marker. MUST be 'pattern' — the deterministic one-per-category join classifies contributions by this marker."
+    },
+    "series": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seriesId", "length", "indexBasis"],
+      "description": "Non-secret identity and shape of the analyzed series. Provides the deterministic frame every observation index/timestamp refers to. Carries no series values (normalized results only, never the raw time series).",
+      "properties": {
+        "seriesId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Provider-neutral, non-secret identity of the analyzed series (e.g. an opaque signal-derived series id). Never a URL, credential, or raw provider payload."
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000,
+          "description": "Number of ordered observations analyzed. Every observation index is a zero-based position in [0, length)."
+        },
+        "indexBasis": {
+          "type": "string",
+          "enum": ["position", "epochMs"],
+          "description": "How observation positions/timestamps are expressed: 'position' = zero-based ordinal only; 'epochMs' = ordinal positions PLUS an optional per-observation epoch-millisecond timestamp."
+        }
+      }
+    },
+    "motifs": {
+      "type": "array",
+      "maxItems": 64,
+      "description": "Bounded, normalized motif (repeated-subsequence) observations from matrix-profile motif discovery. Empty when none are found.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["windowSize", "index", "neighborIndex", "similarity"],
+        "properties": {
+          "windowSize": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 4096,
+            "description": "Subsequence length the motif was found over."
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Zero-based start position of the motif subsequence."
+          },
+          "neighborIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Zero-based start position of the nearest matching subsequence."
+          },
+          "similarity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Normalized similarity in [0,1] (1 = identical), derived from the z-normalized matrix-profile distance divided by its theoretical maximum. Market-neutral."
+          },
+          "timestamp": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "OPTIONAL epoch-millisecond domain timestamp of the motif start; present only when series.indexBasis is 'epochMs'."
+          }
+        }
+      }
+    },
+    "discords": {
+      "type": "array",
+      "maxItems": 64,
+      "description": "Bounded, normalized anomaly (discord) observations from matrix-profile discord detection. Empty when none are found.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["windowSize", "index", "anomalyScore"],
+        "properties": {
+          "windowSize": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 4096,
+            "description": "Subsequence length the discord was evaluated over."
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Zero-based start position of the anomalous subsequence."
+          },
+          "anomalyScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Normalized anomaly strength in [0,1] (1 = most anomalous), derived from the z-normalized matrix-profile distance divided by its theoretical maximum. Market-neutral."
+          },
+          "timestamp": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "OPTIONAL epoch-millisecond domain timestamp of the discord start; present only when series.indexBasis is 'epochMs'."
+          }
+        }
+      }
+    },
+    "changePoints": {
+      "type": "array",
+      "maxItems": 64,
+      "description": "Bounded, normalized change-point / regime-boundary observations from deterministic change-point detection. Empty when none are found.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "magnitude"],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Zero-based position of the detected regime boundary (start of the new segment)."
+          },
+          "magnitude": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Normalized magnitude of the level shift at the boundary in [0,1], the absolute change in adjacent-segment means divided by the analyzed series range. Market-neutral."
+          },
+          "timestamp": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "OPTIONAL epoch-millisecond domain timestamp of the boundary; present only when series.indexBasis is 'epochMs'."
+          }
+        }
+      }
+    },
+    "pivots": {
+      "type": "array",
+      "maxItems": 64,
+      "description": "Bounded, normalized support/resistance pivot observations from deterministic peak detection. Empty when none are found.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "kind", "level", "prominence"],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Zero-based position of the pivot."
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["support", "resistance"],
+            "description": "Whether the pivot is a local trough (support) or local peak (resistance)."
+          },
+          "level": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Normalized position of the pivot value within the analyzed series range in [0,1] (0 = series minimum, 1 = series maximum). Market-neutral — carries no raw price."
+          },
+          "prominence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Normalized topographic prominence of the pivot in [0,1], the raw prominence divided by the analyzed series range. Market-neutral."
+          },
+          "timestamp": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "OPTIONAL epoch-millisecond domain timestamp of the pivot; present only when series.indexBasis is 'epochMs'."
+          }
+        }
+      }
+    }
+  }
+}
