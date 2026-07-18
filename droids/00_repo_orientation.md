@@ -6,14 +6,13 @@
 
 ## What This Repo Does
 
-DAG orchestrator implementing the 15-node signal processing pipeline. This is the ONLY orchestrator in AFI—agents are nodes, not orchestrators.
+DAG orchestrator implementing the manifest-driven GraphExecutor pipeline (registered pipeline manifests → category nodes → merge → scorer → evidence). This is the ONLY orchestrator in AFI—agents are nodes, not orchestrators.
 
 **Key Capabilities**:
-- DAG orchestration (15-node pipeline)
+- Manifest-driven graph execution (one GraphExecutor)
 - Signal pipeline management
+- Canonical evidence construction (District-2 provenance law)
 - Codex replay
-- Validator coordination
-- Mentor coordination
 
 ---
 
@@ -35,7 +34,7 @@ DAG orchestrator implementing the 15-node signal processing pipeline. This is th
 
 ## Critical Document
 
-**⚠️ READ BEFORE MAKING CHANGES**: `AFI_ORCHESTRATOR_DOCTRINE.md` in repo root
+**⚠️ READ BEFORE MAKING CHANGES**: `docs/AFI_ORCHESTRATOR_DOCTRINE.md`
 
 This document contains the 10 Commandments of AFI orchestration. Violating these breaks the entire system.
 
@@ -44,21 +43,14 @@ This document contains the 10 Commandments of AFI orchestration. Violating these
 ## Key Files to Know
 
 ```
-src/cli/
-  run-dag.ts              # DAG execution entrypoint
-  replay-signals.ts       # Codex replay
-  
-src/dags/
-  [DAG node implementations]
-  
-codex/
-  [Codex configuration]
-  
-config/
-  [DAG configuration files]
-  
-plugins/
-  [Plugin implementations]
+src/server.ts             # boot + the two scoring ingresses
+src/pipeline/             # GraphExecutor, registry loader, category nodes
+src/config/               # runtime composition (the ONE executor), UWR pins
+src/evidence/             # evidence record + District-2 provenance law
+src/providers/            # the provider-adapter framework (PBF-GOV)
+codex/                    # Codex configuration
+config/                   # configuration files
+plugins/                  # plugin implementations
 ```
 
 ---
@@ -75,8 +67,8 @@ npm test
 # Build
 npm run build
 
-# Run DAG (dev)
-npm run dag:dev
+# Run the server (after build)
+npm run start:demo
 ```
 
 ---
@@ -96,7 +88,7 @@ See `10_common_tasks.md` for detailed workflows.
 ## Safety Notes
 
 **Before making changes**:
-1. Read `AFI_ORCHESTRATOR_DOCTRINE.md`
+1. Read `docs/AFI_ORCHESTRATOR_DOCTRINE.md`
 2. Read `AGENTS.md` for constraints
 3. Check `.afi-codex.json` for dependencies
 4. Run tests locally
@@ -111,7 +103,7 @@ See `10_common_tasks.md` for detailed workflows.
 
 ## Getting Help
 
-- **AFI_ORCHESTRATOR_DOCTRINE.md**: Orchestration rules
+- **docs/AFI_ORCHESTRATOR_DOCTRINE.md**: Orchestration rules
 - **AGENTS.md**: Canonical constraints
 - **README.md**: High-level overview
 - **docs/**: Architecture documentation
@@ -119,5 +111,5 @@ See `10_common_tasks.md` for detailed workflows.
 
 ---
 
-**Last Updated**: 2025-11-22
+**Last Updated**: 2026-07-18 (DSC-GOV clean-cut consolidation)
 

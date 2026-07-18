@@ -9,7 +9,7 @@
  * test/guardrails/uwrProfileStamp.test.ts bans the registry path everywhere
  * else under src/, and test/guardrails/uwrRuntimeProfile.test.ts
  * additionally bans any reference to this module (or its exported path
- * constant) from the D2 pipehead/CLI surfaces and bans path-constant
+ * constant) from the D2 evidence/provenance surfaces and bans path-constant
  * imports that would bypass the string scan.
  *
  * Behavior (RC-3/RC-4):
@@ -31,12 +31,12 @@
  *   degrades to the builtin config.
  *
  * Path resolution follows the repo's proven schema-load precedent
- * (src/pipeheads/provenance/schemaValidation.ts et al.):
+ * (src/evidence/provenance/schemaValidation.ts et al.):
  * join(process.cwd(), "node_modules/afi-config/…") through the file:
  * dependency. The ledger row prefers cwd-independent resolution;
  * import.meta-anchored resolution is deliberately NOT used here because its
  * behavior under this repo's ts-jest ESM transform is unproven, while the
- * cwd-anchored precedent is exercised by the existing pipehead suites. A
+ * cwd-anchored precedent is exercised by the existing D2 suites. A
  * registry-mode process launched from a different cwd fails CLOSED (never
  * silently scores). The `registryPath` override exists for tests (and for a
  * future authorized cleanup to cwd-independence).

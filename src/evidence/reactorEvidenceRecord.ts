@@ -29,16 +29,16 @@ import {
   type RecognizedStrategyRegistration,
 } from "../config/uwrProfilePin.js";
 import type { CompositionRefV1 } from "../pipeline/manifestTypes.js";
-import type { InternalScoringResult } from "../pipeheads/types.js";
-import type { ProvenanceRecordV1, ScoredSignalV1 } from "../pipeheads/provenance/types.js";
-import { PROVENANCE_RECORD_SCHEMA } from "../pipeheads/provenance/types.js";
-import { AFI_HASH_V1 } from "../pipeheads/provenance/canonicalHashV1.js";
+import type { InternalScoringResult } from "./analysis/internalScoringResult.js";
+import type { ProvenanceRecordV1, ScoredSignalV1 } from "./provenance/types.js";
+import { PROVENANCE_RECORD_SCHEMA } from "./provenance/types.js";
+import { AFI_HASH_V1 } from "./provenance/canonicalHashV1.js";
 import {
   buildScoredSignalProjection,
   computeInputHash,
   computeScoredOutputHash,
   provenanceRecordRefFor,
-} from "../pipeheads/provenance/builders.js";
+} from "./provenance/builders.js";
 
 export const EVIDENCE_SCHEMA = "afi.scored-signal-evidence.v2" as const;
 /** SCORED — the only lifecycle state the Reactor submits (post-scoring handoff). */

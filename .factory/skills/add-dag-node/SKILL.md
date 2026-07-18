@@ -86,24 +86,24 @@ intent.
 
 ### 2. Locate the DAG structures
 
-Identify the current DAG layout and relevant files, typically including:
+Identify the current pipeline layout and relevant files:
 
-- DAG engine and orchestration code (e.g. `src/core/dag-engine.ts` or similar)
-- DAG graph or codex (e.g. `config/dag.codex.json` or similar config files)
-- Any codex/metadata that describes nodes and stages (e.g. `codex/*.json`)
-- Any existing node patterns in `src/dags/` (or equivalent)
+- The executor and composition machinery (`src/pipeline/executor.ts`,
+  `src/pipeline/registryLoader.ts`, `src/config/runtimeComposition.ts`)
+- The plugin registry (`src/pipeline/pluginRegistry.ts`) and the registered
+  pipeline manifests it validates at boot
+- Any existing node patterns in `src/pipeline/nodes/`
 
-Do **not** modify these yet; just understand how the DAG is currently modeled.
+Do **not** modify these yet; just understand how the pipeline is currently
+modeled.
 
 ---
 
 ### 3. Create the node scaffold
 
-Create a new node file under the appropriate folder, for example:
+Create a new node file at:
 
-- `src/dags/<stage>/<nodeName>.ts`  
-  or
-- `src/dags/<nodeName>.ts`
+- `src/pipeline/nodes/<nodeName>.ts`
 
 Follow any existing naming and folder conventions in afi-reactor.
 
@@ -126,20 +126,17 @@ All comments should be clear, referencing:
 
 ---
 
-### 4. Wire the node into the DAG graph
+### 4. Wire the node into the pipeline
 
-Update the DAG graph / codex / configuration files so this new node is part of
-the pipeline:
+Register the node and reference it from a registered pipeline manifest:
 
-1. Register the node with:
-   - Unique identifier / key
-   - Stage (Raw / Enriched / Analyzed / Scored)
-   - Input/output relationships (upstream/downstream nodes)
-2. Ensure the wiring respects:
-   - No forbidden cycles (unless explicitly allowed by the Doctrine)
+1. Register the node in `src/pipeline/pluginRegistry.ts` with:
+   - A pinned `pluginId@version`
+   - The node implementation (following the `nodeSdk` run-contract)
+2. Reference it from a registered pipeline manifest (loaded and boot-validated
+   by `src/pipeline/registryLoader.ts`), ensuring:
+   - No forbidden cycles (the executor validates the graph)
    - The existing pipeline architecture and naming conventions
-3. If there is a central registry for node metadata, add a minimal entry using
-   the existing pattern.
 
 If wiring rules are ambiguous or require architectural changes, STOP and mark
 this as a human decision point.

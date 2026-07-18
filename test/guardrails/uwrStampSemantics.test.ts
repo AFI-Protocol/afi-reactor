@@ -49,7 +49,7 @@ import type { FroggyEnrichedView } from "../../node_modules/afi-core/analysts/fr
 import { scorerFroggyTrendPullbackNode } from "../../src/pipeline/nodes/scorerFroggyTrendPullback.js";
 import { SILENT_NODE_LOGGER, type NodeRunContext } from "../../src/pipeline/nodeSdk.js";
 
-// Repo idiom (see test/pipeheads/*.test.ts): jest runs from the repo root.
+// Repo idiom (see test/evidence/provenance/*.test.ts): jest runs from the repo root.
 const REPO_ROOT = process.cwd();
 const INSTALLED_REGISTRY = path.resolve(REPO_ROOT, UWR_REGISTRY_RELATIVE_PATH);
 

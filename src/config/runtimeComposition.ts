@@ -16,9 +16,9 @@
  *    initializing under test imports, where the server never listens).
  *
  * This module (with src/pipeline/registryLoader.ts it calls) is the ONLY
- * reader of these registries — never src/pipeheads, never src/cli (RC-7
- * string bans untouched; the uwr-profiles registry keeps its own single
- * authorized reader, src/config/uwrRuntimeProfile.ts).
+ * reader of these registries — never the D2 evidence/provenance surfaces
+ * (RC-7 string bans, dirs per DSC-GOV D-DSC-8; the uwr-profiles registry
+ * keeps its own single authorized reader, src/config/uwrRuntimeProfile.ts).
  *
  * Test seams (same discipline as __resetUwrRuntimeConfigForTests): tests may
  * point the composition at a fixture/overlay registry root and/or inject a

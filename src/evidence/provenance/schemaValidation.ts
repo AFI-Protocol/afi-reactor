@@ -227,9 +227,9 @@ export const validateProvenanceRecordV1 = (value: unknown): D2ValidationResult =
 export const validateReplayProfileV1 = (value: unknown): D2ValidationResult =>
   validateD2Artifact("replay-profile", value);
 /**
- * TradePlan v1 validation helper only — this reference implementation does
- * NOT generate TradePlan objects (the pipehead USS fixture carries no trade
- * levels and CPJ mapping is frozen).
+ * TradePlan v1 validation helper only — the Reactor does NOT generate
+ * TradePlan objects (no live surface carries trade levels and CPJ mapping is
+ * frozen).
  */
 export const validateTradePlanV1 = (value: unknown): D2ValidationResult =>
   validateD2Artifact("trade-plan", value);

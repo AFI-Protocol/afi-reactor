@@ -19,7 +19,7 @@ import {
   validateProvenanceRecordV1,
   D2_ARTIFACT_KINDS,
   type D2ArtifactKind,
-} from "../../src/pipeheads/provenance/schemaValidation.js";
+} from "../../../src/evidence/provenance/schemaValidation.js";
 
 /** afi-config's committed valid examples (read via the installed package link). */
 const EXAMPLE_FILES: Record<D2ArtifactKind, string> = {

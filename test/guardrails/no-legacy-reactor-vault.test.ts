@@ -15,7 +15,7 @@ import { describe, it, expect } from "@jest/globals";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-// Repo idiom (see test/pipeheads/*.test.ts + guardrails): jest runs from root.
+// Repo idiom (see test/evidence/provenance/*.test.ts + guardrails): jest runs from root.
 const REPO_ROOT = process.cwd();
 const SRC = path.resolve(REPO_ROOT, "src");
 

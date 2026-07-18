@@ -14,7 +14,7 @@ Agents are registered into the DAG through configuration files and metadata:
 
 1. **Agent Registry** - See `config/agent.registry.json` and `config/execution-agent.registry.json`
 2. **Codex Metadata** - See `.afi-codex.json` (repo root) and `config/agents.codex.json` for agent mappings; `codex/` is runtime-log-only.
-3. **DAG Configuration** - Canonical DAG definitions live in `config/dag.codex.json`
+3. **Pipeline Composition** - The canonical composition is the registered pipeline manifests loaded by `src/pipeline/registryLoader.ts` (executed by the one GraphExecutor)
 
 **Note:** The exact registration API is still evolving. Current implementation uses configuration-based registration rather than programmatic APIs.
 
@@ -175,7 +175,7 @@ To add a new agent to the AFI-Reactor DAG:
 2. **Implement the agent** - Follow the signal interface and role responsibilities
 3. **Register the agent** - Add to `config/agent.registry.json` or `config/execution-agent.registry.json`
 4. **Update Codex metadata** - Add to `codex/.afi-codex.json` under the appropriate category
-5. **Update DAG configuration** - Add to `config/dag.codex.json` if needed
+5. **Update the pipeline composition** - Register the node in `src/pipeline/pluginRegistry.ts` and reference it from a registered manifest if needed
 6. **Test the agent** - Write tests that mock Reactor inputs/outputs
 7. **Document the agent** - Update this guide and the DAG spec
 

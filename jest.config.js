@@ -58,10 +58,13 @@ export default {
     // SLOT-FCP-REACTOR stage B: no hardcoded composition identity in the
     // ACTIVE runtime (cleanup-pending allowlist emptied by SLOT-FCP-CLEANUP).
     "**/test/guardrails/no-hardcoded-composition.test.ts",
+    // DSC-GOV D-DSC-8: clean-cut consolidation invariants (no pipeheads
+    // return, no dead ML-provider registry, single executor, no 'social'
+    // category, relocated D2 import hygiene, golden byte-stability).
+    "**/test/guardrails/districtSurfaceConsolidation.test.ts",
     // SLOT-FCP-REACTOR stage A: executor core, hashing KATs, vendored-closure
     // drift guard, registry boot validation, graph proofs, node units.
     "**/test/pipeline/**/*.test.ts",
-    "**/test/pipeheads/**/*.test.ts",
     "**/test/evidence/**/*.test.ts",
     // PBF-GOV Wave 1: the bounded provider-adapter layer + BYOK proofs
     // (technical keyless, news BYOK, redaction, tenant isolation, adapter
