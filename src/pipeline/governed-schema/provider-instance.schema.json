@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/provider-instance/v1/provider-instance.schema.json",
+  "title": "AFI Provider Instance v1 (FACTORY-CONTRACT — tenant-scoped, non-secret provider configuration)",
+  "description": "A tenant- or operator-scoped, non-secret configuration binding one provider to one trusted registered adapter for exactly one category (afi.provider-instance.v1). A ProviderInstance is what a pipeline node references (by id + record version) to select a configured provider for its category. It identifies exactly one category, exactly one provider, and one registered adapter implementation (id + version); it is version-pinned for deterministic composition; it OPTIONALLY references one compatible CredentialRef (by opaque id — never a value); it carries only non-secret invocation settings (a closed object; no arbitrary endpoint URL, anti-SSRF); and it fails validation when provider, category, adapter, or credential requirements conflict. It contains NO credential value, NO arbitrary executable code, and NO analyst-supplied remote endpoint. This is a fixture/reference shape only — deployment-specific instance records are tenant configuration, not a public registry (PBF-GOV D-PBF-7).",
+  "$comment": "BOUNDARY (FACTORY-CONTRACT): schema/contract only — NO credential resolution, NO provider invocation, NO endpoint. The pipeline node carries only a versioned reference to this record; the runtime provider-adapter layer (afi-reactor, BELOW the node) resolves the instance, validates compatibility, resolves ONLY the authorized credential via a least-privilege SecretResolver, and invokes the registered adapter. invocation.endpointProfile is a named, allow-listed profile resolved by the adapter/deployment — never an analyst-supplied raw URL.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Provider Adapter & BYOK Foundations v0.1 (PBF-GOV)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/provider-byok-foundations-v0.1 (PBF-GOV) D-PBF-4/D-PBF-5/D-PBF-7/D-PBF-8 — ProviderInstance is tenant/operator-scoped and non-secret; one category, one provider, one registered adapter; references (never embeds) a credential; runtime resolution is least-privilege",
+    "afi-governance/decisions/factory-configurable-pipelines-v1 (FCP-GOV) D-FCP-1 — the five open lanes; a node binds a plugin/provider of its own category"
+  ],
+  "x-afiConstraints": {
+    "noSecretMaterial": "PRIMARY: additionalProperties:false at every object level (record and invocation) plus explicit allowed fields — an inline apiKey/token/secret/password/authorization field has nowhere to live. SECONDARY: the BYOK denylist validator rejects secret-named fields. credentialRef is an OPAQUE id pointer, never a value.",
+    "oneCategoryOneProviderOneAdapter": "An instance identifies exactly one category, exactly one provider (providerId), and one registered adapter (adapterId + adapterVersion). Cross-field rules (provider exists; category is a member of the provider's supportedCategories; adapterId equals the provider's adapterId; adapterVersion is registered) are enforced by the runtime adapter registry (afi-reactor) and the provider-BYOK cross-reference tests.",
+    "credentialCoherence": "CROSS-FIELD: credentialRef is present IFF the bound provider requiresCredential. A credentialed provider without a credentialRef fails closed; a keyless provider with a credentialRef is rejected (unauthorized credential). When present, the referenced afi.credential-ref.v1 MUST be active, tenant-scoped to this instance's tenant, and compatible with this provider (providerId + credentialKind).",
+    "noArbitraryEndpoint": "There is no raw endpoint/URL field. invocation.endpointProfile is a named, allow-listed profile only — an analyst cannot supply an arbitrary remote endpoint (anti-SSRF).",
+    "modelAuthority": "When model is present, it MUST be a member of the bound provider's supportedModels (cross-field, enforced by the cross-reference tests)."
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "providerInstanceId", "recordVersion", "tenant", "category", "providerId", "adapterId", "adapterVersion", "status"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "afi.provider-instance.v1",
+      "description": "Schema-id version of the provider instance."
+    },
+    "providerInstanceId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Stable id of this instance. A pipeline node references it by (providerInstanceId, recordVersion)."
+    },
+    "recordVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "description": "Semantic version of THIS instance record (no v prefix), version-pinned for deterministic composition."
+    },
+    "tenant": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Tenant/operator scope that owns this instance. The runtime resolves only credentials scoped to this tenant (least-privilege, D-PBF-7)."
+    },
+    "category": {
+      "type": "string",
+      "enum": ["technical", "pattern", "sentiment", "news", "aiMl"],
+      "description": "The single open analysis lane this instance supplies (never 'merge' or 'scorer'). MUST equal the referencing node's category and be a member of the provider's supportedCategories."
+    },
+    "providerId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "The single provider (afi.provider.v1 providerId) this instance configures."
+    },
+    "adapterId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "The trusted, build-time-registered adapter that executes this instance (afi-reactor adapter registry). MUST equal the provider's adapterId. NEVER a filesystem path or code URL."
+    },
+    "adapterVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "description": "Exact semver of the bound adapter (no v prefix), pinned for deterministic composition."
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "OPTIONAL model/algorithm identity; when present MUST be a member of the provider's supportedModels (x-afiConstraints.modelAuthority)."
+    },
+    "credentialRef": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "OPTIONAL opaque reference to a compatible afi.credential-ref.v1 (by its credentialRef id). NEVER a secret value. Present IFF the bound provider requiresCredential (x-afiConstraints.credentialCoherence)."
+    },
+    "invocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "OPTIONAL non-secret invocation settings. Closed object — no secret fields, no arbitrary endpoint URL.",
+      "properties": {
+        "windowHours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 168,
+          "description": "OPTIONAL lookback window in hours (non-secret tuning)."
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "OPTIONAL per-invocation timeout in milliseconds (non-secret tuning)."
+        },
+        "endpointProfile": {
+          "type": "string",
+          "enum": ["default"],
+          "description": "OPTIONAL named, allow-listed endpoint profile resolved by the adapter/deployment — NEVER an analyst-supplied raw URL (x-afiConstraints.noArbitraryEndpoint)."
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "inactive"],
+      "description": "Instance status. Only 'active' instances are selectable; 'inactive' retires without deletion."
+    }
+  }
+}

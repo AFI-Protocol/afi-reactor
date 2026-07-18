@@ -63,6 +63,10 @@ export default {
     "**/test/pipeline/**/*.test.ts",
     "**/test/pipeheads/**/*.test.ts",
     "**/test/evidence/**/*.test.ts",
+    // PBF-GOV Wave 1: the bounded provider-adapter layer + BYOK proofs
+    // (technical keyless, news BYOK, redaction, tenant isolation, adapter
+    // security, output validation, scoring equivalence, Evidence V2 freeze).
+    "**/test/providers/**/*.test.ts",
     // ORACLE-EQUIVALENCE: the behavioral-oracle harness is part of the DEFAULT
     // run (non-skippable); only the real-Mongo half lives in the gated
     // test:oracle:mongo script (repo IT convention).

@@ -18,12 +18,12 @@
  *  - Provider/data errors (fetch failure, empty candles) throw ordinary
  *    errors: the executor applies the node's declared failurePolicy.
  */
-import {
+import type {
   getPriceFeedAdapter,
   getDefaultPriceSource,
 } from "../../adapters/exchanges/priceFeedRegistry.js";
 import type { OHLCVCandle } from "../../adapters/exchanges/types.js";
-import { computeTechnicalEnrichment } from "../../enrichment/technicalIndicators.js";
+import type { computeTechnicalEnrichment } from "../../enrichment/technicalIndicators.js";
 import type { AfiCandle } from "../../types/AfiCandle.js";
 import type { TechnicalLensV1 } from "../../types/UssLenses.js";
 import {
@@ -48,11 +48,22 @@ export interface TechnicalNodeDeps {
   computeTechnical: typeof computeTechnicalEnrichment;
 }
 
-const PRODUCTION_DEPS: TechnicalNodeDeps = {
-  resolvePriceSource: getDefaultPriceSource,
-  getAdapter: getPriceFeedAdapter,
-  computeTechnical: computeTechnicalEnrichment,
-};
+/**
+ * Load the real ccxt-backed kernels only when the production node runs. This
+ * DEFERS the exchange-SDK import (behaviour-neutral) so the node is testable
+ * with injected deterministic deps without pulling ccxt at module load.
+ */
+async function loadProductionDeps(): Promise<TechnicalNodeDeps> {
+  const [{ getPriceFeedAdapter, getDefaultPriceSource }, { computeTechnicalEnrichment }] = await Promise.all([
+    import("../../adapters/exchanges/priceFeedRegistry.js"),
+    import("../../enrichment/technicalIndicators.js"),
+  ]);
+  return {
+    resolvePriceSource: getDefaultPriceSource,
+    getAdapter: getPriceFeedAdapter,
+    computeTechnical: computeTechnicalEnrichment,
+  };
+}
 
 function toAfiCandles(candles: OHLCVCandle[]): AfiCandle[] {
   return candles.map((c) => ({
@@ -65,15 +76,14 @@ function toAfiCandles(candles: OHLCVCandle[]): AfiCandle[] {
   }));
 }
 
-export function createTechnicalNode(
-  deps: TechnicalNodeDeps = PRODUCTION_DEPS
-): AnalysisNodePlugin {
+export function createTechnicalNode(deps?: TechnicalNodeDeps): AnalysisNodePlugin {
   return {
     manifestRef: { pluginId: "afi-analysis-technical", pluginVersion: "1.0.0" },
     async run(_input: unknown, ctx: NodeRunContext): Promise<NodeResult> {
+      const d = deps ?? (await loadProductionDeps());
       let priceSource: string;
       try {
-        priceSource = deps.resolvePriceSource();
+        priceSource = d.resolvePriceSource();
       } catch (error) {
         // Missing REQUIRED price-feed configuration: honest, fatal failure.
         throw new NodeConfigurationError(
@@ -92,11 +102,11 @@ export function createTechnicalNode(
       const limitRaw = ctx.config["candleLimit"];
       const limit = typeof limitRaw === "number" ? limitRaw : 100;
 
-      const adapter = deps.getAdapter(priceSource as Parameters<typeof getPriceFeedAdapter>[0]);
+      const adapter = d.getAdapter(priceSource as Parameters<typeof getPriceFeedAdapter>[0]);
       const rawCandles = await adapter.getOHLCV({ symbol, timeframe, limit });
       const candles = toAfiCandles(rawCandles);
 
-      const technical = deps.computeTechnical(candles);
+      const technical = d.computeTechnical(candles);
       ctx.logger.info("technical enrichment computed", {
         priceSource,
         symbol,

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/enrichment/news/v1/enrichment-news.schema.json",
+  "title": "AFI Enrichment Category Result — news v1 (afi.enrichment.news.v1)",
+  "description": "The canonical output contract for the 'news' open analysis lane: the ONE resolved result a news provider/plugin contributes to the scorer-facing join (afi.enrichment.news.v1). A provider-produced news result MUST pass this validation at the provider-adapter edge BEFORE it reaches scoring (PBF-GOV D-PBF-8); a malformed result never reaches the scorer. The category marker MUST be 'news'. A news provider may internally evaluate many articles/sources, but it contributes exactly ONE news result at the pipeline boundary (D-PBF-2). The result carries a news-shock summary and derived features; it NEVER carries a credential value or a credentialed URL (BYOK boundary, D-PBF-7).",
+  "$comment": "BOUNDARY: category-result payload contract — validates a runtime category output, not a stored artifact; the discriminator is the 'category' marker. Referenced by the analysis-plugin outputSchemaRef 'afi.enrichment.news.v1'. additionalProperties:false at the top level ensures no unexpected field (including a leaked credentialed URL) rides in the result.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Provider Adapter & BYOK Foundations v0.1 (PBF-GOV)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/provider-byok-foundations-v0.1 (PBF-GOV) D-PBF-2/D-PBF-7/D-PBF-8 — one resolved result per category; credential never in the result; provider output passes canonical category validation before scoring",
+    "afi-governance/decisions/factory-configurable-pipelines-v1 (FCP-GOV) D-FCP-1 — the 'news' open lane"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "news", "newsFeatures"],
+  "properties": {
+    "category": {
+      "type": "string",
+      "const": "news",
+      "description": "Category marker. MUST be 'news' — the deterministic one-per-category join classifies contributions by this marker."
+    },
+    "news": {
+      "type": "object",
+      "description": "News-shock summary payload (analysis data; deep shape owned by the news feature layer). Carries no credential and no credentialed URL."
+    },
+    "newsFeatures": {
+      "type": "object",
+      "description": "Derived, non-secret news features consumed downstream."
+    }
+  }
+}

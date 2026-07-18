@@ -679,6 +679,9 @@ export class GraphExecutor {
             config: node.config ?? {},
             logger: this.logger,
             abort: nodeController.signal,
+            // Non-secret provider-instance reference (PBF-GOV D-PBF-4); present
+            // only on provider-backed nodes, resolved BELOW the node.
+            providerInstanceRef: node.providerInstanceRef,
           }),
           racer.promise,
         ]);

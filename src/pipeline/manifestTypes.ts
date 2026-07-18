@@ -42,6 +42,12 @@ export interface PipelineNode {
   failurePolicy?: FailurePolicy;
   resourceLimits?: Record<string, unknown>;
   join?: JoinDeclaration;
+  /**
+   * OPTIONAL non-secret reference to an afi.provider-instance.v1 record
+   * (identity + version only; PBF-GOV D-PBF-4). Admissible only on the five
+   * analysis-category nodes. NEVER a credential value.
+   */
+  providerInstanceRef?: { providerInstanceId: string; recordVersion: string };
 }
 
 /** Governed predicate tree (afi.pipeline.v1 #/definitions/predicate). */

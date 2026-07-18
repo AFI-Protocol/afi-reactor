@@ -23,6 +23,7 @@
     "deterministicConditions": "Edge conditions are schema-validated predicate trees over JSON-pointer-style paths into VALIDATED node outputs (/nodes/<nodeId>/output/...) or pipeline context (/context/...). They are pure data — deterministic given the same inputs. Code strings, expression languages, and unknown operators are structurally rejected (the condition property admits only the predicate-tree shape).",
     "configValidatedDownstream": "node.config is an open object at this layer and MUST be validated by the consuming factory/runtime against the bound plugin's paramsSchema (afi.analysis-plugin.v1, resolved by pluginId+pluginVersion) before the manifest is accepted for execution.",
     "pluginBinding": "The manifest binds plugins by pluginId+pluginVersion ONLY. Binding to code happens in the consuming runtime's build-time plugin registry; filesystem paths are not representable in this contract.",
+    "providerInstanceRef": "OPTIONAL per-node non-secret reference (providerInstanceId + recordVersion) to an afi.provider-instance.v1 record (PBF-GOV D-PBF-4/D-PBF-7). It NEVER carries a credential value, secret, endpoint URL, or CredentialRef payload; additionalProperties:false on the ref object leaves secrets nowhere to live. Resolution (provider/category/adapter compatibility + least-privilege credential resolution) happens BELOW the node in the runtime provider-adapter layer, not in this contract. Being nested node data, a present ref is INCLUDED in canonical manifest hash material; absent (the common case for keyless in-registry plugin nodes) it changes no existing manifest hash.",
     "oneRepresentation": "nodes/edges is the ONE topology representation. The retired drafts' parallel mechanisms (enrichmentNodes map, requiredNodes list) are structurally rejected by additionalProperties:false and MUST NOT be reintroduced.",
     "hashMaterial": "Canonical manifest hashing (manifestHash, domain tag afi.factory.pipeline-manifest) follows schemas/hashing/canonical-json-hashing.v1.md; description and metadata are excluded from canonical hash material. metadata is free-form and NON-AUTHORITATIVE: nothing in it may alter execution."
   },
@@ -152,6 +153,10 @@
         "join": {
           "$ref": "#/definitions/join",
           "description": "REQUIRED on (and only on) nodes with more than one incoming edge (x-afiConstraints.joinDeclaration). Declares the deterministic all-parents join and merge rule."
+        },
+        "providerInstanceRef": {
+          "$ref": "#/definitions/providerInstanceRef",
+          "description": "OPTIONAL non-secret reference to a versioned provider instance (afi.provider-instance.v1) that supplies this category node's implementation (x-afiConstraints.providerInstanceRef). Identity + version ONLY — NEVER a credential value, secret, endpoint URL, or CredentialRef payload. Resolved BELOW the node by the runtime provider-adapter layer against deployment-local provider-instance configuration. Absent for in-registry keyless plugin nodes."
         }
       },
       "if": {
@@ -161,6 +166,26 @@
       "then": {
         "properties": { "critical": { "const": false } },
         "required": ["critical"]
+      }
+    },
+    "providerInstanceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["providerInstanceId", "recordVersion"],
+      "description": "Non-secret, versioned reference to an afi.provider-instance.v1 record. Carries identity + version ONLY — never a credential value, secret, endpoint URL, or CredentialRef payload (PBF-GOV D-PBF-4/D-PBF-7). The runtime provider-adapter layer resolves the instance BELOW the node, validates category/adapter compatibility, and resolves the authorized credential (if any) via a least-privilege SecretResolver. Not resolved in this contract.",
+      "properties": {
+        "providerInstanceId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Stable id of the referenced afi.provider-instance.v1 record (deployment-local; not resolved in this contract)."
+        },
+        "recordVersion": {
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+          "description": "Exact semver of the referenced provider-instance record, version-pinned for deterministic composition."
+        }
       }
     },
     "join": {

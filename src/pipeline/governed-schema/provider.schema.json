@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/provider/v1/provider.schema.json",
+  "title": "AFI Provider v1 (FACTORY-CONTRACT — non-secret compute/data provider identity)",
+  "description": "The canonical, non-secret identity of a compute/data provider that supplies an analytical capability for one or more of the five open analysis lanes (afi.provider.v1). A Provider record names WHO or WHAT supplies a capability — a local AFI implementation, an open-source library, an external API, a data vendor, a hosted inference service, a local model runtime, a proprietary service, or Tiny Brains. It carries ONLY minimum non-secret identity metadata: id, record version, display name, the categories it supports, execution class, deterministic posture, the identity of the trusted runtime-registered adapter that implements it, whether it requires a credential (and, if so, the KIND — never a value), an optional closed set of supported models, and an active/inactive status. Registry presence means AVAILABLE to the relevant AFI deployment or configuration — NOT universally approved by AFI Protocol.",
+  "$comment": "BOUNDARY (FACTORY-CONTRACT): schema/contract only — NO adapter code, NO endpoint, NO credential storage, NO deployment. A Provider is distinct from the ingress afi.provider-strategy-binding.v1 (which routes inbound SIGNALS); this identity is the source of an ANALYTICAL capability. credentialKind names the credential CLASS only; secret values never appear here (additionalProperties:false leaves them nowhere to live). adapterId names a trusted, build-time-registered adapter in the consuming runtime (afi-reactor) — never a filesystem path or code URL.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Provider Adapter & BYOK Foundations v0.1 (PBF-GOV)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/provider-byok-foundations-v0.1 (PBF-GOV) D-PBF-1/D-PBF-4/D-PBF-5/D-PBF-6 — provider identity is non-secret, separate from category and implementation, backed by a trusted registered adapter, and confers no endorsement",
+    "afi-governance/decisions/factory-configurable-pipelines-v1 (FCP-GOV) D-FCP-1/D-FCP-5 — the five-category namespace; conforming providers are administrative registry updates, not per-participant governance"
+  ],
+  "x-afiConstraints": {
+    "noSecretMaterial": "A Provider record carries only non-secret identity metadata. credentialKind names the KIND of credential a capability requires (e.g. 'apiKeyHeader') — never a value. additionalProperties:false plus explicit allowed fields leave secrets nowhere to live; the BYOK denylist (credential-ref / provider-instance validators) additionally rejects secret-named fields.",
+    "adapterCompatibility": "CROSS-FIELD (registry-tooling): adapterId MUST name a trusted, build-time-registered adapter in the consuming runtime whose category is a member of supportedCategories. Not resolvable in this contract; enforced by the runtime adapter registry (afi-reactor) and the provider-BYOK cross-reference tests.",
+    "credentialKindPresence": "credentialKind is present IFF requiresCredential is true (structurally enforced by if/then/else): a keyless provider declares no credential kind; a credentialed provider names exactly one kind.",
+    "supportedModelsAuthority": "When supportedModels is present, a provider-instance's optional model MUST be a member (cross-field, enforced by the provider-BYOK cross-reference tests). Forward-looking for aiMl; the v0.1 technical and news reference providers declare none.",
+    "registryPresenceIsNotEndorsement": "Presence of a Provider record in a registry or deployment configuration conveys no commercial endorsement and no protocol authority (D-PBF-6)."
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "providerId",
+    "recordVersion",
+    "displayName",
+    "supportedCategories",
+    "executionClass",
+    "deterministic",
+    "adapterId",
+    "requiresCredential",
+    "status"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "afi.provider.v1",
+      "description": "Schema-id version of the provider identity record."
+    },
+    "providerId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Stable, non-secret identifier of the provider (lowercase alphanumeric + hyphens). Referenced by afi.provider-instance.v1.providerId and afi.credential-ref.v1.providerId."
+    },
+    "recordVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "description": "Semantic version of THIS provider record (no v prefix). Any change to the record requires a new version."
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Human-readable name. Annotational; non-secret."
+    },
+    "supportedCategories": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["technical", "pattern", "sentiment", "news", "aiMl"]
+      },
+      "description": "The open analysis lanes this provider can supply (a non-empty subset of the five categories; never 'merge' or 'scorer')."
+    },
+    "executionClass": {
+      "type": "string",
+      "enum": ["local", "remote"],
+      "description": "'local' (in-process/first-party compute) or 'remote' (external API or hosted service)."
+    },
+    "deterministic": {
+      "type": "boolean",
+      "description": "Deterministic-vs-probabilistic posture where currently meaningful (e.g. a local indicator computation is deterministic; a hosted model is probabilistic)."
+    },
+    "adapterId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Identity of the trusted, build-time-registered adapter that implements this provider in the consuming runtime (afi-reactor adapter registry). NEVER a filesystem path or code URL (x-afiConstraints.adapterCompatibility)."
+    },
+    "requiresCredential": {
+      "type": "boolean",
+      "description": "Whether invoking this provider requires a credential (BYOK). A keyless provider is false; a credentialed provider is true and names a credentialKind."
+    },
+    "credentialKind": {
+      "type": "string",
+      "enum": ["apiKeyHeader"],
+      "description": "OPTIONAL. Present IFF requiresCredential is true (x-afiConstraints.credentialKindPresence). Names the KIND of credential a capability requires — never a value. v0.1 supports 'apiKeyHeader' (an API key carried in a request header)."
+    },
+    "supportedModels": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "description": "OPTIONAL closed set of model/algorithm identities this provider offers; when present, a provider-instance's model MUST be a member. Forward-looking for aiMl; the v0.1 reference providers declare none."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "inactive"],
+      "description": "Provider record status. Only 'active' providers are selectable; 'inactive' retires without deletion."
+    }
+  },
+  "if": {
+    "properties": { "requiresCredential": { "const": true } },
+    "required": ["requiresCredential"]
+  },
+  "then": {
+    "required": ["credentialKind"]
+  },
+  "else": {
+    "not": { "required": ["credentialKind"] }
+  }
+}
