@@ -14,6 +14,7 @@ import { NoCredentialsResolver, type SecretResolver } from "./secretResolver.js"
 import { ProviderRuntime } from "./providerRuntime.js";
 import { technicalLocalAdapter } from "./adapters/technicalLocalAdapter.js";
 import { httpNewsAdapter } from "./adapters/httpNewsAdapter.js";
+import { patternLocalAdapter } from "./adapters/patternLocalAdapter.js";
 import type { ProviderAdapter } from "./types.js";
 
 export * from "./types.js";
@@ -27,10 +28,12 @@ export * from "./providerRuntime.js";
 export * from "./providerBackedNode.js";
 export { createTechnicalLocalAdapter, technicalLocalAdapter } from "./adapters/technicalLocalAdapter.js";
 export { createHttpNewsAdapter, httpNewsAdapter } from "./adapters/httpNewsAdapter.js";
+export { createPatternLocalAdapter, patternLocalAdapter } from "./adapters/patternLocalAdapter.js";
 
-/** The two trusted, compiled, registered reference adapters. */
+/** The trusted, compiled, registered reference adapters (technical keyless, news
+ * BYOK, pattern keyless-local — Mission 4). */
 export function builtinProviderAdapters(): ProviderAdapter[] {
-  return [technicalLocalAdapter, httpNewsAdapter];
+  return [technicalLocalAdapter, httpNewsAdapter, patternLocalAdapter];
 }
 
 export interface BuildProviderRuntimeOptions {

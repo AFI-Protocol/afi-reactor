@@ -1,0 +1,271 @@
+{
+  "changePoints": [
+    {
+      "index": 97,
+      "magnitude": 0.16798,
+      "timestamp": 1700349200000
+    },
+    {
+      "index": 126,
+      "magnitude": 0.163454,
+      "timestamp": 1700453600000
+    },
+    {
+      "index": 160,
+      "magnitude": 0.347382,
+      "timestamp": 1700576000000
+    },
+    {
+      "index": 217,
+      "magnitude": 0.173326,
+      "timestamp": 1700781200000
+    },
+    {
+      "index": 220,
+      "magnitude": 0.169642,
+      "timestamp": 1700792000000
+    },
+    {
+      "index": 222,
+      "magnitude": 0.161494,
+      "timestamp": 1700799200000
+    },
+    {
+      "index": 224,
+      "magnitude": 0.461785,
+      "timestamp": 1700806400000
+    },
+    {
+      "index": 238,
+      "magnitude": 0.180137,
+      "timestamp": 1700856800000
+    }
+  ],
+  "discords": [
+    {
+      "anomalyScore": 0.512087,
+      "index": 215,
+      "timestamp": 1700774000000,
+      "windowSize": 16
+    },
+    {
+      "anomalyScore": 0.565104,
+      "index": 216,
+      "timestamp": 1700777600000,
+      "windowSize": 16
+    },
+    {
+      "anomalyScore": 0.563884,
+      "index": 217,
+      "timestamp": 1700781200000,
+      "windowSize": 16
+    },
+    {
+      "anomalyScore": 0.538077,
+      "index": 218,
+      "timestamp": 1700784800000,
+      "windowSize": 16
+    },
+    {
+      "anomalyScore": 0.487207,
+      "index": 219,
+      "timestamp": 1700788400000,
+      "windowSize": 16
+    },
+    {
+      "anomalyScore": 0.488207,
+      "index": 221,
+      "timestamp": 1700795600000,
+      "windowSize": 16
+    },
+    {
+      "anomalyScore": 0.561024,
+      "index": 222,
+      "timestamp": 1700799200000,
+      "windowSize": 16
+    },
+    {
+      "anomalyScore": 0.637235,
+      "index": 223,
+      "timestamp": 1700802800000,
+      "windowSize": 16
+    }
+  ],
+  "motifs": [
+    {
+      "index": 41,
+      "neighborIndex": 105,
+      "similarity": 0.986604,
+      "timestamp": 1700147600000,
+      "windowSize": 16
+    },
+    {
+      "index": 42,
+      "neighborIndex": 106,
+      "similarity": 0.986194,
+      "timestamp": 1700151200000,
+      "windowSize": 16
+    },
+    {
+      "index": 45,
+      "neighborIndex": 109,
+      "similarity": 0.986183,
+      "timestamp": 1700162000000,
+      "windowSize": 16
+    },
+    {
+      "index": 46,
+      "neighborIndex": 110,
+      "similarity": 0.996236,
+      "timestamp": 1700165600000,
+      "windowSize": 16
+    },
+    {
+      "index": 47,
+      "neighborIndex": 111,
+      "similarity": 0.999858,
+      "timestamp": 1700169200000,
+      "windowSize": 16
+    },
+    {
+      "index": 48,
+      "neighborIndex": 112,
+      "similarity": 1.0,
+      "timestamp": 1700172800000,
+      "windowSize": 16
+    },
+    {
+      "index": 55,
+      "neighborIndex": 119,
+      "similarity": 0.986364,
+      "timestamp": 1700198000000,
+      "windowSize": 16
+    },
+    {
+      "index": 56,
+      "neighborIndex": 120,
+      "similarity": 0.98604,
+      "timestamp": 1700201600000,
+      "windowSize": 16
+    }
+  ],
+  "pivots": [
+    {
+      "index": 24,
+      "kind": "support",
+      "level": 0.011464,
+      "prominence": 0.494337,
+      "timestamp": 1700086400000
+    },
+    {
+      "index": 40,
+      "kind": "resistance",
+      "level": 0.512791,
+      "prominence": 0.501328,
+      "timestamp": 1700144000000
+    },
+    {
+      "index": 56,
+      "kind": "support",
+      "level": 0.012874,
+      "prominence": 0.496076,
+      "timestamp": 1700201600000
+    },
+    {
+      "index": 73,
+      "kind": "resistance",
+      "level": 0.505813,
+      "prominence": 0.485989,
+      "timestamp": 1700262800000
+    },
+    {
+      "index": 88,
+      "kind": "support",
+      "level": 0.019824,
+      "prominence": 0.485989,
+      "timestamp": 1700316800000
+    },
+    {
+      "index": 103,
+      "kind": "resistance",
+      "level": 0.508024,
+      "prominence": 0.49515,
+      "timestamp": 1700370800000
+    },
+    {
+      "index": 120,
+      "kind": "support",
+      "level": 0.012874,
+      "prominence": 0.496076,
+      "timestamp": 1700432000000
+    },
+    {
+      "index": 137,
+      "kind": "resistance",
+      "level": 0.508949,
+      "prominence": 0.496076,
+      "timestamp": 1700493200000
+    },
+    {
+      "index": 152,
+      "kind": "support",
+      "level": 0.0,
+      "prominence": 0.512791,
+      "timestamp": 1700547200000
+    },
+    {
+      "index": 167,
+      "kind": "resistance",
+      "level": 0.688739,
+      "prominence": 0.485437,
+      "timestamp": 1700601200000
+    },
+    {
+      "index": 184,
+      "kind": "support",
+      "level": 0.203303,
+      "prominence": 0.485437,
+      "timestamp": 1700662400000
+    },
+    {
+      "index": 201,
+      "kind": "resistance",
+      "level": 0.698143,
+      "prominence": 0.279338,
+      "timestamp": 1700723600000
+    },
+    {
+      "index": 211,
+      "kind": "support",
+      "level": 0.418805,
+      "prominence": 0.279338,
+      "timestamp": 1700759600000
+    },
+    {
+      "index": 223,
+      "kind": "resistance",
+      "level": 1.0,
+      "prominence": 0.806705,
+      "timestamp": 1700802800000
+    },
+    {
+      "index": 224,
+      "kind": "support",
+      "level": 0.445466,
+      "prominence": 0.250822,
+      "timestamp": 1700806400000
+    },
+    {
+      "index": 233,
+      "kind": "resistance",
+      "level": 0.696288,
+      "prominence": 0.250822,
+      "timestamp": 1700838800000
+    }
+  ],
+  "series": {
+    "indexBasis": "epochMs",
+    "length": 256,
+    "seriesId": "mission4-pattern-proof-256"
+  }
+}

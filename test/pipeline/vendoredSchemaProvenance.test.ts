@@ -22,7 +22,10 @@ function sha256(relPath: string): string {
 
 describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   it("pins the authorizing afi-config commit", () => {
-    expect(manifest.afiConfigCommit).toBe("faa6a8a3d387a573c24f0421c02d806044a22d9e");
+    // Mission 4 re-pin: afi-config PR #29 (three enrichment category-result
+    // contracts) merged as a1a1279; the vendored closure is byte-identical at
+    // that commit and now includes enrichment-pattern.schema.json.
+    expect(manifest.afiConfigCommit).toBe("a1a1279d403620062f2f246e0fa6533830f6c8e1");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {
@@ -50,6 +53,8 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
       "provider-instance.schema.json",
       "enrichment-technical.schema.json",
       "enrichment-news.schema.json",
+      // Mission 4: the live 'pattern' lane's category-result contract.
+      "enrichment-pattern.schema.json",
     ].forEach((f) => expect(covered).toContain(`src/pipeline/governed-schema/${f}`));
   });
 
@@ -79,6 +84,8 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
         "https://afi-protocol.org/schemas/enrichment/technical/v1/enrichment-technical.schema.json",
       "enrichment-news.schema.json":
         "https://afi-protocol.org/schemas/enrichment/news/v1/enrichment-news.schema.json",
+      "enrichment-pattern.schema.json":
+        "https://afi-protocol.org/schemas/enrichment/pattern/v1/enrichment-pattern.schema.json",
     };
     for (const [file, id] of Object.entries(ids)) {
       const doc = JSON.parse(

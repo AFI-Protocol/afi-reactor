@@ -1,7 +1,7 @@
 {
-  "$comment": "Provenance of the vendored governed FACTORY-CONTRACT closure consumed by src/pipeline/ (canonical hashing + registry/composition schemas + the governed hashing KAT vectors). Each vendored file is a byte-identical copy of afi-config@afiConfigCommit at afiConfigPath (the afi-infra governed-schema vendoring discipline). Enforced by test/pipeline/vendoredSchemaProvenance.test.ts. Do not hand-edit; regenerate only from an owner-approved afi-config commit.",
+  "$comment": "Provenance of the vendored governed FACTORY-CONTRACT closure consumed by src/pipeline/ (canonical hashing + registry/composition schemas + the governed hashing KAT vectors + the enrichment category-result contracts). Each vendored file is a byte-identical copy of afi-config@afiConfigCommit at afiConfigPath (the afi-infra governed-schema vendoring discipline). Enforced by test/pipeline/vendoredSchemaProvenance.test.ts. Do not hand-edit; regenerate only from an owner-approved afi-config commit.",
   "afiConfigRepo": "https://github.com/AFI-Protocol/afi-config",
-  "afiConfigCommit": "faa6a8a3d387a573c24f0421c02d806044a22d9e",
+  "afiConfigCommit": "a1a1279d403620062f2f246e0fa6533830f6c8e1",
   "sources": {
     "src/pipeline/governed-schema/pipeline.schema.json": {
       "afiConfigPath": "schemas/pipeline/v1/pipeline.schema.json",
@@ -26,6 +26,10 @@
     "src/pipeline/governed-schema/enrichment-news.schema.json": {
       "afiConfigPath": "schemas/enrichment/news/v1/enrichment-news.schema.json",
       "sha256": "75b4bdb7c55718fbacee4df05ecd80c111ed969f161b6f68bbf3a84dfe71de78"
+    },
+    "src/pipeline/governed-schema/enrichment-pattern.schema.json": {
+      "afiConfigPath": "schemas/enrichment/pattern/v1/enrichment-pattern.schema.json",
+      "sha256": "5983d563a9569ff63dec75c40a99f149fdb3abbf4a649a9a84bbb2168df2ec95"
     },
     "src/pipeline/governed-schema/analysis-plugin.schema.json": {
       "afiConfigPath": "schemas/analysis-plugin/v1/analysis-plugin.schema.json",
