@@ -32,6 +32,8 @@ import {
 
 export interface ProviderInvokeContext {
   signal: CanonicalUss;
+  /** Executor node input (parent outputs / port selection), passed through verbatim. */
+  input?: unknown;
   /** Non-secret node config, merged under the instance's invocation settings. */
   config?: Record<string, unknown>;
   logger: NodeLogger;
@@ -178,6 +180,7 @@ export class ProviderRuntime {
     const config = { ...(instance.invocation ?? {}), ...(ctx.config ?? {}) };
     const result = await adapter.run({
       signal: ctx.signal,
+      input: ctx.input,
       config,
       logger: scrubbingLogger(ctx.logger, secretsToScrub),
       abort: ctx.abort,

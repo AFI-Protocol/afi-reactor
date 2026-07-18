@@ -1,0 +1,12 @@
+{
+  "schema": "afi.provider.v1",
+  "providerId": "afi-provider-sentiment-cftc-cot",
+  "recordVersion": "1.0.0",
+  "displayName": "CFTC Commitments of Traders (public-domain Socrata API, keyless)",
+  "supportedCategories": ["sentiment"],
+  "executionClass": "remote",
+  "deterministic": false,
+  "adapterId": "afi-adapter-sentiment-cftc-cot",
+  "requiresCredential": false,
+  "status": "active"
+}

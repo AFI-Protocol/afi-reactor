@@ -9,7 +9,6 @@
         "tssd-vault-persist"
       ],
       "exit": "tssd-vault-persist",
-      "dagRef": "dag.codex.json",
       "status": "active"
     },
     {
@@ -22,28 +21,7 @@
         "full-cognition-loop"
       ],
       "exit": "full-cognition-loop",
-      "dagRef": "dag.codex.json",
       "status": "active"
-    },
-    {
-      "name": "froggy-trend-pullback-v1",
-      "entry": "uss-telemetry-deriver",
-      "flow": [
-        "froggy-enrichment-tech-pattern",
-        "froggy-enrichment-sentiment-news",
-        "froggy-enrichment-adapter",
-        "froggy-analyst",
-        "tssd-vault-write"
-      ],
-      "exit": "tssd-vault-write",
-      "dagRef": "dag.codex.json",
-      "description": "Canonical scored-only Froggy pipeline (USS v1.1 ingest -> telemetry derive -> parallel tech/pattern + sentiment/news enrichment -> enrichment adapter -> Froggy analyst UWR score -> reactor vault write). Runtime source of truth: src/config/froggyPipeline.ts. Validator certification and execution are NOT reactor responsibilities. Listed for codex replay reference only.",
-      "status": "reference_only",
-      "tags": [
-        "froggy",
-        "canonical",
-        "scored-only"
-      ]
     }
   ],
   "tools": [

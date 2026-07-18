@@ -14,8 +14,10 @@ import {
 
 /**
  * afi-aiml-atlas-probe@1.0.0 — deterministic aiMl-category probe. Emits a
- * category-marked envelope recording what it consumed (proves the conditional
- * edge fired and the join delivered it under its own namespace).
+ * GOVERNED-shape aiMl result (afi.enrichment.aiml.v1: forecast + regime) so
+ * the five-category merge maps it like any lane contribution; the regime
+ * label records what it consumed (proves the conditional edge fired and the
+ * join delivered it under its own namespace).
  */
 export const aimlAtlasProbeNode: AnalysisNodePlugin = {
   manifestRef: { pluginId: "afi-aiml-atlas-probe", pluginVersion: "1.0.0" },
@@ -24,7 +26,11 @@ export const aimlAtlasProbeNode: AnalysisNodePlugin = {
       input !== null && typeof input === "object"
         ? ((input as { category?: unknown }).category ?? null)
         : null;
-    return ok({ category: "aiMl", probe: true, upstreamCategory });
+    return ok({
+      category: "aiMl",
+      forecast: { direction: "neutral", conviction: 0.5 },
+      regime: { label: `probe-upstream-${String(upstreamCategory ?? "none")}` },
+    });
   },
 };
 

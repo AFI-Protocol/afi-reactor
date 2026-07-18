@@ -172,7 +172,7 @@ async function main() {
     );
     assert.equal(
       tvReplay.composition.manifestHash.value,
-      "b8d9b73410ce8ec0d1827d75ee2a2e750aa85553fb2fc985a7a52fdb75080d49",
+      "87bcb7ed752820994a5b4bdb72bd55d51c39a2c58daa36fe8d0df4778778ae57",
       "replay composition pins the OFFICIAL froggy manifestHash"
     );
     ok("tradingview: read-back by signalId + identifier continuity + replay bundle (with composition)");

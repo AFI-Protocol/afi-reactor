@@ -1,7 +1,7 @@
 {
   "$comment": "Provenance of the vendored governed FACTORY-CONTRACT closure consumed by src/pipeline/ (canonical hashing + registry/composition schemas + the governed hashing KAT vectors + the enrichment category-result contracts). Each vendored file is a byte-identical copy of afi-config@afiConfigCommit at afiConfigPath (the afi-infra governed-schema vendoring discipline). Enforced by test/pipeline/vendoredSchemaProvenance.test.ts. Do not hand-edit; regenerate only from an owner-approved afi-config commit.",
   "afiConfigRepo": "https://github.com/AFI-Protocol/afi-config",
-  "afiConfigCommit": "a1a1279d403620062f2f246e0fa6533830f6c8e1",
+  "afiConfigCommit": "pendingAfiConfigMerge",
   "sources": {
     "src/pipeline/governed-schema/pipeline.schema.json": {
       "afiConfigPath": "schemas/pipeline/v1/pipeline.schema.json",
@@ -29,7 +29,7 @@
     },
     "src/pipeline/governed-schema/enrichment-pattern.schema.json": {
       "afiConfigPath": "schemas/enrichment/pattern/v1/enrichment-pattern.schema.json",
-      "sha256": "5983d563a9569ff63dec75c40a99f149fdb3abbf4a649a9a84bbb2168df2ec95"
+      "sha256": "700375870183e3a324f75018e1f74e9818a30349ea3253ddfaeb099b5b0f40e8"
     },
     "src/pipeline/governed-schema/analysis-plugin.schema.json": {
       "afiConfigPath": "schemas/analysis-plugin/v1/analysis-plugin.schema.json",
@@ -66,6 +66,14 @@
     "src/pipeline/governed-schema/canonical-json-hashing.kat.json": {
       "afiConfigPath": "kats/hashing/v1/canonical-json-hashing.kat.json",
       "sha256": "f217ae5d1353c5c6de0ae513cf8b61277e81154f66e4521289b6a77cbaccef1c"
+    },
+    "src/pipeline/governed-schema/enrichment-sentiment.schema.json": {
+      "afiConfigPath": "schemas/enrichment/sentiment/v1/enrichment-sentiment.schema.json",
+      "sha256": "0b1635b4f05c825e437c1dbde1b737e49bc92c5b0e43c97b7a1d1c9d9926e173"
+    },
+    "src/pipeline/governed-schema/enrichment-aiml.schema.json": {
+      "afiConfigPath": "schemas/enrichment/aiml/v1/enrichment-aiml.schema.json",
+      "sha256": "fdb8f2719bf51087e47c0d52ebfde81dd6ce668ccf56e81f8a40cea948b3b946"
     }
   }
 }

@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/enrichment/aiml/v1/enrichment-aiml.schema.json",
+  "title": "AFI Enrichment Category Result — aiMl v1 (afi.enrichment.aiml.v1)",
+  "description": "The canonical output contract for the 'aiMl' open analysis lane: the ONE resolved result an aiMl provider/plugin (e.g. Tiny Brains) contributes to the scorer-facing join (afi.enrichment.aiml.v1). A provider-produced aiMl result MUST pass this validation at the provider-adapter edge BEFORE it reaches scoring (PBF-GOV D-PBF-8); a malformed result never reaches the scorer. The category marker MUST be 'aiMl'. An aiMl provider may internally run several models (an ensemble), but it contributes exactly ONE resolved, model-neutral result at the pipeline boundary (D-PBF-2) — the scorer never sees multiple internal models. The result carries a bounded forecast (direction + normalized conviction) and, when justified, a bounded regime classification and a risk flag. This mission ships the CONTRACT ONLY: no aiMl runtime adapter is implemented here. The result carries no chain-of-thought, no model prose, no raw LLM response, no raw tensor, no hosted-provider authority/identity, no model-provider request id, no credential material, and no scoring/UWR/rank/reward.",
+  "$comment": "BOUNDARY: category-result payload contract — validates a runtime category output, not a stored artifact; the discriminator is the 'category' marker. Referenced by the analysis-plugin outputSchemaRef 'afi.enrichment.aiml.v1' (the schema path/ref is lowercase 'aiml'; the runtime category marker is camelCase 'aiMl', matching AnalysisCategory). additionalProperties:false at every object level, plus label fields constrained by pattern (no whitespace), leave no room for prose, a raw tensor, a params bag, a provider id, or a credential-like field. Output semantics are model-neutral: a single resolved forecast, never a per-model breakdown.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Provider Adapter & BYOK Foundations v0.1 (PBF-GOV)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/provider-byok-foundations-v0.1 (PBF-GOV) D-PBF-2/D-PBF-8 — one resolved result per category; provider output passes canonical category validation before scoring",
+    "afi-governance/decisions/factory-configurable-pipelines-v1 (FCP-GOV) D-FCP-1/D-FCP-5 — the 'aiMl' open analysis lane; conforming providers/plugins are administrative registry updates, not per-participant governance"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "forecast"],
+  "properties": {
+    "category": {
+      "type": "string",
+      "const": "aiMl",
+      "description": "Category marker. MUST be 'aiMl' — the deterministic one-per-category join classifies contributions by this marker."
+    },
+    "forecast": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direction", "conviction"],
+      "description": "The single resolved, model-neutral forecast the aiMl lane contributes.",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": ["long", "short", "neutral"],
+          "description": "Suggested directional bias. Model-neutral classification, not a scoring judgment."
+        },
+        "conviction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Normalized confidence in the direction in [0,1]. Not a reward, rank, or UWR weight."
+        },
+        "horizon": {
+          "type": "string",
+          "enum": ["intraday", "daily", "weekly", "swing"],
+          "description": "OPTIONAL cadence/horizon the forecast applies to."
+        }
+      }
+    },
+    "regime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label"],
+      "description": "OPTIONAL bounded regime classification (justified by current Tiny Brains regime output).",
+      "properties": {
+        "label": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]{1,64}$",
+          "description": "Model-neutral regime label token (no whitespace, max 64 chars) — e.g. 'calm_bull'. The pattern rejects prose/chain-of-thought."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "OPTIONAL confidence in the regime label in [0,1]."
+        }
+      }
+    },
+    "riskFlag": {
+      "type": "boolean",
+      "description": "OPTIONAL model-neutral risk flag (e.g. elevated-risk conditions detected)."
+    }
+  }
+}

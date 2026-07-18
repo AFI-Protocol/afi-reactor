@@ -10,7 +10,7 @@
  */
 import type { NewsProvider, NewsShockSummary } from "../../news/newsProvider.js";
 import { DEFAULT_NEWS_SUMMARY } from "../../news/newsProvider.js";
-import { NewsDataProvider } from "../../news/newsdataNewsProvider.js";
+import { NewsDataProvider } from "../clients/newsdataNewsProvider.js";
 import { computeNewsFeatures } from "../../news/newsFeatures.js";
 import { CredentialUnavailableError } from "../errors.js";
 import type { CategoryResult, ProviderAdapter, ProviderAdapterContext } from "../types.js";
@@ -47,8 +47,23 @@ export function createHttpNewsAdapter(deps: HttpNewsAdapterDeps = PRODUCTION_DEP
       // instance's invocation settings); undefined falls back to the provider default.
       const timeoutRaw = ctx.config["timeoutMs"];
       const timeoutMs = typeof timeoutRaw === "number" ? timeoutRaw : undefined;
-      const symbol =
-        typeof ctx.signal.facts?.symbol === "string" ? ctx.signal.facts.symbol : "BTCUSDT";
+      const rawSymbol = ctx.signal.facts?.symbol;
+      if (typeof rawSymbol !== "string" || rawSymbol.trim() === "") {
+        // No usable symbol → the honest empty summary. NEVER a fabricated
+        // default market (FLPR-GOV D-FLPR-4 — no fixed-symbol fallbacks).
+        ctx.logger.warn("news adapter: signal carries no usable symbol; emitting empty summary");
+        return {
+          category: "news",
+          news: {
+            hasShockEvent: DEFAULT_NEWS_SUMMARY.hasShockEvent,
+            shockDirection: DEFAULT_NEWS_SUMMARY.shockDirection,
+            headlines: DEFAULT_NEWS_SUMMARY.headlines,
+            items: [],
+          },
+          newsFeatures: {},
+        };
+      }
+      const symbol = rawSymbol;
 
       const provider = deps.createProvider({ apiKey: ctx.credential.headerValue, fetchImpl: deps.fetchImpl, timeoutMs });
 

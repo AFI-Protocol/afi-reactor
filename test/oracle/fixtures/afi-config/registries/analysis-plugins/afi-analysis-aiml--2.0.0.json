@@ -1,0 +1,26 @@
+{
+  "schema": "afi.analysis-plugin.v1",
+  "pluginId": "afi-analysis-aiml",
+  "pluginVersion": "2.0.0",
+  "implementationVersion": "2.0.0",
+  "category": "aiMl",
+  "description": "Official aiMl lane plugin manifest (vendor-neutral, provider-instance-backed): a PRE-MERGE analysis lane whose joined input is the sibling lane outputs (technical/pattern/sentiment/news namespaces); the node reads its explicit providerInstanceRef, and the runtime provider layer resolves the instance and invokes the trusted registered aiMl adapter (first-party self-hosted service). Emits exactly one governed aiMl result; never read by the scorer. External service call — NOT deterministic.",
+  "inputSchemaRef": "afi.enrichment.bundle.v1",
+  "outputSchemaRef": "afi.enrichment.aiml.v1",
+  "deterministic": false,
+  "capabilities": ["provider:instance-backed"],
+  "defaultTimeoutMs": 15000,
+  "defaultRetryPolicy": {
+    "maxRetries": 1,
+    "retryDelayMs": 250,
+    "backoff": "exponential"
+  },
+  "permittedFailurePolicies": ["abort", "degrade"],
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "multiInstance": true,
+  "mayFeedScorer": true
+}

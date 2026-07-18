@@ -7,7 +7,7 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.analyst-config",
-    "value": "269ae355a0d8bfaf53d849c38fba16e167f0571b6319ddc8d94841ff7c275261"
+    "value": "2274978afdffb798440ce08268dd4c0f06af2df94433d25d6f907335c9a3bc03"
   },
   "configRef": "afi-config/registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.config.json",
   "providerBindingPolicy": {
@@ -22,6 +22,6 @@
     ]
   },
   "status": "active",
-  "registeredAt": "2026-07-16",
-  "registrationRef": "AFI-Protocol/afi-config PR (branch mission/afi-factory-configurable-pipelines-v1, W3a administrative registry seeding) per afi-governance/decisions/factory-configurable-pipelines-v1 D-FCP-5 \u2014 TEST OVERLAY (test/oracle/fixtures): admits the oracle-fixture webhook bindings; the official registry entry is unchanged"
+  "registeredAt": "2026-07-18",
+  "registrationRef": "AFI-Protocol/afi-config PR (branch mission/five-lane-provider-runtime-v0.1, five-lane provider runtime activation) per afi-governance/decisions/five-lane-provider-runtime-v0.1 (FLPR-GOV) D-FLPR-1/D-FLPR-4 and factory-configurable-pipelines-v1 D-FCP-5 — TEST OVERLAY (test/oracle/fixtures): admits the oracle-fixture webhook bindings; the official registry entry is unchanged"
 }

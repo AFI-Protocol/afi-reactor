@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/enrichment/sentiment/v1/enrichment-sentiment.schema.json",
+  "title": "AFI Enrichment Category Result — sentiment v1 (afi.enrichment.sentiment.v1)",
+  "description": "The canonical output contract for the 'sentiment' open analysis lane: the ONE resolved result a sentiment provider/plugin contributes to the scorer-facing join (afi.enrichment.sentiment.v1). A provider-produced sentiment result MUST pass this validation at the provider-adapter edge BEFORE it reaches scoring (PBF-GOV D-PBF-8); a malformed result never reaches the scorer. The category marker MUST be 'sentiment'. Sentiment is modelled as a bounded set of explicit, typed, normalized AXES — not a single vague free-form score and not a provider-specific payload — so a future positioning-derived adapter (e.g. CFTC COT, funding rate, open interest, long/short ratio, implied volatility) or a locally classified narrative adapter can each contribute the same normalized shape at whatever cadence it measures. This mission ships the CONTRACT ONLY: no sentiment adapter is implemented here. The result carries no raw provider payload, no provider identity, no credential material, no scoring/UWR/rank/reward, and no Evidence provenance stamp.",
+  "$comment": "BOUNDARY: category-result payload contract — validates a runtime category output, not a stored artifact; the discriminator is the 'category' marker. Referenced by the analysis-plugin outputSchemaRef 'afi.enrichment.sentiment.v1'. additionalProperties:false at every object level leaves no room for a raw provider payload, a credential-like field, a params bag, or a provider-specific id. Each axis is an explicit enum + normalized numeric — sentiment is NOT assumed to be textual, real-time, or measured on a single cadence.",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Provider Adapter & BYOK Foundations v0.1 (PBF-GOV)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/provider-byok-foundations-v0.1 (PBF-GOV) D-PBF-2/D-PBF-8 — one resolved result per category; provider output passes canonical category validation before scoring",
+    "afi-governance/decisions/factory-configurable-pipelines-v1 (FCP-GOV) D-FCP-1/D-FCP-5 — the 'sentiment' open analysis lane; conforming providers/plugins are administrative registry updates, not per-participant governance"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "axes"],
+  "properties": {
+    "category": {
+      "type": "string",
+      "const": "sentiment",
+      "description": "Category marker. MUST be 'sentiment' — the deterministic one-per-category join classifies contributions by this marker."
+    },
+    "axes": {
+      "type": "array",
+      "maxItems": 32,
+      "description": "Bounded set of explicit, typed, normalized sentiment axes. A provider contributes only the axes it measures; empty when none are available. Never a single free-form score.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["axis", "score"],
+        "properties": {
+          "axis": {
+            "type": "string",
+            "enum": ["positioning", "funding", "openInterest", "longShort", "impliedVolatility", "narrative"],
+            "description": "The sentiment dimension this observation measures. Provider-neutral: positioning (e.g. COT), funding, open interest, long/short ratio, implied volatility, or locally classified narrative."
+          },
+          "score": {
+            "type": "number",
+            "minimum": -1,
+            "maximum": 1,
+            "description": "Normalized directional sentiment in [-1,1] (-1 = maximally bearish, 0 = neutral, +1 = maximally bullish). Market-neutral."
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "OPTIONAL confidence in this axis in [0,1]."
+          },
+          "horizon": {
+            "type": "string",
+            "enum": ["intraday", "daily", "weekly", "swing"],
+            "description": "OPTIONAL cadence/horizon this axis was measured over. Sentiment is not assumed to be single-cadence."
+          }
+        }
+      }
+    }
+  }
+}

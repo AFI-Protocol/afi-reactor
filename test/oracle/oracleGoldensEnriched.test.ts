@@ -1,20 +1,20 @@
 /**
  * ORACLE-EQUIVALENCE — golden captures, ENRICHED (recorded-provider) variant.
  *
- * Same endpoints, same shared DAG path, same capture matrix (fixture ×
+ * Same endpoints, same shared graph path, same capture matrix (fixture ×
  * {builtin, registry} UWR mode) as oracleGoldensFailSoft.test.ts, but with the
- * external enrichment providers replaced by RECORDED fixed responses at their
- * module seams (repo idiom — see test/enrichment/*.test.ts):
+ * REMOTE reference-lane adapters replaced by RECORDED fixed transports at
+ * their singleton seams (the five-lane provider runtime, FLPR-GOV):
  *
- *   - coinalyzeClient.fetchCoinalyzePerpMetrics → fixed perp metrics (the
- *     sentiment lego's real math runs on them);
- *   - newsdataNewsProvider.createNewsDataProvider → provider returning a fixed
- *     NewsShockSummary (NEWS_PROVIDER=newsdata enables the path);
- *   - tinyBrainsClient.fetchAiMlForFroggy → fixed FroggyAiMlV1 prediction;
- *   - regimeCandleProvider.fetchRegimeCandles + fearGreedClient
- *     .fetchFearGreedHistory → fixed series (regime math runs for real).
+ *   - sentimentCftcCotAdapter → recorded CFTC COT report row (the adapter's
+ *     real derivation math runs on it);
+ *   - newsSecEdgarAdapter → recorded EDGAR full-text hits + a fixed clock
+ *     (the adapter's real normalization runs on them);
+ *   - aimlTinyBrainsAdapter → recorded Tiny Brains prediction;
+ *   - technical (demo feed via the guarded seam) and the first-party
+ *     candlestick pattern lane run their REAL local kernels unmocked.
  *
- * This locks the ENRICHED scoring path (sentiment/news/aiMl/regime present)
+ * This locks the ENRICHED scoring path (all five categories present)
  * byte-exactly, complementing the fail-soft suite that locks the defaults.
  * Goldens are regenerated ONLY via `npm run oracle:regen`.
  */
@@ -30,79 +30,82 @@ jest.mock("ccxt", () => {
   };
 });
 
-// RECORDED provider responses — fixed, committed-in-code stubs at the exact
-// adapter-module seams the live plugins call.
-jest.mock("../../src/adapters/coinalyze/coinalyzeClient.js", () => ({
-  fetchCoinalyzePerpMetrics: jest.fn(async () => ({
-    fundingRate: 0.0001,
-    fundingHistory: [0.00008, 0.00009, 0.0001],
-    oiUsd: 1_500_000_000,
-    oiHistoryUsd: [1_400_000_000, 1_450_000_000, 1_500_000_000],
-    longShortRatio: 1.2,
-  })),
-}));
-
-jest.mock("../../src/news/newsdataNewsProvider.js", () => ({
-  createNewsDataProvider: jest.fn(() => ({
-    fetchRecentNews: async () => ({
-      hasShockEvent: true,
-      shockDirection: "bullish" as const,
-      headlines: ["Oracle recorded headline A", "Oracle recorded headline B"],
-      items: [
-        {
-          title: "Oracle recorded headline A",
-          source: "oracle-wire",
-          url: "https://example.invalid/a",
-          publishedAt: new Date("2026-01-15T09:30:00Z"),
-        },
-        {
-          title: "Oracle recorded headline B",
-          source: "oracle-wire",
-          url: "https://example.invalid/b",
-          publishedAt: new Date("2026-01-15T08:45:00Z"),
-        },
-      ],
-    }),
-  })),
-}));
-
-jest.mock("../../src/aiMl/tinyBrainsClient.js", () => ({
-  fetchAiMlForFroggy: jest.fn(async () => ({
-    convictionScore: 0.85,
-    direction: "long" as const,
-    regime: "bull",
-    riskFlag: false,
-    notes: "oracle recorded prediction (fixed)",
-  })),
-}));
-
-jest.mock("../../src/indicator/regimeCandleProvider.js", () => {
-  // 60 deterministic daily candles — a pure function of the index, no clock.
-  const candles = Array.from({ length: 60 }, (_, i) => {
-    const base = 40000 + 100 * i + 500 * Math.sin(i / 5);
-    return {
-      timestampMs: Date.UTC(2025, 10, 1) + i * 86_400_000,
-      open: base,
-      high: base * 1.01,
-      low: base * 0.99,
-      close: base * 1.002,
-    };
-  });
-  return { fetchRegimeCandles: jest.fn(async () => candles) };
-});
-
-jest.mock("../../src/adapters/external/fearGreedClient.js", () => {
+// RECORDED transports — fixed, committed-in-code stubs injected at the exact
+// adapter singleton seams the provider runtime registers.
+jest.mock("../../src/providers/adapters/sentimentCftcCotAdapter.js", () => {
   const actual = jest.requireActual(
-    "../../src/adapters/external/fearGreedClient.js"
-  ) as Record<string, unknown>;
-  const points = Array.from({ length: 90 }, (_, i) => ({
-    timestampSec: Math.floor(Date.UTC(2025, 9, 15) / 1000) + i * 86_400,
-    value: 55 + Math.round(10 * Math.sin(i / 7)),
-    classification: "Greed",
-  }));
+    "../../src/providers/adapters/sentimentCftcCotAdapter.js"
+  ) as typeof import("../../src/providers/adapters/sentimentCftcCotAdapter.js");
+  const row = {
+    market_and_exchange_names: "BITCOIN - CHICAGO MERCANTILE EXCHANGE",
+    report_date_as_yyyy_mm_dd: "2026-01-13T00:00:00.000",
+    lev_money_positions_long: "60000",
+    lev_money_positions_short: "40000",
+    open_interest_all: "100000",
+    change_in_open_interest_all: "5000",
+  };
+  const fetchImpl = (async () =>
+    ({ ok: true, status: 200, statusText: "OK", json: async () => [row] }) as Response) as typeof fetch;
   return {
     ...actual,
-    fetchFearGreedHistory: jest.fn(async () => points),
+    sentimentCftcCotAdapter: actual.createSentimentCftcCotAdapter({ fetchImpl }),
+  };
+});
+
+jest.mock("../../src/providers/adapters/newsSecEdgarAdapter.js", () => {
+  const actual = jest.requireActual(
+    "../../src/providers/adapters/newsSecEdgarAdapter.js"
+  ) as typeof import("../../src/providers/adapters/newsSecEdgarAdapter.js");
+  const body = {
+    hits: {
+      hits: [
+        {
+          _source: {
+            adsh: "0001234567-26-000123",
+            ciks: ["0001234567"],
+            display_names: ["Oracle Recorded Filer A (ORFA)"],
+            root_forms: ["8-K"],
+            file_date: "2026-01-15",
+          },
+        },
+        {
+          _source: {
+            adsh: "0001234567-26-000122",
+            ciks: ["0001234567"],
+            display_names: ["Oracle Recorded Filer A (ORFA)"],
+            root_forms: ["10-Q"],
+            file_date: "2026-01-14",
+          },
+        },
+      ],
+    },
+  };
+  const fetchImpl = (async () =>
+    ({ ok: true, status: 200, statusText: "OK", json: async () => body }) as Response) as typeof fetch;
+  return {
+    ...actual,
+    newsSecEdgarAdapter: actual.createNewsSecEdgarAdapter({
+      fetchImpl,
+      now: () => new Date("2026-01-15T12:00:00.000Z"),
+    }),
+  };
+});
+
+jest.mock("../../src/providers/adapters/aimlTinyBrainsAdapter.js", () => {
+  const actual = jest.requireActual(
+    "../../src/providers/adapters/aimlTinyBrainsAdapter.js"
+  ) as typeof import("../../src/providers/adapters/aimlTinyBrainsAdapter.js");
+  return {
+    ...actual,
+    aimlTinyBrainsAdapter: actual.createAimlTinyBrainsAdapter({
+      callService: (async () => ({
+        convictionScore: 0.85,
+        direction: "long" as const,
+        regime: "bull",
+        riskFlag: false,
+        notes: "oracle recorded prediction (fixed; dropped at the adapter edge)",
+      })) as never,
+    }),
   };
 });
 
@@ -134,11 +137,8 @@ const analystSpy = jest.spyOn(scorerFroggyTrendPullbackNode, "run");
 
 beforeAll(() => {
   restoreEnv = installOracleEnv();
-  restoreNet = disableNetwork(); // belt & suspenders — every provider is stubbed
+  restoreNet = disableNetwork(); // belt & suspenders — every remote lane is stubbed
   shutdownDedupeCache();
-  // Enable the news path so the mocked provider factory is consulted; the
-  // sentiment lego needs no key (the coinalyze CLIENT is the recorded seam).
-  process.env.NEWS_PROVIDER = "newsdata";
 });
 
 afterAll(() => {
@@ -189,9 +189,14 @@ describe.each(UWR_MODES)(
         news?: unknown;
         aiMl?: unknown;
       };
-      // The recorded providers must actually be ON this path (this is the
-      // point of the variant): sentiment, news, and aiMl are all present.
-      expect(enrichedView.sentiment).toBeDefined();
+      // The recorded lanes must actually be ON this path (the point of the
+      // variant): news and aiMl are always present; the keyless CFTC COT
+      // sentiment reference lane maps only LISTED COT markets (BTC/ETH), so
+      // the SOL fixtures honestly carry no sentiment axes — never a
+      // fabricated default market (FLPR-GOV D-FLPR-4).
+      const hasListedCotMarket = !name.includes("neutral");
+      if (hasListedCotMarket) expect(enrichedView.sentiment).toBeDefined();
+      else expect(enrichedView.sentiment).toBeUndefined();
       expect(enrichedView.news).toBeDefined();
       expect(enrichedView.aiMl).toBeDefined();
 

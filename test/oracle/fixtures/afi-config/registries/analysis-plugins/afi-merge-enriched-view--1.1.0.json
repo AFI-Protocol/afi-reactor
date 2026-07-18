@@ -1,0 +1,20 @@
+{
+  "schema": "afi.analysis-plugin.v1",
+  "pluginId": "afi-merge-enriched-view",
+  "pluginVersion": "1.1.0",
+  "implementationVersion": "1.1.0",
+  "category": "merge",
+  "description": "Official deterministic merge plugin manifest: joins the five analysis category results (technical, pattern, sentiment, news, aiMl) into one enriched view under the namespace-by-node strategy — exactly one result per category, duplicate categories rejected, degraded/skipped optional parents contribute empty namespaces. Pure structural merge — deterministic, no external I/O, no provider invocation.",
+  "inputSchemaRef": "afi.enrichment.bundle.v1",
+  "outputSchemaRef": "afi.enrichment.enriched-view.v1",
+  "deterministic": true,
+  "defaultTimeoutMs": 2000,
+  "permittedFailurePolicies": ["abort"],
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "multiInstance": false,
+  "mayFeedScorer": true
+}

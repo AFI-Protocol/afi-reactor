@@ -44,11 +44,12 @@ import {
   __setRuntimeCompositionOverridesForTests,
 } from "../../src/config/runtimeComposition.js";
 import { createPluginRegistry } from "../../src/pipeline/pluginRegistry.js";
-import { technicalNode } from "../../src/pipeline/nodes/technical.js";
-import { patternNode } from "../../src/pipeline/nodes/pattern.js";
-import { sentimentNode } from "../../src/pipeline/nodes/sentiment.js";
-import { newsNode } from "../../src/pipeline/nodes/news.js";
-import { aimlNode } from "../../src/pipeline/nodes/aiml.js";
+import {
+  buildProviderRuntime,
+  createProviderBackedNode,
+  createProviderRecordStore,
+} from "../../src/providers/index.js";
+import { loadProviderRecords } from "../../src/pipeline/registryLoader.js";
 import { mergeEnrichedViewNode } from "../../src/pipeline/nodes/mergeEnrichedView.js";
 import { scorerFroggyTrendPullbackNode } from "../../src/pipeline/nodes/scorerFroggyTrendPullback.js";
 import { shutdownDedupeCache } from "../../src/services/ingestDedupeService.js";
@@ -66,20 +67,18 @@ const TV = "/api/webhooks/tradingview";
 // The atlas fixture pins (computed by the fixture generator, verified against
 // the same canonical-json-hashing.v1 rules the boot loader recomputes with —
 // a divergence refuses boot, so these assertions double as hash-rule pins).
-const ATLAS_MANIFEST_HASH = "8cb66b4e8eff3ec5f6d80ae2b6c549722600b4b4f77b666fa6c074a2547855bc";
-const ATLAS_CONFIG_HASH = "2c515ce272528ec6c2fc20cde2b1a988de1eeb7abbf782a91811c1127a626db3";
+const ATLAS_MANIFEST_HASH = "e5ee64bb7a64c24d4181138367ebacdde788b5e5d0f68d8e6c549736282a1b6e";
+const ATLAS_CONFIG_HASH = "0fec790fba83fa3c3508dfac3c8f64195e0a0cbd58ceb0da6dd3f21b5eee7dcb";
 
 const ENV_KEYS = [
   "AFI_PRICE_FEED_SOURCE",
   "COINALYZE_API_KEY",
-  "NEWS_PROVIDER",
   "NEWSDATA_API_KEY",
   "TINY_BRAINS_URL",
   "WEBHOOK_SHARED_SECRET",
   "AFI_INGEST_DEDUPE",
   "AFI_DEFAULT_PROVIDER_ID",
   "AFI_UWR_PROFILE_SOURCE",
-  "PATTERN_REGIME_PROVIDER",
 ] as const;
 const savedEnv = new Map<string, string | undefined>();
 let restoreNet: () => void;
@@ -97,20 +96,24 @@ beforeAll(() => {
   // it explicitly (production source registers no synthetic feed).
   unregisterDemoFeed = registerPriceFeedAdapterForTests(demoPriceFeedAdapter);
   process.env.AFI_PRICE_FEED_SOURCE = "demo";
-  process.env.PATTERN_REGIME_PROVIDER = "off";
   restoreNet = disableNetwork();
   shutdownDedupeCache();
 
-  // The composition seam: atlas overlay registries + the production plugin
-  // set EXTENDED by the two test probes (test-registry overlay).
+  // The composition seam: atlas overlay registries + the production
+  // provider-backed lane set EXTENDED by the two test probes. The provider
+  // runtime is built from the SAME overlay registries (keyless reference
+  // lanes; network is disabled, so remote lanes degrade honestly).
+  const atlasProviderRuntime = buildProviderRuntime({
+    records: createProviderRecordStore(loadProviderRecords({ configRoot: ATLAS_CONFIG_ROOT })),
+  });
   __setRuntimeCompositionOverridesForTests({
     configRoot: ATLAS_CONFIG_ROOT,
     pluginRegistry: createPluginRegistry([
-      technicalNode,
-      patternNode,
-      sentimentNode,
-      newsNode,
-      aimlNode,
+      createProviderBackedNode({ pluginId: "afi-analysis-technical", pluginVersion: "2.0.0" }, "technical", atlasProviderRuntime),
+      createProviderBackedNode({ pluginId: "afi-analysis-pattern", pluginVersion: "2.0.0" }, "pattern", atlasProviderRuntime),
+      createProviderBackedNode({ pluginId: "afi-analysis-sentiment", pluginVersion: "2.0.0" }, "sentiment", atlasProviderRuntime),
+      createProviderBackedNode({ pluginId: "afi-analysis-news", pluginVersion: "2.0.0" }, "news", atlasProviderRuntime),
+      createProviderBackedNode({ pluginId: "afi-analysis-aiml", pluginVersion: "2.0.0" }, "aiMl", atlasProviderRuntime),
       mergeEnrichedViewNode,
       scorerFroggyTrendPullbackNode,
       aimlAtlasProbeNode,
@@ -216,7 +219,7 @@ describe("second registered strategy (atlas-probe/multi_branch_v1@1.0.0) — pro
     });
     // the composition pins differ from froggy's (a REAL second composition)
     expect(record.composition.manifestHash.value).not.toBe(
-      "b8d9b73410ce8ec0d1827d75ee2a2e750aa85553fb2fc985a7a52fdb75080d49"
+      "87bcb7ed752820994a5b4bdb72bd55d51c39a2c58daa36fe8d0df4778778ae57"
     );
   });
 
@@ -266,7 +269,7 @@ describe("second registered strategy (atlas-probe/multi_branch_v1@1.0.0) — pro
     const record = store.records.get("atlas-proof-froggy-0001");
     expect(record.composition.pipelineId).toBe("froggy-trend-pullback");
     expect(record.composition.manifestHash.value).toBe(
-      "b8d9b73410ce8ec0d1827d75ee2a2e750aa85553fb2fc985a7a52fdb75080d49"
+      "87bcb7ed752820994a5b4bdb72bd55d51c39a2c58daa36fe8d0df4778778ae57"
     );
   });
 

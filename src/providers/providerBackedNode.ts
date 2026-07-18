@@ -25,7 +25,7 @@ export function createProviderBackedNode(
 ): AnalysisNodePlugin {
   return {
     manifestRef,
-    async run(_input: unknown, ctx: NodeRunContext): Promise<NodeResult> {
+    async run(input: unknown, ctx: NodeRunContext): Promise<NodeResult> {
       if (!ctx.providerInstanceRef) {
         // A provider-backed node with no reference is a configuration error
         // (ALWAYS fatal, D-FCP-8) — never a silently degraded score.
@@ -35,6 +35,7 @@ export function createProviderBackedNode(
       }
       const result = await runtime.invoke(ctx.providerInstanceRef, {
         signal: ctx.signal,
+        input,
         config: ctx.config,
         logger: ctx.logger,
         abort: ctx.abort,

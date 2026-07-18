@@ -1,0 +1,15 @@
+{
+  "schema": "afi.provider-instance.v1",
+  "providerInstanceId": "afi-instance-reference-news-sec-edgar",
+  "recordVersion": "1.0.0",
+  "tenant": "reference",
+  "category": "news",
+  "providerId": "afi-provider-news-sec-edgar",
+  "adapterId": "afi-adapter-news-sec-edgar",
+  "adapterVersion": "1.0.0",
+  "invocation": {
+    "windowHours": 24,
+    "timeoutMs": 10000
+  },
+  "status": "active"
+}

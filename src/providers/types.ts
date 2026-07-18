@@ -53,6 +53,13 @@ export interface CategoryResult {
 export interface ProviderAdapterContext {
   /** Canonical USS v1.1 signal (read-only). */
   signal: CanonicalUss;
+  /**
+   * The executor node input for the invoking category node (parent outputs /
+   * port selection), passed through VERBATIM by the provider-backed node.
+   * Graph data only — never vendor configuration and never credential
+   * material. Absent for lanes whose adapters are signal-driven.
+   */
+  input?: unknown;
   /** Non-secret invocation settings (from the provider instance + node config). */
   config: Record<string, unknown>;
   /** Scrubbing operational logger (secrets never reach console). */

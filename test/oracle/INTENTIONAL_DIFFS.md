@@ -70,3 +70,42 @@ unchanged), `lenses`, `_priceFeedMetadata`, `uwrProfile` (same pinned
 profile metadata + RC-6 source), idempotency/conflict semantics, fail-soft
 behavior, and the Mongo record mapping — none of these changed in any
 golden.
+
+---
+
+# FLPR-GOV RECONCILIATION — five-lane provider runtime activation
+
+The five-lane provider runtime activation (FLPR-GOV: five vendor-neutral
+provider-instance-backed category lanes on `froggy-trend-pullback v1.1.0`,
+the aiMl lane joined pre-merge, classic direct-call nodes deleted) was proven
+against the committed goldens with a field-level old-vs-new differential
+before regeneration. **Every scoring-relevant field is BYTE-EQUAL across all
+24 goldens**: `scorerInput`, `analystScore`, `uwrResolvedSource`,
+`decayParams`, `inputHash`, `outputHash`, `canonicalUss`, and the evidence
+record's `scoredSignal` projection, `uwrProfile` stamp, and
+`provenanceRecord`. The goldens were then regenerated ONCE via
+`npm run oracle:regen`; the changed fields are exactly these intentional
+classes:
+
+1. **`evidenceRecord.composition`** (and its `httpResponse.pipelineResult`
+   mirror on CPJ captures): `pipelineVersion` v1.0.0 → v1.1.0 and the five
+   composition hashes (`manifestHash`, `analystConfigHash`, `pluginSetHash`,
+   `executionSummaryHash`, `enrichmentHash`) — the governed D-PBF-10
+   consequence of the manifest carrying `providerInstanceRef`s and the
+   re-recorded analyst-config pin.
+2. **`httpResponse.lenses` / `_priceFeedMetadata.patternSignals`**: the
+   pattern lens is now the governed `afi.enrichment.pattern.v1` payload
+   (series/motifs/discords/changePoints/pivots + the optional D-FLPR-3
+   candlestick block) instead of the retired classic payload; the sentiment
+   lens is now the governed axes shape; the BTC-fixed regime block is gone.
+3. **Enriched SOL captures lose the sentiment lens** (5 → 4 lenses): the
+   keyless CFTC COT reference lane maps only LISTED COT markets (BTC/ETH);
+   an unmapped symbol honestly contributes no sentiment axes — never a
+   fabricated default market (D-FLPR-4).
+4. **Fail-soft lane status vocabulary**: remote lanes that fail now THROW at
+   the adapter edge and settle as `failed-optional` after their declared
+   retry policy (previously the classic nodes swallowed errors internally
+   and settled `degraded`); the degradation is recorded, never silent.
+
+Anything else diffing would have been a defect to fix in code, never
+absorbed into a golden.

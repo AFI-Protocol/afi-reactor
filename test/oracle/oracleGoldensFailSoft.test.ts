@@ -12,10 +12,10 @@
  *
  * Deterministic environment (installOracleEnv + disableNetwork):
  *   - AFI_PRICE_FEED_SOURCE=demo → deterministic synthetic candles;
- *   - external providers OFF (no COINALYZE_API_KEY, NEWS_PROVIDER unset, no
- *     TINY_BRAINS_URL) and global fetch disabled → the REAL fail-soft defaults
- *     are exercised (sentiment absent, DEFAULT_NEWS_SUMMARY, aiMl undefined,
- *     regime "unknown") exactly as with no network.
+ *   - external providers OFF (no keys provisioned, no TINY_BRAINS_URL) and
+ *     global fetch disabled → the REAL lane degradations are exercised
+ *     (sentiment lane degraded, the SEC-EDGAR lane's honest empty summary,
+ *     aiMl lane degraded) exactly as with no network.
  *
  * Per fixture × {builtin, registry} UWR mode the golden pins:
  *   canonical USS, the EXACT scorer input (FroggyTrendPullbackInput derived by

@@ -10,7 +10,7 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.composition-manifest",
-      "value": "8cb66b4e8eff3ec5f6d80ae2b6c549722600b4b4f77b666fa6c074a2547855bc"
+      "value": "e5ee64bb7a64c24d4181138367ebacdde788b5e5d0f68d8e6c549736282a1b6e"
     }
   },
   "scorerRef": {

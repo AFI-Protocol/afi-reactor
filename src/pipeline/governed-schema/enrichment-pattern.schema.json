@@ -2,13 +2,14 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://afi-protocol.org/schemas/enrichment/pattern/v1/enrichment-pattern.schema.json",
   "title": "AFI Enrichment Category Result — pattern v1 (afi.enrichment.pattern.v1)",
-  "description": "The canonical output contract for the 'pattern' open analysis lane: the ONE resolved result a pattern provider/plugin contributes to the scorer-facing join (afi.enrichment.pattern.v1). A provider-produced pattern result MUST pass this validation at the provider-adapter edge BEFORE it reaches scoring (PBF-GOV D-PBF-8); a malformed result never reaches the scorer. The category marker MUST be 'pattern' (the join classifies one result per category by this marker). The result is provider-neutral and market-neutral: it carries normalized, bounded pattern OBSERVATIONS (motifs, anomaly/discord detections, change-point/regime boundaries, support/resistance pivots), each tied to deterministic input positions (and, when the analyzed series declared epoch-millisecond timestamps, an optional domain timestamp). It carries no raw matrix profile, no complete time series, no raw library output, no price/level values (levels are normalized to the analyzed series range), no scoring/UWR/rank/reward, no provider identity, and no credential material.",
+  "description": "The canonical output contract for the 'pattern' open analysis lane: the ONE resolved result a pattern provider/plugin contributes to the scorer-facing join (afi.enrichment.pattern.v1). A provider-produced pattern result MUST pass this validation at the provider-adapter edge BEFORE it reaches scoring (PBF-GOV D-PBF-8); a malformed result never reaches the scorer. The category marker MUST be 'pattern' (the join classifies one result per category by this marker). The result is provider-neutral and market-neutral: it carries normalized, bounded pattern OBSERVATIONS (motifs, anomaly/discord detections, change-point/regime boundaries, support/resistance pivots, and an OPTIONAL bounded candlestick/structure observation block per FLPR-GOV D-FLPR-3), each tied to deterministic input positions (and, when the analyzed series declared epoch-millisecond timestamps, an optional domain timestamp). It carries no raw matrix profile, no complete time series, no raw library output, no price/level values (levels are normalized to the analyzed series range), no scoring/UWR/rank/reward, no provider identity, and no credential material.",
   "$comment": "BOUNDARY: category-result payload contract — this validates a runtime category output, not a stored artifact, so it carries no 'schema' const field; the discriminator is the 'category' marker. It is referenced by the analysis-plugin outputSchemaRef 'afi.enrichment.pattern.v1'. additionalProperties:false at every object level leaves no room for a raw provider payload, a credential-like field, a params bag, or an Evidence provenance stamp to ride in the result. Observations are explicit typed enums/fields — never an arbitrary object.",
   "x-afiStatus": "governed-contract",
   "x-afiPartOf": "AFI Provider Adapter & BYOK Foundations v0.1 (PBF-GOV)",
   "x-afiDoctrineRefs": [
     "afi-governance/decisions/provider-byok-foundations-v0.1 (PBF-GOV) D-PBF-2/D-PBF-8 — one resolved result per category; provider output passes canonical category validation before scoring",
-    "afi-governance/decisions/factory-configurable-pipelines-v1 (FCP-GOV) D-FCP-1/D-FCP-5 — the 'pattern' open analysis lane; conforming providers/plugins are administrative registry updates, not per-participant governance"
+    "afi-governance/decisions/factory-configurable-pipelines-v1 (FCP-GOV) D-FCP-1/D-FCP-5 — the 'pattern' open analysis lane; conforming providers/plugins are administrative registry updates, not per-participant governance",
+    "afi-governance/decisions/five-lane-provider-runtime-v0.1 (FLPR-GOV) D-FLPR-3 — the bounded additive optional 'candlestick' observation block (name enum + integer confidence + structure flags), authorized so the score-bearing pattern observation can ride the governed contract"
   ],
   "type": "object",
   "additionalProperties": false,
@@ -186,6 +187,45 @@
             "minimum": 0,
             "description": "OPTIONAL epoch-millisecond domain timestamp of the pivot; present only when series.indexBasis is 'epochMs'."
           }
+        }
+      }
+    },
+    "candlestick": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["patternName", "patternConfidence"],
+      "description": "OPTIONAL bounded candlestick/structure observation (FLPR-GOV D-FLPR-3): the single strongest detected named candlestick pattern plus optional structure context. Vendor-neutral observation vocabulary only — a categorical name from a closed enum and an integer confidence grade; never a scoring instruction, price, or raw series value. Absent when no named pattern is detected.",
+      "properties": {
+        "patternName": {
+          "type": "string",
+          "enum": ["bullish engulfing", "bearish engulfing", "pin bar", "inside bar"],
+          "description": "The detected named candlestick pattern (closed vendor-neutral vocabulary)."
+        },
+        "patternConfidence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Integer confidence grade of the detection in [0,100]. A categorical observation grade — deliberately NOT normalized to [0,1] like the kernel observation scores."
+        },
+        "flags": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "OPTIONAL per-pattern detection booleans for the four named patterns.",
+          "properties": {
+            "bullishEngulfing": { "type": "boolean" },
+            "bearishEngulfing": { "type": "boolean" },
+            "pinBar": { "type": "boolean" },
+            "insideBar": { "type": "boolean" }
+          }
+        },
+        "structureBias": {
+          "type": "string",
+          "enum": ["higher-highs", "lower-lows", "choppy"],
+          "description": "OPTIONAL detected market-structure bias over the analyzed window."
+        },
+        "trendPullbackConfirmed": {
+          "type": "boolean",
+          "description": "OPTIONAL deterministic pullback-confirmation observation over the analyzed window."
         }
       }
     }

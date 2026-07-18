@@ -1,0 +1,13 @@
+{
+  "schema": "afi.provider.v1",
+  "providerId": "afi-provider-sentiment-coinalyze",
+  "recordVersion": "1.0.0",
+  "displayName": "Coinalyze perp positioning (BYOK, header-authenticated)",
+  "supportedCategories": ["sentiment"],
+  "executionClass": "remote",
+  "deterministic": false,
+  "adapterId": "afi-adapter-sentiment-coinalyze",
+  "requiresCredential": true,
+  "credentialKind": "apiKeyHeader",
+  "status": "active"
+}

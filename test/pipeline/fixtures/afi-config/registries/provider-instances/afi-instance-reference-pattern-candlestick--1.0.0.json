@@ -1,0 +1,11 @@
+{
+  "schema": "afi.provider-instance.v1",
+  "providerInstanceId": "afi-instance-reference-pattern-candlestick",
+  "recordVersion": "1.0.0",
+  "tenant": "reference",
+  "category": "pattern",
+  "providerId": "afi-provider-pattern-candlestick",
+  "adapterId": "afi-adapter-pattern-candlestick",
+  "adapterVersion": "1.0.0",
+  "status": "active"
+}

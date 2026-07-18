@@ -4,10 +4,9 @@
  * A provider-produced category result MUST pass validation against its
  * canonical category-result contract (afi.enrichment.<category>.v1) BEFORE it
  * reaches the scorer-facing path. A malformed result throws
- * ProviderOutputInvalidError and never reaches scoring (fail closed). Only lanes
- * with a live adapter ship a validator (technical + news from PBF-GOV v0.1,
- * pattern from Mission 4); an unmapped category (sentiment, aiMl — contract-only)
- * fails closed rather than silently passing.
+ * ProviderOutputInvalidError and never reaches scoring (fail closed). All five
+ * lanes ship a validator under the five-lane provider runtime (FLPR-GOV); an
+ * unmapped category fails closed rather than silently passing.
  */
 import type { ValidateFunction } from "ajv";
 import type { AnalysisCategory, CategoryResult } from "./types.js";
@@ -22,11 +21,9 @@ export interface CategoryOutputValidator {
 const SCHEMA_BY_CATEGORY: Partial<Record<AnalysisCategory, string>> = {
   technical: "enrichment-technical.schema.json",
   news: "enrichment-news.schema.json",
-  // Mission 4: the 'pattern' lane now ships a live keyless local adapter
-  // (afi-adapter-pattern-local) whose output is validated at the edge against
-  // the vendored afi.enrichment.pattern.v1 contract. sentiment/aiMl remain
-  // contract-only (no runtime adapter yet) and stay unmapped → fail closed.
   pattern: "enrichment-pattern.schema.json",
+  sentiment: "enrichment-sentiment.schema.json",
+  aiMl: "enrichment-aiml.schema.json",
 };
 
 export function createCategoryOutputValidator(schemaDirOverride?: string): CategoryOutputValidator {

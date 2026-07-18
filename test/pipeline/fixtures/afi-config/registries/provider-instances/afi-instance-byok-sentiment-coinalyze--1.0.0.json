@@ -1,0 +1,15 @@
+{
+  "schema": "afi.provider-instance.v1",
+  "providerInstanceId": "afi-instance-byok-sentiment-coinalyze",
+  "recordVersion": "1.0.0",
+  "tenant": "reference",
+  "category": "sentiment",
+  "providerId": "afi-provider-sentiment-coinalyze",
+  "adapterId": "afi-adapter-sentiment-coinalyze",
+  "adapterVersion": "1.0.0",
+  "credentialRef": "credential-coinalyze-reference",
+  "invocation": {
+    "timeoutMs": 10000
+  },
+  "status": "active"
+}

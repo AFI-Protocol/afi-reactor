@@ -51,10 +51,9 @@ import {
 import { GraphExecutor } from "../../src/pipeline/executor.js";
 import { createPluginRegistry } from "../../src/pipeline/pluginRegistry.js";
 import { ok, SILENT_NODE_LOGGER, type NodeLogger, type AnalysisNodePlugin } from "../../src/pipeline/nodeSdk.js";
-import { createTechnicalNode } from "../../src/pipeline/nodes/technical.js";
 import { computeTechnicalEnrichment } from "../../src/enrichment/technicalIndicators.js";
 import { computeNewsFeatures } from "../../src/news/newsFeatures.js";
-import { NewsDataProvider } from "../../src/news/newsdataNewsProvider.js";
+import { NewsDataProvider } from "../../src/providers/clients/newsdataNewsProvider.js";
 import { DEFAULT_NEWS_SUMMARY } from "../../src/news/newsProvider.js";
 import { demoPriceFeedAdapter } from "../support/deterministicPriceFeedAdapter.js";
 import { testSignal } from "../pipeline/support/testHarness.js";
@@ -401,23 +400,39 @@ describe("PBF-GOV — adapter security", () => {
   });
 });
 
-describe("PBF-GOV — scoring equivalence + one result per category", () => {
-  it("the provider-backed technical output is byte-equal to the legacy technical node output (unchanged scoring input)", async () => {
+describe("PBF-GOV/FLPR-GOV — scoring equivalence + one result per category", () => {
+  it("the provider-backed technical output is exactly the kernel output over the deterministic feed (unchanged scoring input)", async () => {
     const rt = buildRuntime({ adapters: [technicalAdapter()] });
     const providerResult = await rt.invoke({ providerInstanceId: "pi-technical-local-tenant-a", recordVersion: "1.0.0" }, ctx());
 
-    const legacyNode = createTechnicalNode({
-      resolvePriceSource: () => "demo",
-      getAdapter: () => demoPriceFeedAdapter,
-      computeTechnical: computeTechnicalEnrichment,
+    // The adapter must add/remove NOTHING relative to the trusted kernel over
+    // the same candles: same deterministic feed + same kernel ⇒ identical
+    // category output ⇒ a deterministic scorer produces an identical score.
+    const signal = testSignal();
+    const raw = await demoPriceFeedAdapter.getOHLCV({
+      symbol: signal.facts!.symbol as string,
+      timeframe: signal.facts!.timeframe as string,
+      limit: 100,
     });
-    const legacy = await legacyNode.run(
-      {},
-      { signal: testSignal(), config: {}, logger: SILENT_NODE_LOGGER, abort: new AbortController().signal }
+    const candles = raw.map((c) => ({
+      timestamp: c.timestamp,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+      volume: c.volume,
+    }));
+    const kernel = computeTechnicalEnrichment(candles);
+    expect(JSON.parse(JSON.stringify(providerResult))).toEqual(
+      JSON.parse(
+        JSON.stringify({
+          category: "technical",
+          technical: kernel ?? undefined,
+          candles,
+          priceSource: "demo",
+        })
+      )
     );
-    // Same deterministic feed + same kernel ⇒ identical category output ⇒ a
-    // deterministic scorer produces an identical score.
-    expect(JSON.parse(JSON.stringify(providerResult))).toEqual(JSON.parse(JSON.stringify(legacy.output)));
   });
 });
 
