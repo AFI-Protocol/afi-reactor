@@ -15,7 +15,6 @@
  * never scores, weights, ranks, or invokes UWR, and it performs no
  * market-based provider selection (the node selects the ProviderInstance).
  */
-import { NodeConfigurationError } from "../../pipeline/nodeSdk.js";
 import type {
   callPatternService,
   PatternAnalysisParams,
@@ -57,12 +56,14 @@ interface ExtractedSeries {
 
 /**
  * Derive the bounded close-price series from the technical lane's candles
- * port. A missing/malformed candle input is a configuration error (fail
- * closed), never a silent empty result.
+ * port. A missing/malformed candle input is an upstream-data absence (e.g. a
+ * degraded technical lane): an ordinary error, absorbed by the node's
+ * declared failure policy as a recorded degradation — never fatal, never a
+ * silent empty result.
  */
 function extractSeries(input: unknown, signalId: string): ExtractedSeries {
   if (!Array.isArray(input) || input.length < 1 || input.length > MAX_CANDLES) {
-    throw new NodeConfigurationError(
+    throw new Error(
       "pattern tiny-brains adapter requires the technical lane's candles port as its input (non-empty candle array)"
     );
   }
@@ -72,9 +73,7 @@ function extractSeries(input: unknown, signalId: string): ExtractedSeries {
   for (const c of input) {
     const close = (c as AfiCandle)?.close;
     if (typeof close !== "number" || !Number.isFinite(close)) {
-      throw new NodeConfigurationError(
-        "pattern tiny-brains adapter requires candles with finite numeric close values"
-      );
+      throw new Error("pattern tiny-brains adapter requires candles with finite numeric close values");
     }
     values.push(close);
     const ts = (c as AfiCandle)?.timestamp;

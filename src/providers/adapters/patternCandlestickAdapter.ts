@@ -13,7 +13,6 @@
  * Keyless: ctx.credential is undefined and the SecretResolver is never
  * invoked. No I/O of any kind — this adapter is a pure local computation.
  */
-import { NodeConfigurationError } from "../../pipeline/nodeSdk.js";
 import { detectPatterns } from "../../enrichment/patternRecognition.js";
 import type { AfiCandle } from "../../types/AfiCandle.js";
 import type { CandlestickObservation } from "../../pipeline/nodes/laneView.js";
@@ -27,8 +26,11 @@ const MAX_CANDLES = 10000;
 const MAX_SERIES_ID_LENGTH = 200;
 
 function extractCandles(input: unknown): AfiCandle[] {
+  // A missing/empty candles input is an UPSTREAM-DATA absence (e.g. a degraded
+  // technical lane), not a composition error: throw an ordinary error so the
+  // node's declared failure policy records the degradation (never fatal).
   if (!Array.isArray(input) || input.length < 1 || input.length > MAX_CANDLES) {
-    throw new NodeConfigurationError(
+    throw new Error(
       "pattern candlestick adapter requires the technical lane's candles port as its input (non-empty candle array)"
     );
   }
@@ -41,9 +43,7 @@ function extractCandles(input: unknown): AfiCandle[] {
       typeof (c as AfiCandle).low !== "number" ||
       typeof (c as AfiCandle).close !== "number"
     ) {
-      throw new NodeConfigurationError(
-        "pattern candlestick adapter requires OHLC candles with finite numeric fields"
-      );
+      throw new Error("pattern candlestick adapter requires OHLC candles with finite numeric fields");
     }
   }
   return input as AfiCandle[];
