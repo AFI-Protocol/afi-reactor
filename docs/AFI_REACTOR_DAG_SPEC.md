@@ -4,7 +4,7 @@
 
 **AFI-Reactor is the canonical orchestrator for Agentic Financial Intelligence (AFI).**
 
-The canonical pipeline composition for afi-reactor lives in the registered pipeline manifests loaded and boot-validated by `src/pipeline/registryLoader.ts` and executed by the one `GraphExecutor` (`src/pipeline/executor.ts`); new nodes are registered in `src/pipeline/pluginRegistry.ts` and referenced from a registered manifest. `config/dag.codex.json` (with `config/ops.codex.json` and `config/schema.codex.json`) is supporting Codex metadata, and the `codex/` directory is reserved for runtime logs (e.g., replay outputs) — neither is the source of truth for the composition.
+The canonical pipeline composition for afi-reactor lives in the registered pipeline manifests loaded and boot-validated by `src/pipeline/registryLoader.ts` and executed by the one `GraphExecutor` (`src/pipeline/executor.ts`); new nodes are registered in `src/pipeline/pluginRegistry.ts` and referenced from a registered manifest. `config/ops.codex.json` and `config/schema.codex.json` are supporting Codex metadata, and the `codex/` directory is reserved for runtime logs (e.g., replay outputs) — neither is the source of truth for the composition.
 
 Schema entries in `config/schema.codex.json` now include an `ownerRepo` field to make multi-repo ownership explicit. It denotes which AFI repo owns the canonical schema implementation; afi-reactor treats these schemas as contracts for DAG edges, not as the underlying implementations.
 
@@ -151,10 +151,9 @@ Additional pipelines may be added as the system evolves.
 ## Status & Roadmap
 
 **Current Implementation Status:**
-- 15-node DAG architecture defined
+- Manifest-driven GraphExecutor pipeline live (`src/pipeline/executor.ts`; one executor, registered manifests boot-validated by `src/pipeline/registryLoader.ts`)
 - Codex metadata and agent registry in place
-- Test infrastructure present but requires configuration updates
-- Core DAG engine (`core/dag-engine.ts`) implements basic orchestration
+- Jest suite + real-Mongo integration + oracle byte-equivalence gates in CI
 
 **Known TODOs:**
 - Finalize signal schema and validation rules

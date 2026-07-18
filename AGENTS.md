@@ -686,7 +686,7 @@ mission/feature branches merged through pull requests.
 **Forbidden**:
 - Violate AFI Orchestrator Doctrine (10 Commandments)
 - Make agents into orchestrators (agents are nodes only)
-- Change 15-node DAG structure without explicit approval
+- Change the registered pipeline manifests / composition model without explicit approval
 - Modify Codex replay logic without understanding impact
 - Add orchestration logic to other repos (afi-reactor is ONLY orchestrator)
 

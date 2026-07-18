@@ -57,11 +57,12 @@ signal that behavior changed.
 
 **When**: You need a new enrichment data source behind the provider socket.
 
-Follow the PBF-GOV pattern in `src/providers/adapters/` (registered once in
-`src/providers/index.ts` `defaultAdapters`; secrets only through the injected
-`SecretResolver`; never a key in a URL; output validated against the governed
-category contract). Note: binding category nodes to provider adapters at
-runtime is Mission-B scope — do not wire the socket into the live manifest.
+Follow the PBF-GOV pattern in `src/providers/adapters/` (registered once via
+`builtinProviderAdapters()` in `src/providers/index.ts`; secrets only through
+the injected `SecretResolver`; never a key in a URL; output validated against
+the governed category contract). Note: binding category nodes to provider
+adapters at runtime is Mission-B scope — do not wire the socket into the live
+manifest.
 
 ---
 
@@ -70,7 +71,7 @@ runtime is Mission-B scope — do not wire the socket into the live manifest.
 **When**: You need to test ingress-to-evidence behavior.
 
 Use the existing integration suites as templates
-(`test/integration.mongo.test.ts` family, run via
+(`test/integration-mongo/*.mjs`, run via
 `npm run test:integration:mongo`); the compiled 503 smoke is
 `npm run test:integration:unavailable`.
 

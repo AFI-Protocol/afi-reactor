@@ -34,7 +34,7 @@ DAG orchestrator implementing the manifest-driven GraphExecutor pipeline (regist
 
 ## Critical Document
 
-**⚠️ READ BEFORE MAKING CHANGES**: `AFI_ORCHESTRATOR_DOCTRINE.md` in repo root
+**⚠️ READ BEFORE MAKING CHANGES**: `docs/AFI_ORCHESTRATOR_DOCTRINE.md`
 
 This document contains the 10 Commandments of AFI orchestration. Violating these breaks the entire system.
 
@@ -88,7 +88,7 @@ See `10_common_tasks.md` for detailed workflows.
 ## Safety Notes
 
 **Before making changes**:
-1. Read `AFI_ORCHESTRATOR_DOCTRINE.md`
+1. Read `docs/AFI_ORCHESTRATOR_DOCTRINE.md`
 2. Read `AGENTS.md` for constraints
 3. Check `.afi-codex.json` for dependencies
 4. Run tests locally
@@ -103,7 +103,7 @@ See `10_common_tasks.md` for detailed workflows.
 
 ## Getting Help
 
-- **AFI_ORCHESTRATOR_DOCTRINE.md**: Orchestration rules
+- **docs/AFI_ORCHESTRATOR_DOCTRINE.md**: Orchestration rules
 - **AGENTS.md**: Canonical constraints
 - **README.md**: High-level overview
 - **docs/**: Architecture documentation
@@ -111,5 +111,5 @@ See `10_common_tasks.md` for detailed workflows.
 
 ---
 
-**Last Updated**: 2025-11-22
+**Last Updated**: 2026-07-18 (DSC-GOV clean-cut consolidation)
 

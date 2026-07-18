@@ -142,7 +142,7 @@ category result → merge → one scorer seam → the D2 evidence boundary).
 ## 📊 CI & Codex
 
 Artifacts from CI include:
-- `config/dag.codex.json` / `config/ops.codex.json` / `config/schema.codex.json` → canonical orchestrator config  
+- `config/ops.codex.json` / `config/schema.codex.json` → supporting Codex metadata (the pipeline composition source of truth is the registered manifests loaded by `src/pipeline/registryLoader.ts`)  
 - `codex/codex.replay.log.json` → generated replay log (runtime output; gitignored)  
 - `tmp/dag-simulation.log.json` → Simulation telemetry  
 - `tmp/mentor-evaluation.json` → MentorChain readiness scores
