@@ -51,6 +51,12 @@ import type {
 } from "./manifestTypes.js";
 import { validatePipelineGraph } from "./executor.js";
 import { pluginKey, type PluginRegistry } from "./pluginRegistry.js";
+import type {
+  CredentialRefRecord,
+  ProviderInstanceRecord,
+  ProviderRecord,
+  ProviderRecordStoreInput,
+} from "../providers/records.js";
 
 const addFormats = (ajvFormatsModule as { default?: unknown }).default ?? ajvFormatsModule;
 
@@ -109,6 +115,20 @@ export interface ValidateRuntimeConfigOptions {
   configRoot?: string;
   /** Vendored schema dir override (tests only). */
   governedSchemaDir?: string;
+  /**
+   * The loaded governed provider/instance/credential-ref records (FLPR-GOV
+   * D-FLPR-4 explicit-selection law). When present, EVERY analysis-lane node
+   * in every registered pipeline MUST carry a providerInstanceRef that
+   * resolves to an ACTIVE instance of the node's category, whose provider is
+   * ACTIVE, whose adapter (id@version) is in the build-time adapter set, and
+   * whose credential (when the provider requires one) exists, is ACTIVE, and
+   * is tenant/provider-scoped to the instance — fail closed, no silent
+   * fallback. Status lifecycles are enforced HERE (the selection point), so
+   * retained-but-unreferenced records may be disabled without refusing boot.
+   */
+  providerRecords?: ProviderRecordStoreInput;
+  /** The build-time registered provider adapter keys ('adapterId@adapterVersion'). */
+  providerAdapterKeys?: readonly string[];
 }
 
 function defaultConfigRoot(): string {
@@ -205,6 +225,168 @@ const REGISTRY_DIRS = {
   providerBindings: "registries/provider-bindings",
 } as const;
 
+/** The governed enrichment-provider registries (FLPR-GOV D-FLPR-1/D-FLPR-4). */
+const PROVIDER_REGISTRY_DIRS = {
+  providers: "registries/providers",
+  providerInstances: "registries/provider-instances",
+  credentialRefs: "registries/credential-refs",
+} as const;
+
+/** The five open analysis lanes (FCP-GOV D-FCP-1) — all provider-backed. */
+const ANALYSIS_LANE_CATEGORIES = new Set(["technical", "pattern", "sentiment", "news", "aiMl"]);
+
+export interface LoadProviderRecordsOptions {
+  configRoot?: string;
+  governedSchemaDir?: string;
+}
+
+/**
+ * Load + validate the governed provider/provider-instance/credential-ref
+ * registries (FLPR-GOV D-FLPR-1). Fail-closed: missing directories, schema
+ * violations, duplicate identities, and cross-reference incoherence (unknown
+ * provider, unsupported category, adapter mismatch, credential incoherence)
+ * all refuse boot. Returns the plain record arrays consumed by
+ * createProviderRecordStore.
+ */
+export function loadProviderRecords(
+  options: LoadProviderRecordsOptions = {}
+): ProviderRecordStoreInput {
+  const configRoot = options.configRoot ?? defaultConfigRoot();
+  const governedSchemaDir =
+    options.governedSchemaDir ?? join(process.cwd(), GOVERNED_SCHEMA_DIRNAME);
+  const issues: string[] = [];
+
+  for (const dir of Object.values(PROVIDER_REGISTRY_DIRS)) {
+    if (!existsSync(join(configRoot, dir))) {
+      issues.push(`registry directory missing: ${dir} (under ${configRoot})`);
+    }
+  }
+  if (issues.length > 0) throw new RuntimeConfigValidationError(issues);
+
+  const ajv = new Ajv({ strict: true, allowUnionTypes: true, strictRequired: false, allErrors: true });
+  (addFormats as (a: Ajv) => void)(ajv);
+  ajv.addVocabulary([
+    "x-afiStatus",
+    "x-afiPartOf",
+    "x-afiDoctrineRefs",
+    "x-afiOpenItems",
+    "x-afiProposedNotAccepted",
+    "x-afiConstraints",
+  ]);
+  const compile = (basename: string): ValidateFunction =>
+    ajv.compile(readJson(join(governedSchemaDir, basename)) as Record<string, unknown>);
+  const validateProvider = compile("provider.schema.json");
+  const validateInstance = compile("provider-instance.schema.json");
+  const validateCredentialRef = compile("credential-ref.schema.json");
+
+  const providers: ProviderRecord[] = [];
+  const providerById = new Map<string, ProviderRecord>();
+  for (const file of listRegistryFiles(join(configRoot, PROVIDER_REGISTRY_DIRS.providers))) {
+    const doc = readJson(file);
+    if (!validateProvider(doc)) {
+      issues.push(...ajvIssues(`provider ${file}`, validateProvider));
+      continue;
+    }
+    const record = doc as ProviderRecord;
+    if (providerById.has(record.providerId)) {
+      issues.push(`provider ${file}: duplicate providerId '${record.providerId}'`);
+      continue;
+    }
+    providerById.set(record.providerId, record);
+    providers.push(record);
+  }
+
+  const credentialRefs: CredentialRefRecord[] = [];
+  const credentialByRef = new Map<string, CredentialRefRecord>();
+  for (const file of listRegistryFiles(join(configRoot, PROVIDER_REGISTRY_DIRS.credentialRefs))) {
+    const doc = readJson(file);
+    if (!validateCredentialRef(doc)) {
+      issues.push(...ajvIssues(`credential-ref ${file}`, validateCredentialRef));
+      continue;
+    }
+    const record = doc as CredentialRefRecord;
+    if (credentialByRef.has(record.credentialRef)) {
+      issues.push(`credential-ref ${file}: duplicate credentialRef '${record.credentialRef}'`);
+      continue;
+    }
+    const provider = providerById.get(record.providerId);
+    if (!provider) {
+      issues.push(`credential-ref ${file}: unknown provider '${record.providerId}'`);
+    } else if (!provider.requiresCredential || provider.credentialKind !== record.credentialKind) {
+      issues.push(
+        `credential-ref ${file}: incompatible with provider '${record.providerId}' (requiresCredential/credentialKind mismatch)`
+      );
+    }
+    credentialByRef.set(record.credentialRef, record);
+    credentialRefs.push(record);
+  }
+
+  const providerInstances: ProviderInstanceRecord[] = [];
+  const instanceKeys = new Set<string>();
+  for (const file of listRegistryFiles(join(configRoot, PROVIDER_REGISTRY_DIRS.providerInstances))) {
+    const doc = readJson(file);
+    if (!validateInstance(doc)) {
+      issues.push(...ajvIssues(`provider-instance ${file}`, validateInstance));
+      continue;
+    }
+    const record = doc as ProviderInstanceRecord;
+    const key = `${record.providerInstanceId}@${record.recordVersion}`;
+    if (instanceKeys.has(key)) {
+      issues.push(`provider-instance ${file}: duplicate instance identity '${key}'`);
+      continue;
+    }
+    instanceKeys.add(key);
+    const provider = providerById.get(record.providerId);
+    if (!provider) {
+      issues.push(`provider-instance ${file}: unknown provider '${record.providerId}'`);
+    } else {
+      if (!provider.supportedCategories.includes(record.category)) {
+        issues.push(
+          `provider-instance ${file}: category '${record.category}' not supported by provider '${provider.providerId}'`
+        );
+      }
+      if (provider.adapterId !== record.adapterId) {
+        issues.push(
+          `provider-instance ${file}: adapterId '${record.adapterId}' != provider adapter '${provider.adapterId}'`
+        );
+      }
+      if (provider.requiresCredential) {
+        if (!record.credentialRef) {
+          issues.push(`provider-instance ${file}: credentialed provider requires a credentialRef`);
+        } else {
+          const cred = credentialByRef.get(record.credentialRef);
+          if (!cred) {
+            issues.push(`provider-instance ${file}: unknown credentialRef '${record.credentialRef}'`);
+          } else {
+            // Identity scoping is a STRUCTURAL truth (hard here); the
+            // credential's active/disabled STATUS is a lifecycle state and is
+            // enforced at the selection point (validateRuntimeConfig) so the
+            // governed disable-without-deletion revocation flow on an
+            // unreferenced instance cannot take the whole reactor down.
+            if (cred.tenant !== record.tenant) {
+              issues.push(`provider-instance ${file}: cross-tenant credentialRef '${record.credentialRef}'`);
+            }
+            if (cred.providerId !== record.providerId) {
+              issues.push(`provider-instance ${file}: credentialRef '${record.credentialRef}' scoped to a different provider`);
+            }
+          }
+        }
+      } else if (record.credentialRef) {
+        issues.push(`provider-instance ${file}: keyless provider must not carry a credentialRef`);
+      }
+      if (record.model !== undefined) {
+        if (!provider.supportedModels || !provider.supportedModels.includes(record.model)) {
+          issues.push(`provider-instance ${file}: model '${record.model}' not in provider supportedModels`);
+        }
+      }
+    }
+    providerInstances.push(record);
+  }
+
+  if (issues.length > 0) throw new RuntimeConfigValidationError(issues);
+  return { providers, credentialRefs, providerInstances };
+}
+
 /** The governed decay template ids (afi-core DEFAULT_DECAY_TEMPLATES_BY_HORIZON). */
 export function governedDecayTemplateIds(): Set<string> {
   return new Set(
@@ -297,6 +479,25 @@ export function validateRuntimeConfig(
     analysisPlugins.set(key, manifest);
   }
 
+  // Index the governed provider records for the explicit-selection checks.
+  const providerInstanceIndex = options.providerRecords
+    ? new Map(
+        (options.providerRecords.providerInstances ?? []).map((i) => [
+          `${i.providerInstanceId}@${i.recordVersion}`,
+          i,
+        ])
+      )
+    : undefined;
+  const providerIndex = options.providerRecords
+    ? new Map((options.providerRecords.providers ?? []).map((p) => [p.providerId, p]))
+    : undefined;
+  const credentialIndex = options.providerRecords
+    ? new Map((options.providerRecords.credentialRefs ?? []).map((c) => [c.credentialRef, c]))
+    : undefined;
+  const providerAdapterKeySet = options.providerAdapterKeys
+    ? new Set(options.providerAdapterKeys)
+    : undefined;
+
   // ---- pipelines ----
   const pipelines = new Map<string, PipelineManifest>();
   for (const file of listRegistryFiles(join(configRoot, REGISTRY_DIRS.pipelines))) {
@@ -358,6 +559,68 @@ export function validateRuntimeConfig(
         issues.push(
           `pipeline ${key}: node '${node.id}' plugin ${bindKey} has no build-time binding`
         );
+      }
+      // FLPR-GOV D-FLPR-4 explicit-selection law (fail closed at composition):
+      // with governed provider records loaded, every analysis-lane node MUST
+      // carry a providerInstanceRef resolving to an ACTIVE instance of the
+      // node's category whose adapter is in the static build-time set.
+      if (providerInstanceIndex) {
+        const isLane = ANALYSIS_LANE_CATEGORIES.has(node.category);
+        if (isLane && !node.providerInstanceRef) {
+          issues.push(
+            `pipeline ${key}: node '${node.id}' (category '${node.category}') has no providerInstanceRef — explicit provider selection is required for every enabled lane`
+          );
+        }
+        if (node.providerInstanceRef) {
+          const refKey = `${node.providerInstanceRef.providerInstanceId}@${node.providerInstanceRef.recordVersion}`;
+          const instance = providerInstanceIndex.get(refKey);
+          if (!instance) {
+            issues.push(
+              `pipeline ${key}: node '${node.id}' providerInstanceRef '${refKey}' resolves to no governed provider instance`
+            );
+          } else {
+            if (instance.status !== "active") {
+              issues.push(
+                `pipeline ${key}: node '${node.id}' providerInstanceRef '${refKey}' is not active`
+              );
+            }
+            if (instance.category !== node.category) {
+              issues.push(
+                `pipeline ${key}: node '${node.id}' category '${node.category}' != provider instance category '${instance.category}'`
+              );
+            }
+            const adapterKey = `${instance.adapterId}@${instance.adapterVersion}`;
+            if (providerAdapterKeySet && !providerAdapterKeySet.has(adapterKey)) {
+              issues.push(
+                `pipeline ${key}: node '${node.id}' provider instance '${refKey}' names adapter '${adapterKey}' which is not in the static build-time adapter registry`
+              );
+            }
+            const provider = providerIndex?.get(instance.providerId);
+            if (providerIndex && !provider) {
+              issues.push(
+                `pipeline ${key}: node '${node.id}' provider instance '${refKey}' references unknown provider '${instance.providerId}'`
+              );
+            } else if (provider && provider.status !== "active") {
+              issues.push(
+                `pipeline ${key}: node '${node.id}' provider instance '${refKey}' references provider '${provider.providerId}' which is not active`
+              );
+            }
+            if (provider?.requiresCredential && credentialIndex) {
+              const cred = instance.credentialRef
+                ? credentialIndex.get(instance.credentialRef)
+                : undefined;
+              if (!cred) {
+                issues.push(
+                  `pipeline ${key}: node '${node.id}' provider instance '${refKey}' has no resolvable credentialRef for its credentialed provider`
+                );
+              } else if (cred.status !== "active") {
+                issues.push(
+                  `pipeline ${key}: node '${node.id}' provider instance '${refKey}' references credentialRef '${cred.credentialRef}' which is not active`
+                );
+              }
+            }
+          }
+        }
       }
     }
     for (const [bindKey, count] of boundCounts) {

@@ -7,8 +7,21 @@
  * @module patternRecognition
  */
 
-import type { PatternLensV1 } from "../types/UssLenses.js";
 import type { AfiCandle } from "../types/AfiCandle.js";
+
+/** The deterministic candlestick/structure detection result. */
+export interface CandlestickDetection {
+  bullishEngulfing: boolean;
+  bearishEngulfing: boolean;
+  pinBar: boolean;
+  insideBar: boolean;
+  structureBias?: "higher-highs" | "lower-lows" | "choppy";
+  trendPullbackConfirmed?: boolean;
+  /** Dominant named pattern, when one of the four fires (priority-ordered). */
+  patternName?: string;
+  /** Constant confidence grade of the dominant pattern (0-100). */
+  patternConfidence?: number;
+}
 
 /**
  * Detect patterns from OHLCV candles.
@@ -17,11 +30,11 @@ import type { AfiCandle } from "../types/AfiCandle.js";
  * Returns null if insufficient data.
  *
  * @param candles - Array of OHLCV candles (oldest first)
- * @returns PatternLensV1 payload or null
+ * @returns CandlestickDetection or null
  */
 export function detectPatterns(
   candles: AfiCandle[]
-): PatternLensV1["payload"] | null {
+): CandlestickDetection | null {
   // Require at least 20 candles for pattern detection
   if (candles.length < 20) {
     console.debug(

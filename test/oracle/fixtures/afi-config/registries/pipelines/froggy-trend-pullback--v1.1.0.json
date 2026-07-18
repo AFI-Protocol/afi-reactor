@@ -1,0 +1,162 @@
+{
+  "schema": "afi.pipeline.v1",
+  "pipelineId": "froggy-trend-pullback",
+  "pipelineVersion": "v1.1.0",
+  "description": "Official froggy trend-pullback composition on the five-lane provider runtime (FLPR-GOV): five vendor-neutral provider-instance-backed category lanes (technical entry fanning out to pattern/sentiment/news, with the aiMl lane joining the four sibling lane outputs), one deterministic five-category namespace-by-node merge, and the single froggy trend-pullback scorer sink. Every lane node selects its provider through an explicit providerInstanceRef; the committed refs form the all-five keyless/self-hosted reference profile.",
+  "entry": "technical",
+  "nodes": [
+    {
+      "id": "technical",
+      "category": "technical",
+      "pluginId": "afi-analysis-technical",
+      "pluginVersion": "2.0.0",
+      "config": {
+        "candleLimit": 100
+      },
+      "critical": false,
+      "failurePolicy": "degrade",
+      "providerInstanceRef": {
+        "providerInstanceId": "afi-instance-reference-technical-local",
+        "recordVersion": "1.0.0"
+      }
+    },
+    {
+      "id": "pattern",
+      "category": "pattern",
+      "pluginId": "afi-analysis-pattern",
+      "pluginVersion": "2.0.0",
+      "critical": false,
+      "failurePolicy": "degrade",
+      "providerInstanceRef": {
+        "providerInstanceId": "afi-instance-reference-pattern-candlestick",
+        "recordVersion": "1.0.0"
+      }
+    },
+    {
+      "id": "sentiment",
+      "category": "sentiment",
+      "pluginId": "afi-analysis-sentiment",
+      "pluginVersion": "2.0.0",
+      "critical": false,
+      "failurePolicy": "degrade",
+      "providerInstanceRef": {
+        "providerInstanceId": "afi-instance-reference-sentiment-cftc-cot",
+        "recordVersion": "1.0.0"
+      }
+    },
+    {
+      "id": "news",
+      "category": "news",
+      "pluginId": "afi-analysis-news",
+      "pluginVersion": "2.0.0",
+      "critical": false,
+      "failurePolicy": "degrade",
+      "providerInstanceRef": {
+        "providerInstanceId": "afi-instance-reference-news-sec-edgar",
+        "recordVersion": "1.0.0"
+      }
+    },
+    {
+      "id": "aiml",
+      "category": "aiMl",
+      "pluginId": "afi-analysis-aiml",
+      "pluginVersion": "2.0.0",
+      "critical": false,
+      "failurePolicy": "degrade",
+      "providerInstanceRef": {
+        "providerInstanceId": "afi-instance-reference-aiml-tiny-brains",
+        "recordVersion": "1.0.0"
+      },
+      "join": {
+        "policy": "all",
+        "merge": {
+          "strategy": "namespace-by-node",
+          "conflictRule": "error"
+        }
+      }
+    },
+    {
+      "id": "merge",
+      "category": "merge",
+      "pluginId": "afi-merge-enriched-view",
+      "pluginVersion": "1.1.0",
+      "join": {
+        "policy": "all",
+        "merge": {
+          "strategy": "namespace-by-node",
+          "conflictRule": "error"
+        }
+      }
+    },
+    {
+      "id": "scorer",
+      "category": "scorer",
+      "pluginId": "afi-scorer-froggy-trend-pullback",
+      "pluginVersion": "1.0.0"
+    }
+  ],
+  "edges": [
+    {
+      "from": "technical",
+      "to": "pattern",
+      "fromPort": "candles"
+    },
+    {
+      "from": "technical",
+      "to": "sentiment"
+    },
+    {
+      "from": "technical",
+      "to": "news"
+    },
+    {
+      "from": "technical",
+      "to": "aiml",
+      "optional": true
+    },
+    {
+      "from": "pattern",
+      "to": "aiml",
+      "optional": true
+    },
+    {
+      "from": "sentiment",
+      "to": "aiml",
+      "optional": true
+    },
+    {
+      "from": "news",
+      "to": "aiml",
+      "optional": true
+    },
+    {
+      "from": "technical",
+      "to": "merge",
+      "optional": true
+    },
+    {
+      "from": "pattern",
+      "to": "merge",
+      "optional": true
+    },
+    {
+      "from": "sentiment",
+      "to": "merge",
+      "optional": true
+    },
+    {
+      "from": "news",
+      "to": "merge",
+      "optional": true
+    },
+    {
+      "from": "aiml",
+      "to": "merge",
+      "optional": true
+    },
+    {
+      "from": "merge",
+      "to": "scorer"
+    }
+  ]
+}

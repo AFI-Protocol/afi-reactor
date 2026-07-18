@@ -8,17 +8,16 @@
  * lazy discovery — an unbound plugin fails boot validation
  * (src/pipeline/registryLoader.ts), never a request.
  *
- * Production source contains NO mock implementations: the seven builtin
- * bindings below wrap the EXISTING production kernels (W3 spec section 5).
- * Tests inject their own registries via createPluginRegistry (a test-registry
+ * Production source contains NO mock implementations: the builtin bindings
+ * below are the five vendor-neutral provider-backed category lanes (each a
+ * createProviderBackedNode over the boot-built ProviderRuntime — FLPR-GOV
+ * D-FLPR-1), the deterministic five-category merge, and the scorer. Tests
+ * inject their own registries via createPluginRegistry (a test-registry
  * overlay), which is data injection — not a production code path.
  */
 import type { AnalysisNodePlugin } from "./nodeSdk.js";
-import { technicalNode } from "./nodes/technical.js";
-import { patternNode } from "./nodes/pattern.js";
-import { sentimentNode } from "./nodes/sentiment.js";
-import { newsNode } from "./nodes/news.js";
-import { aimlNode } from "./nodes/aiml.js";
+import { createProviderBackedNode } from "../providers/providerBackedNode.js";
+import type { ProviderRuntime } from "../providers/providerRuntime.js";
 import { mergeEnrichedViewNode } from "./nodes/mergeEnrichedView.js";
 import { scorerFroggyTrendPullbackNode } from "./nodes/scorerFroggyTrendPullback.js";
 
@@ -53,17 +52,38 @@ export function createPluginRegistry(
 }
 
 /**
- * The production build-time binding: the seven governed category plugins of
- * the V1 program (kebab-case ids, all pluginVersion 1.0.0 — W3 spec
- * section 10), each wrapping the existing production kernels.
+ * The production build-time binding (FLPR-GOV five-lane provider runtime):
+ * five vendor-neutral provider-backed category lanes @2.0.0 (each requires an
+ * explicit providerInstanceRef on its manifest node — fail closed), the
+ * five-category merge @1.1.0, and the scorer @1.0.0.
  */
-export function builtinPluginRegistry(): PluginRegistry {
+export function builtinPluginRegistry(providerRuntime: ProviderRuntime): PluginRegistry {
   return createPluginRegistry([
-    technicalNode,
-    patternNode,
-    sentimentNode,
-    newsNode,
-    aimlNode,
+    createProviderBackedNode(
+      { pluginId: "afi-analysis-technical", pluginVersion: "2.0.0" },
+      "technical",
+      providerRuntime
+    ),
+    createProviderBackedNode(
+      { pluginId: "afi-analysis-pattern", pluginVersion: "2.0.0" },
+      "pattern",
+      providerRuntime
+    ),
+    createProviderBackedNode(
+      { pluginId: "afi-analysis-sentiment", pluginVersion: "2.0.0" },
+      "sentiment",
+      providerRuntime
+    ),
+    createProviderBackedNode(
+      { pluginId: "afi-analysis-news", pluginVersion: "2.0.0" },
+      "news",
+      providerRuntime
+    ),
+    createProviderBackedNode(
+      { pluginId: "afi-analysis-aiml", pluginVersion: "2.0.0" },
+      "aiMl",
+      providerRuntime
+    ),
     mergeEnrichedViewNode,
     scorerFroggyTrendPullbackNode,
   ]);

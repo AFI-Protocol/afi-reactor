@@ -1,27 +1,25 @@
 /**
- * afi-merge-enriched-view@1.0.0 — deterministic merge category node.
+ * afi-merge-enriched-view@1.1.0 — deterministic five-category merge node
+ * (FLPR-GOV).
  *
- * Assembles the FroggyEnrichedView + USS lenses + _priceFeedMetadata
- * FIELD-BY-FIELD IDENTICAL to plugins/froggy-enrichment-adapter.plugin.ts
- * (the DAG-mode branch of the live adapter) — same legacy technical object
- * (brokeEmaWithBody: false, same indicator key names), same pattern/regime
- * mirroring, same sentiment/news lens construction, same enrichment summary
- * string, same enrichmentMeta (enrichedBy stays 'froggy-enrichment-adapter'
- * so the assembled bytes are indistinguishable from the live adapter's) —
- * byte-compatible scorer input is the gate (W3 spec section 5).
+ * Joins the five governed category results (technical, pattern, sentiment,
+ * news, aiMl) into the analyst-facing FroggyEnrichedView + USS lenses +
+ * _priceFeedMetadata. The scorer-visible values are projected through the
+ * shared laneView helpers BYTE-IDENTICALLY to the pre-activation runtime
+ * (technical emaDistancePct / isInValueSweetSpot / brokeEmaWithBody=false and
+ * indicator renames; pattern patternName / patternConfidence from the
+ * candlestick block; sentiment tags from the closed axis-tag vocabulary), so
+ * analyst scoring, UWR, and the ScoredSignal projection are unchanged.
  *
  * Parents arrive KEYED BY NODE ID ({ parents: { <nodeId>: output } }) — no
  * hardcoded parent ids anywhere. Contributions are classified by the
- * category marker each analysis node stamps on its output
- * ({ category: 'technical' | 'pattern' | 'sentiment' | 'news' }); parents
- * are visited in sorted-nodeId order, and a second contribution to an
+ * category marker each lane stamps on its governed result; parents are
+ * visited in sorted-nodeId order, and a second contribution to an
  * already-filled category fails the merge (the manifest's namespace-by-node
  * conflictRule 'error' — deterministic by construction). Skipped/degraded
  * optional parents arrive as empty namespaces and simply contribute
- * nothing (never fabricated data).
- *
- * The aiMl category is NOT merged here: in the official graph the aiml node
- * runs AFTER the merge and augments the assembled view.
+ * nothing (never fabricated data). No provider is invoked here — this is a
+ * pure structural merge.
  */
 import type { FroggyEnrichedView } from "afi-core/analysts/froggy.enrichment_adapter.js";
 import {
@@ -31,7 +29,6 @@ import {
 import type {
   TechnicalLensV1,
   PatternLensV1,
-  NewsLensV1,
   SupportedLens,
 } from "../../types/UssLenses.js";
 import type { NewsFeatures } from "../../news/newsFeatures.js";
@@ -41,23 +38,27 @@ import {
   type NodeRunContext,
   type NodeResult,
 } from "../nodeSdk.js";
-import type { TechnicalNodeOutput } from "./technical.js";
-import type { PatternNodeOutput } from "./pattern.js";
-import type { SentimentNodeOutput } from "./sentiment.js";
-import type { NewsNodeOutput } from "./news.js";
+import {
+  viewAiMl,
+  viewPattern,
+  viewSentiment,
+  viewTechnical,
+  type AiMlLanePayload,
+  type PatternLanePayload,
+  type SentimentAxisObservation,
+} from "./laneView.js";
 
 /** The join-shaped input the executor delivers to a merge node. */
 export interface MergeNodeInput {
   parents: Record<string, unknown>;
 }
 
-type CategorizedParent =
-  | TechnicalNodeOutput
-  | PatternNodeOutput
-  | SentimentNodeOutput
-  | NewsNodeOutput;
+interface CategorizedResult {
+  category: string;
+  [field: string]: unknown;
+}
 
-function hasCategory(value: unknown): value is CategorizedParent {
+function hasCategory(value: unknown): value is CategorizedResult {
   return (
     value !== null &&
     typeof value === "object" &&
@@ -67,7 +68,7 @@ function hasCategory(value: unknown): value is CategorizedParent {
 
 export function createMergeEnrichedViewNode(): AnalysisNodePlugin {
   return {
-    manifestRef: { pluginId: "afi-merge-enriched-view", pluginVersion: "1.0.0" },
+    manifestRef: { pluginId: "afi-merge-enriched-view", pluginVersion: "1.1.0" },
     async run(input: unknown, ctx: NodeRunContext): Promise<NodeResult> {
       if (
         input === null ||
@@ -81,7 +82,7 @@ export function createMergeEnrichedViewNode(): AnalysisNodePlugin {
 
       // Classify contributions by category marker, parents in sorted-nodeId
       // order; a duplicate category is a conflict (conflictRule 'error').
-      const byCategory: Partial<Record<string, CategorizedParent>> = {};
+      const byCategory: Partial<Record<string, CategorizedResult>> = {};
       for (const nodeId of Object.keys(parents).sort()) {
         const contribution = parents[nodeId];
         if (!hasCategory(contribution)) continue; // empty namespace (skipped/degraded parent)
@@ -93,10 +94,17 @@ export function createMergeEnrichedViewNode(): AnalysisNodePlugin {
         byCategory[contribution.category] = contribution;
       }
 
-      const tech = byCategory["technical"] as TechnicalNodeOutput | undefined;
-      const pat = byCategory["pattern"] as PatternNodeOutput | undefined;
-      const sent = byCategory["sentiment"] as SentimentNodeOutput | undefined;
-      const nws = byCategory["news"] as NewsNodeOutput | undefined;
+      const tech = byCategory["technical"] as
+        | { technical?: TechnicalLensV1["payload"]; priceSource?: string }
+        | undefined;
+      const pat = byCategory["pattern"] as unknown as PatternLanePayload | undefined;
+      const sent = byCategory["sentiment"] as
+        | { axes?: SentimentAxisObservation[] }
+        | undefined;
+      const nws = byCategory["news"] as
+        | { news?: FroggyEnrichedView["news"]; newsFeatures?: NewsFeatures }
+        | undefined;
+      const ai = byCategory["aiMl"] as unknown as AiMlLanePayload | undefined;
 
       const signalId = ctx.signal.provenance?.signalId ?? "";
       const symbol =
@@ -109,79 +117,78 @@ export function createMergeEnrichedViewNode(): AnalysisNodePlugin {
       const enrichedCategories: string[] = [];
       const lenses: SupportedLens[] = [];
 
-      // ---- technical (identical to the adapter's DAG-mode branch) ----
+      // ---- technical (scorer-visible projection unchanged) ----
       const technicalLensPayload: TechnicalLensV1["payload"] | null =
         tech?.technical ?? null;
-      let technical: FroggyEnrichedView["technical"] = undefined;
+      const technical = viewTechnical(technicalLensPayload);
       if (technicalLensPayload) {
-        technical = {
-          emaDistancePct: technicalLensPayload.emaDistancePct,
-          isInValueSweetSpot: technicalLensPayload.isInValueSweetSpot,
-          brokeEmaWithBody: false,
-          indicators: {
-            rsi: technicalLensPayload.rsi14,
-            ema_20: technicalLensPayload.ema20,
-            ema_50: technicalLensPayload.ema50,
-            volume_ratio: technicalLensPayload.volumeRatio,
-          },
-        };
         lenses.push({ type: "technical", version: "v1", payload: technicalLensPayload });
         enrichedCategories.push("technical");
       }
 
-      // ---- pattern (identical to the adapter's DAG-mode branch) ----
-      const patternLensPayload: PatternLensV1["payload"] | null = pat?.pattern ?? null;
+      // ---- pattern (governed result rides the lens; candlestick → view) ----
+      let patternLensPayload: PatternLensV1["payload"] | null = null;
       let pattern: FroggyEnrichedView["pattern"] = undefined;
-      if (patternLensPayload) {
-        pattern = {
-          patternName: patternLensPayload.patternName,
-          patternConfidence: patternLensPayload.patternConfidence,
-        };
-        if (patternLensPayload.regime) {
-          (pattern as Record<string, unknown>).regime = patternLensPayload.regime;
-        }
+      if (pat) {
+        const { category: _patCategory, ...lanePayload } = pat as unknown as CategorizedResult;
+        patternLensPayload = lanePayload as unknown as PatternLensV1["payload"];
+        pattern = viewPattern(pat);
         lenses.push({ type: "pattern", version: "v1", payload: patternLensPayload });
         enrichedCategories.push("pattern");
       }
 
-      // ---- sentiment (identical to the adapter's DAG-mode branch) ----
+      // ---- sentiment (governed axes → closed tag vocabulary; inert at scorer) ----
       let sentiment: FroggyEnrichedView["sentiment"] = undefined;
-      if (sent?.sentiment) {
-        sentiment = sent.sentiment;
-        if (sent.sentiment.perpSentimentScore !== undefined) {
-          lenses.push({
-            type: "sentiment",
-            version: "v1",
-            payload: {
-              perpSentimentScore: sent.sentiment.perpSentimentScore,
-              positioningBias: sent.sentiment.positioningBias,
-              fundingRegime: sent.sentiment.fundingRegime,
-            } as SupportedLens["payload"],
-          } as SupportedLens);
-        }
+      if (sent?.axes && sent.axes.length > 0) {
+        sentiment = viewSentiment(sent.axes);
+        lenses.push({
+          type: "sentiment",
+          version: "v1",
+          payload: { axes: sent.axes },
+        });
         enrichedCategories.push("sentiment");
       }
 
-      // ---- news (identical to the adapter's DAG-mode branch) ----
-      let news: NewsLensV1["payload"] | undefined = undefined;
+      // ---- news (view shape is the governed result's news object, verbatim) ----
+      let news: FroggyEnrichedView["news"] = undefined;
       let newsFeatures: NewsFeatures | undefined = undefined;
       if (nws?.news) {
         news = nws.news;
-        newsFeatures = nws.newsFeatures;
+        newsFeatures =
+          nws.newsFeatures && Object.keys(nws.newsFeatures).length > 0
+            ? nws.newsFeatures
+            : undefined;
         lenses.push({
           type: "news",
           version: "v1",
           payload: {
-            hasShockEvent: news.hasShockEvent,
-            shockDirection: news.shockDirection,
-            headlines: news.headlines,
-            items: news.items,
+            hasShockEvent: news.hasShockEvent ?? false,
+            shockDirection: (news.shockDirection ?? "none") as "bullish" | "bearish" | "none" | "unknown",
+            headlines: news.headlines ?? undefined,
+            items: news.items ?? undefined,
           },
         });
         enrichedCategories.push("news");
       }
 
-      // ---- assemble (identical field order/values to the adapter) ----
+      // ---- aiMl (joined as the fifth lane; never read by the scorer) ----
+      let aiMl: FroggyEnrichedView["aiMl"] = undefined;
+      if (ai && ai.forecast && typeof ai.forecast.conviction === "number") {
+        aiMl = viewAiMl(ai);
+        if (aiMl) {
+          lenses.push({
+            type: "aiMl",
+            version: "v1",
+            payload: {
+              ensembleScore: aiMl.convictionScore,
+              modelTags: aiMl.regime ? [aiMl.regime] : [],
+            },
+          });
+          enrichedCategories.push("aiMl");
+        }
+      }
+
+      // ---- assemble (field order/values preserved from the pre-activation merge) ----
       const actualPriceSource = tech?.priceSource ?? "unavailable";
       const normalizedMarketType = normalizeMarketType(market);
       const venueType = mapMarketTypeToVenueType(
@@ -193,16 +200,8 @@ export function createMergeEnrichedViewNode(): AnalysisNodePlugin {
       if (technicalLensPayload) {
         enrichmentSummary += `. Trend: ${technicalLensPayload.trendBias} (EMA20=${technicalLensPayload.ema20.toFixed(2)}, RSI=${technicalLensPayload.rsi14.toFixed(0)})`;
       }
-      if (patternLensPayload?.patternName) {
-        enrichmentSummary += `. Pattern: ${patternLensPayload.patternName}`;
-      }
-      if (patternLensPayload?.regime) {
-        const regime = patternLensPayload.regime;
-        enrichmentSummary += `. Regime: ${regime.cyclePhase || "unknown"} (${regime.trendState || "?"}, ${regime.volRegime || "?"} vol`;
-        if (regime.externalLabels?.fearGreedLabel) {
-          enrichmentSummary += `, ${regime.externalLabels.fearGreedLabel}`;
-        }
-        enrichmentSummary += `)`;
+      if (pattern?.patternName) {
+        enrichmentSummary += `. Pattern: ${pattern.patternName}`;
       }
 
       const enriched: FroggyEnrichedView = {
@@ -214,7 +213,7 @@ export function createMergeEnrichedViewNode(): AnalysisNodePlugin {
         pattern,
         sentiment,
         news,
-        aiMl: undefined, // augmented by the aiml node AFTER this merge
+        aiMl,
         newsFeatures: newsFeatures || undefined,
         enrichmentMeta: {
           categories: enrichedCategories,

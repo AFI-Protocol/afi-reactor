@@ -103,5 +103,5 @@ describe.each([
       expect([i, c.scorerInput]).toEqual([i, first.scorerInput]);
       expect([i, c.record]).toEqual([i, first.record]);
     }
-  });
+  }, 30_000); // 5 sequential full runs incl. per-lane declared retry backoff
 });

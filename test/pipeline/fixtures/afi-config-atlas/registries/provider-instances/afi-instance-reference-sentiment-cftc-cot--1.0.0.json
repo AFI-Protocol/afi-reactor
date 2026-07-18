@@ -1,0 +1,14 @@
+{
+  "schema": "afi.provider-instance.v1",
+  "providerInstanceId": "afi-instance-reference-sentiment-cftc-cot",
+  "recordVersion": "1.0.0",
+  "tenant": "reference",
+  "category": "sentiment",
+  "providerId": "afi-provider-sentiment-cftc-cot",
+  "adapterId": "afi-adapter-sentiment-cftc-cot",
+  "adapterVersion": "1.0.0",
+  "invocation": {
+    "timeoutMs": 10000
+  },
+  "status": "active"
+}

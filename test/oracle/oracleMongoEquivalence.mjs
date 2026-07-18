@@ -48,7 +48,6 @@ await import("../support/registerDeterministicPriceFeed.mjs");
 process.env.AFI_PRICE_FEED_SOURCE = "demo";
 for (const k of [
   "COINALYZE_API_KEY",
-  "NEWS_PROVIDER",
   "NEWSDATA_API_KEY",
   "NEWS_WINDOW_HOURS",
   "TINY_BRAINS_URL",
@@ -59,11 +58,8 @@ for (const k of [
 ]) {
   delete process.env[k];
 }
-// The regime-candle provider defaults to LIVE blofin via ccxt (not fetch) —
-// engage its explicit kill-switch so the proof is hermetic on any runner.
-process.env.PATTERN_REGIME_PROVIDER = "off";
-// Network OFF for enrichment fetches (regime/fear-greed would otherwise reach
-// out) — identical to the jest suites' disabled-network determinism.
+// Network OFF for enrichment fetches (the remote reference lanes degrade
+// honestly) — identical to the jest suites' disabled-network determinism.
 globalThis.fetch = () =>
   Promise.reject(new Error("oracle: external network disabled (deterministic proof)"));
 

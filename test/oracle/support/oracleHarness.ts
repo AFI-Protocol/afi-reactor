@@ -203,17 +203,12 @@ export function installOracleEnv(): () => void {
   const KEYS = [
     "AFI_PRICE_FEED_SOURCE",
     "COINALYZE_API_KEY",
-    "NEWS_PROVIDER",
     "NEWSDATA_API_KEY",
-    "NEWS_WINDOW_HOURS",
     "TINY_BRAINS_URL",
     "WEBHOOK_SHARED_SECRET",
     "AFI_INGEST_DEDUPE",
     "AFI_DEFAULT_PROVIDER_ID",
     "AFI_UWR_PROFILE_SOURCE",
-    "PATTERN_REGIME_PROVIDER",
-    "AFI_DEBUG_NEWS",
-    "AFI_DEBUG_AIML",
   ] as const;
   const saved = new Map<string, string | undefined>();
   for (const k of KEYS) saved.set(k, process.env[k]);
@@ -224,11 +219,6 @@ export function installOracleEnv(): () => void {
   // select it explicitly (same id — goldens stay byte-identical).
   const unregisterDemoFeed = registerPriceFeedAdapterForTests(demoPriceFeedAdapter);
   process.env.AFI_PRICE_FEED_SOURCE = "demo";
-  // The regime-candle provider defaults to LIVE blofin (via ccxt, not fetch) —
-  // engage its explicit kill-switch so the oracle is hermetic even where the
-  // runner has network access. "off" and a failed live fetch produce the same
-  // deterministic "unknown" regime summary (patternRegimeProfile fail-soft).
-  process.env.PATTERN_REGIME_PROVIDER = "off";
 
   // Point the boot-validated runtime composition at the oracle overlay root
   // (the committed fixtures' provider bindings). Same builtin plugin registry
@@ -247,9 +237,10 @@ export function installOracleEnv(): () => void {
 
 /**
  * Disable ALL outbound HTTP for the suite (global fetch rejects). Every
- * network-reaching enrichment seam (Coinalyze, NewsData, Tiny Brains, regime
- * candles, Fear & Greed) uses global fetch, so this pins the REAL fail-soft
- * code paths deterministically — identical to running with no network.
+ * network-reaching enrichment seam (the CFTC COT, SEC EDGAR, Coinalyze,
+ * NewsData, and Tiny Brains adapters) uses global fetch through its production
+ * singleton, so this pins the REAL degradation/fail-soft code paths
+ * deterministically — identical to running with no network.
  * supertest is unaffected (it drives the Express app directly).
  * Returns a restore function for afterAll.
  */

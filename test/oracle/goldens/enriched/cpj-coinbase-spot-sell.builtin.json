@@ -62,33 +62,33 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "269ae355a0d8bfaf53d849c38fba16e167f0571b6319ddc8d94841ff7c275261"
+        "value": "2274978afdffb798440ce08268dd4c0f06af2df94433d25d6f907335c9a3bc03"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.enrichment-bundle",
-        "value": "1ee920ca4cb2a324cfddd0cb7ccc719aa3b2a0854c7e5d1cb10adce855bb8ded"
+        "value": "0794ea757d38515a4e538ef8e2973916bba6dab7d86101984e237e1ae2616123"
       },
       "executionSummaryHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.execution-summary",
-        "value": "89e2a53816fbcabd5ed7741ad7c23be227630f72e277745ed065aab75ce01063"
+        "value": "9b23d299c792c6f97f50afaef26d931f8feefe783d9bd375200e9d09978630b4"
       },
       "manifestHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.composition-manifest",
-        "value": "b8d9b73410ce8ec0d1827d75ee2a2e750aa85553fb2fc985a7a52fdb75080d49"
+        "value": "87bcb7ed752820994a5b4bdb72bd55d51c39a2c58daa36fe8d0df4778778ae57"
       },
       "pipelineId": "froggy-trend-pullback",
-      "pipelineVersion": "v1.0.0",
+      "pipelineVersion": "v1.1.0",
       "pluginSetHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "6d54c8b720d6d709962bc2b8c792b4e8b1657308fac46fbec33a8f24232e0bb7"
+        "value": "5384e1c08ce4bd7f533acc15487df81d7d37b6615d109d611bde968a81f2f386"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -165,25 +165,27 @@
       "_priceFeedMetadata": {
         "marketType": "spot",
         "patternSignals": {
-          "bearishEngulfing": false,
-          "bullishEngulfing": false,
-          "insideBar": false,
-          "patternConfidence": 65,
-          "patternName": "pin bar",
-          "pinBar": true,
-          "regime": {
-            "cyclePhase": "unknown",
-            "externalLabels": {
-              "fearGreedLabel": "greed",
-              "fearGreedValue": 56,
-              "notes": "FG=56 (greed). Price at 100% of 90d range"
+          "candlestick": {
+            "flags": {
+              "bearishEngulfing": false,
+              "bullishEngulfing": false,
+              "insideBar": false,
+              "pinBar": true
             },
-            "topBottomRisk": "neutral",
-            "trendState": "uptrend",
-            "volRegime": "low"
+            "patternConfidence": 65,
+            "patternName": "pin bar",
+            "structureBias": "lower-lows",
+            "trendPullbackConfirmed": false
           },
-          "structureBias": "lower-lows",
-          "trendPullbackConfirmed": false
+          "changePoints": [],
+          "discords": [],
+          "motifs": [],
+          "pivots": [],
+          "series": {
+            "indexBasis": "position",
+            "length": 100,
+            "seriesId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002:candles:close"
+          }
         },
         "priceSource": "demo",
         "technicalIndicators": {
@@ -247,34 +249,51 @@
         },
         {
           "payload": {
-            "bearishEngulfing": false,
-            "bullishEngulfing": false,
-            "insideBar": false,
-            "patternConfidence": 65,
-            "patternName": "pin bar",
-            "pinBar": true,
-            "regime": {
-              "cyclePhase": "unknown",
-              "externalLabels": {
-                "fearGreedLabel": "greed",
-                "fearGreedValue": 56,
-                "notes": "FG=56 (greed). Price at 100% of 90d range"
+            "candlestick": {
+              "flags": {
+                "bearishEngulfing": false,
+                "bullishEngulfing": false,
+                "insideBar": false,
+                "pinBar": true
               },
-              "topBottomRisk": "neutral",
-              "trendState": "uptrend",
-              "volRegime": "low"
+              "patternConfidence": 65,
+              "patternName": "pin bar",
+              "structureBias": "lower-lows",
+              "trendPullbackConfirmed": false
             },
-            "structureBias": "lower-lows",
-            "trendPullbackConfirmed": false
+            "changePoints": [],
+            "discords": [],
+            "motifs": [],
+            "pivots": [],
+            "series": {
+              "indexBasis": "position",
+              "length": 100,
+              "seriesId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002:candles:close"
+            }
           },
           "type": "pattern",
           "version": "v1"
         },
         {
           "payload": {
-            "fundingRegime": "normal",
-            "perpSentimentScore": 51,
-            "positioningBias": "balanced"
+            "axes": [
+              {
+                "axis": "positioning",
+                "confidence": 0.9,
+                "horizon": "weekly",
+                "score": 0.2
+              },
+              {
+                "axis": "longShort",
+                "horizon": "weekly",
+                "score": 0.2
+              },
+              {
+                "axis": "openInterest",
+                "horizon": "weekly",
+                "score": 0.05
+              }
+            ]
           },
           "type": "sentiment",
           "version": "v1"
@@ -283,24 +302,17 @@
           "payload": {
             "hasShockEvent": true,
             "headlines": [
-              "Oracle recorded headline A",
-              "Oracle recorded headline B"
+              "8-K — Oracle Recorded Filer A (ORFA)"
             ],
             "items": [
               {
-                "publishedAt": "2026-01-15T09:30:00.000Z",
-                "source": "oracle-wire",
-                "title": "Oracle recorded headline A",
-                "url": "https://example.invalid/a"
-              },
-              {
-                "publishedAt": "2026-01-15T08:45:00.000Z",
-                "source": "oracle-wire",
-                "title": "Oracle recorded headline B",
-                "url": "https://example.invalid/b"
+                "publishedAt": "2026-01-15T00:00:00.000Z",
+                "source": "sec-edgar",
+                "title": "8-K — Oracle Recorded Filer A (ORFA)",
+                "url": "https://www.sec.gov/Archives/edgar/data/1234567/000123456726000123/0001234567-26-000123-index.htm"
               }
             ],
-            "shockDirection": "bullish"
+            "shockDirection": "unknown"
           },
           "type": "news",
           "version": "v1"

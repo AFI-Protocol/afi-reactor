@@ -22,10 +22,11 @@ function sha256(relPath: string): string {
 
 describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   it("pins the authorizing afi-config commit", () => {
-    // Mission 4 re-pin: afi-config PR #29 (three enrichment category-result
-    // contracts) merged as a1a1279; the vendored closure is byte-identical at
-    // that commit and now includes enrichment-pattern.schema.json.
-    expect(manifest.afiConfigCommit).toBe("a1a1279d403620062f2f246e0fa6533830f6c8e1");
+    // FLPR-GOV five-lane re-pin: afi-config PR #30 (five-lane provider runtime
+    // records + the candlestick pattern amendment) merged as 85d5d40; the
+    // vendored closure is byte-identical at that commit and now includes all
+    // five enrichment category-result contracts.
+    expect(manifest.afiConfigCommit).toBe("85d5d40d867dca4b08d20288d25d6b1f91ddff8d");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {
@@ -53,8 +54,10 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
       "provider-instance.schema.json",
       "enrichment-technical.schema.json",
       "enrichment-news.schema.json",
-      // Mission 4: the live 'pattern' lane's category-result contract.
       "enrichment-pattern.schema.json",
+      // FLPR-GOV: the five-lane runtime validates every lane at the edge.
+      "enrichment-sentiment.schema.json",
+      "enrichment-aiml.schema.json",
     ].forEach((f) => expect(covered).toContain(`src/pipeline/governed-schema/${f}`));
   });
 
@@ -86,6 +89,10 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
         "https://afi-protocol.org/schemas/enrichment/news/v1/enrichment-news.schema.json",
       "enrichment-pattern.schema.json":
         "https://afi-protocol.org/schemas/enrichment/pattern/v1/enrichment-pattern.schema.json",
+      "enrichment-sentiment.schema.json":
+        "https://afi-protocol.org/schemas/enrichment/sentiment/v1/enrichment-sentiment.schema.json",
+      "enrichment-aiml.schema.json":
+        "https://afi-protocol.org/schemas/enrichment/aiml/v1/enrichment-aiml.schema.json",
     };
     for (const [file, id] of Object.entries(ids)) {
       const doc = JSON.parse(

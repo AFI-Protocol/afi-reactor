@@ -153,3 +153,67 @@ describe("DSC-7: the governed golden stays byte-identical at its governed path",
     expect(digest).toBe(GOLDEN_SHA256);
   });
 });
+
+// ---------------------------------------------------------------------------
+// FLPR-GOV five-lane provider runtime guardrails (afi-governance
+// decisions/five-lane-provider-runtime-v0.1.md): the provider framework is
+// the SOLE live enrichment-execution seam; no classic direct-call category
+// node and no enrichment HTTP outside src/providers/ may return.
+// ---------------------------------------------------------------------------
+
+describe("FLPR-1: no classic direct-call category node may return", () => {
+  it("src/pipeline/nodes/ holds only the merge, scorer, and laneView modules", () => {
+    const dir = path.resolve(REPO_ROOT, "src/pipeline/nodes");
+    const files = readdirSync(dir).filter((f) => f.endsWith(".ts")).sort();
+    expect(files).toEqual([
+      "laneView.ts",
+      "mergeEnrichedView.ts",
+      "scorerFroggyTrendPullback.ts",
+    ]);
+  });
+});
+
+describe("FLPR-2: no enrichment HTTP transport outside src/providers/", () => {
+  it("no src module outside src/providers/ names an enrichment provider host", () => {
+    const HOSTS = /newsdata\.io|coinalyze\.net|publicreporting\.cftc\.gov|efts\.sec\.gov|alternative\.me|api\.coingecko\.com/;
+    const offenders = offendersIn(["src"], [".ts"], (content) => HOSTS.test(content)).filter(
+      (f) => !f.replace(/\\/g, "/").includes("src/providers/")
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it("the retired direct enrichment clients may not return", () => {
+    for (const retired of [
+      "src/aiMl",
+      "src/adapters/coinalyze",
+      "src/adapters/coingecko",
+      "src/adapters/external",
+      "src/indicator/regimeCandleProvider.ts",
+      "src/indicator/froggySentimentProfile.ts",
+      "src/indicator/patternRegimeProfile.ts",
+    ]) {
+      expect(existsSync(path.resolve(REPO_ROOT, retired))).toBe(false);
+    }
+  });
+});
+
+describe("FLPR-3: the registered reference manifest selects all five lanes explicitly", () => {
+  it("every analysis-lane node in the fixture froggy manifest carries a providerInstanceRef", () => {
+    const manifest = JSON.parse(
+      readFileSync(
+        path.resolve(
+          REPO_ROOT,
+          "test/pipeline/fixtures/afi-config/registries/pipelines/froggy-trend-pullback--v1.1.0.json"
+        ),
+        "utf-8"
+      )
+    ) as { nodes: Array<{ category: string; providerInstanceRef?: unknown }> };
+    const LANES = new Set(["technical", "pattern", "sentiment", "news", "aiMl"]);
+    const laneNodes = manifest.nodes.filter((n) => LANES.has(n.category));
+    expect(laneNodes).toHaveLength(5);
+    for (const node of laneNodes) {
+      expect(node.providerInstanceRef).toBeDefined();
+    }
+    expect(new Set(laneNodes.map((n) => n.category)).size).toBe(5);
+  });
+});

@@ -1,0 +1,12 @@
+{
+  "schema": "afi.provider.v1",
+  "providerId": "afi-provider-pattern-candlestick",
+  "recordVersion": "1.0.0",
+  "displayName": "AFI first-party candlestick + structure pattern kernels (local)",
+  "supportedCategories": ["pattern"],
+  "executionClass": "local",
+  "deterministic": true,
+  "adapterId": "afi-adapter-pattern-candlestick",
+  "requiresCredential": false,
+  "status": "active"
+}

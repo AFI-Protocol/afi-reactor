@@ -1,9 +1,10 @@
 /**
- * The canonical W3 pins (spec section 10): the reactor's verification-side
- * hasher MUST reproduce the afi-factory authoring-side hashes of the official
- * froggy-trend-pullback composition byte-exactly — manifestHash,
- * analystConfigHash and pluginSetHash — over the authored fixture registry
- * copies of the official artifacts.
+ * The canonical composition pins (FLPR-GOV five-lane runtime): the reactor's
+ * verification-side hasher MUST reproduce the registered official
+ * froggy-trend-pullback v1.1.0 composition hashes byte-exactly —
+ * manifestHash, analystConfigHash and pluginSetHash — over the authored
+ * fixture registry copies of the official artifacts (one-truth agreement
+ * with the afi-config seeding test's pinned values).
  */
 import { jest } from "@jest/globals";
 
@@ -29,9 +30,9 @@ import type { AnalysisPluginManifest } from "../../src/pipeline/manifestTypes.js
 import { FIXTURE_CONFIG_ROOT } from "./support/testHarness.js";
 
 const PINS = {
-  manifestHash: "b8d9b73410ce8ec0d1827d75ee2a2e750aa85553fb2fc985a7a52fdb75080d49",
-  analystConfigHash: "269ae355a0d8bfaf53d849c38fba16e167f0571b6319ddc8d94841ff7c275261",
-  pluginSetHash: "6d54c8b720d6d709962bc2b8c792b4e8b1657308fac46fbec33a8f24232e0bb7",
+  manifestHash: "87bcb7ed752820994a5b4bdb72bd55d51c39a2c58daa36fe8d0df4778778ae57",
+  analystConfigHash: "2274978afdffb798440ce08268dd4c0f06af2df94433d25d6f907335c9a3bc03",
+  pluginSetHash: "5384e1c08ce4bd7f533acc15487df81d7d37b6615d109d611bde968a81f2f386",
 };
 
 function readJson(path: string): unknown {
@@ -41,7 +42,7 @@ function readJson(path: string): unknown {
 describe("official froggy-trend-pullback pins (authoring/verification hash agreement)", () => {
   it("manifestHash of the official pipeline manifest matches the pinned value", () => {
     const pipeline = readJson(
-      join(FIXTURE_CONFIG_ROOT, "registries/pipelines/froggy-trend-pullback--v1.0.0.json")
+      join(FIXTURE_CONFIG_ROOT, "registries/pipelines/froggy-trend-pullback--v1.1.0.json")
     ) as object;
     const hash = computeManifestHash(pipeline);
     expect(hash.value).toBe(PINS.manifestHash);

@@ -27,7 +27,7 @@ export default {
     // Map relative imports with .js extension to .ts source files
     '^(\\.{1,2}/.*)\\.js$': '$1',
     // PR-UWR-RUNTIME-READ: jest cannot resolve afi-core's package-exports
-    // value subpaths (the reason scoringPipehead's scorer import is dynamic).
+    // value subpaths.
     // Map the validators + analysts subpaths to the file:-linked TypeScript
     // source so the runtime profile module, the froggy plugin, and their
     // guardrail tests load under jest; transformIgnorePatterns already opts
@@ -77,8 +77,6 @@ export default {
   ],
   testPathIgnorePatterns: [
     "<rootDir>/dist/",
-    "<rootDir>/test/enrichment/",
-    "<rootDir>/test/news/",
     "<rootDir>/test/receiptProvenanceService.test.ts",
     "<rootDir>/test/vaultReplayService.test.ts",
     "<rootDir>/test/uss/",

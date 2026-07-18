@@ -31,11 +31,18 @@ import {
   type PluginRegistry,
 } from "../pipeline/pluginRegistry.js";
 import {
+  loadProviderRecords,
   validateRuntimeConfig,
   type ValidatedRuntimeConfig,
 } from "../pipeline/registryLoader.js";
 import { scrubbingLogger } from "../providers/redaction.js";
-import { buildProviderRuntime } from "../providers/index.js";
+import {
+  buildProviderRuntime,
+  builtinProviderAdapters,
+  createProviderRecordStore,
+} from "../providers/index.js";
+import { createReferenceSecretResolver } from "../providers/referenceSecretBackend.js";
+import type { SecretResolver } from "../providers/secretResolver.js";
 import type { ProviderRuntime } from "../providers/providerRuntime.js";
 
 export interface RuntimeComposition {
@@ -46,10 +53,11 @@ export interface RuntimeComposition {
   /** The manifest-driven executor the live endpoints score through. */
   executor: GraphExecutor;
   /**
-   * The bounded provider-adapter runtime (PBF-GOV Wave 1). Constructed at boot
-   * so the trusted adapter registry is validated fail-closed (duplicate
-   * registration throws); the froggy production pipeline uses no provider-backed
-   * nodes, so it resolves nothing by default.
+   * The bounded provider-adapter runtime — the SOLE live enrichment-execution
+   * seam (FLPR-GOV D-FLPR-1). Constructed at boot from the governed
+   * provider/instance/credential-ref registries with the env-backed reference
+   * secret resolver; the trusted adapter registry is validated fail-closed
+   * (duplicate registration throws).
    */
   providerRuntime: ProviderRuntime;
 }
@@ -81,6 +89,8 @@ const CONSOLE_NODE_LOGGER: NodeLogger = scrubbingLogger(RAW_CONSOLE_NODE_LOGGER)
 interface CompositionOverrides {
   configRoot?: string;
   pluginRegistry?: PluginRegistry;
+  /** TEST-ONLY: inject a secret resolver (defaults to the env-backed reference backend). */
+  secretResolver?: SecretResolver;
 }
 
 let overrides: CompositionOverrides | undefined;
@@ -92,10 +102,23 @@ let current: RuntimeComposition | undefined;
  * (server boot) must NOT catch-and-serve.
  */
 export function initRuntimeComposition(): RuntimeComposition {
-  const pluginRegistry = overrides?.pluginRegistry ?? builtinPluginRegistry();
+  // 1. Load + validate the governed provider/instance/credential-ref
+  //    registries (fail-closed), and build the provider runtime FIRST — the
+  //    five lane plugins are provider-backed and bind against it.
+  const providerRecords = loadProviderRecords({ configRoot: overrides?.configRoot });
+  const records = createProviderRecordStore(providerRecords);
+  const resolver = overrides?.secretResolver ?? createReferenceSecretResolver();
+  const providerRuntime = buildProviderRuntime({ records, resolver });
+
+  // 2. Build the plugin registry over the provider runtime, then validate the
+  //    whole registry composition (incl. the D-FLPR-4 explicit-selection law:
+  //    every lane node's providerInstanceRef must resolve fail-closed).
+  const pluginRegistry = overrides?.pluginRegistry ?? builtinPluginRegistry(providerRuntime);
   const runtime = validateRuntimeConfig({
     pluginRegistry,
     configRoot: overrides?.configRoot,
+    providerRecords,
+    providerAdapterKeys: builtinProviderAdapters().map((a) => `${a.adapterId}@${a.adapterVersion}`),
   });
   const executor = new GraphExecutor({
     registry: pluginRegistry,
@@ -109,9 +132,6 @@ export function initRuntimeComposition(): RuntimeComposition {
       );
     },
   });
-  // Construct the bounded provider runtime at boot: the trusted adapter
-  // registry is validated fail-closed here (a duplicate registration throws).
-  const providerRuntime = buildProviderRuntime();
   current = { runtime, pluginRegistry, executor, providerRuntime };
   return current;
 }

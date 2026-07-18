@@ -63,33 +63,33 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "269ae355a0d8bfaf53d849c38fba16e167f0571b6319ddc8d94841ff7c275261"
+        "value": "2274978afdffb798440ce08268dd4c0f06af2df94433d25d6f907335c9a3bc03"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.enrichment-bundle",
-        "value": "139a6ee60875cc2240063ff48946e173cb2b23171c2d861e928159d5dd91f58a"
+        "value": "9ac49c8da4d4f643a838020a03b2ae22f08bef8fdf472d9f49c3e03f197be2a7"
       },
       "executionSummaryHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.execution-summary",
-        "value": "53e7083eb8c69fdac01b1a779aa9953baac7a11d7f321628c23f135ab4b53d8c"
+        "value": "67bd27e2aaf641e3d145872dc0de4a1cd949aa67699ed2f62f34f98ef02bfbea"
       },
       "manifestHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.composition-manifest",
-        "value": "b8d9b73410ce8ec0d1827d75ee2a2e750aa85553fb2fc985a7a52fdb75080d49"
+        "value": "87bcb7ed752820994a5b4bdb72bd55d51c39a2c58daa36fe8d0df4778778ae57"
       },
       "pipelineId": "froggy-trend-pullback",
-      "pipelineVersion": "v1.0.0",
+      "pipelineVersion": "v1.1.0",
       "pluginSetHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "6d54c8b720d6d709962bc2b8c792b4e8b1657308fac46fbec33a8f24232e0bb7"
+        "value": "5384e1c08ce4bd7f533acc15487df81d7d37b6615d109d611bde968a81f2f386"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -157,18 +157,15 @@
     "_priceFeedMetadata": {
       "marketType": "perp",
       "patternSignals": {
-        "bearishEngulfing": false,
-        "bullishEngulfing": false,
-        "insideBar": false,
-        "pinBar": false,
-        "regime": {
-          "cyclePhase": "unknown",
-          "topBottomRisk": "neutral",
-          "trendState": "choppy",
-          "volRegime": "normal"
-        },
-        "structureBias": "lower-lows",
-        "trendPullbackConfirmed": false
+        "changePoints": [],
+        "discords": [],
+        "motifs": [],
+        "pivots": [],
+        "series": {
+          "indexBasis": "position",
+          "length": 100,
+          "seriesId": "oracle-tv-short-0001:candles:close"
+        }
       },
       "priceSource": "demo",
       "technicalIndicators": {
@@ -236,18 +233,15 @@
       },
       {
         "payload": {
-          "bearishEngulfing": false,
-          "bullishEngulfing": false,
-          "insideBar": false,
-          "pinBar": false,
-          "regime": {
-            "cyclePhase": "unknown",
-            "topBottomRisk": "neutral",
-            "trendState": "choppy",
-            "volRegime": "normal"
-          },
-          "structureBias": "lower-lows",
-          "trendPullbackConfirmed": false
+          "changePoints": [],
+          "discords": [],
+          "motifs": [],
+          "pivots": [],
+          "series": {
+            "indexBasis": "position",
+            "length": 100,
+            "seriesId": "oracle-tv-short-0001:candles:close"
+          }
         },
         "type": "pattern",
         "version": "v1"

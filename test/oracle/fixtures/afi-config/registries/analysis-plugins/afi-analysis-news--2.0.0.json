@@ -1,0 +1,33 @@
+{
+  "schema": "afi.analysis-plugin.v1",
+  "pluginId": "afi-analysis-news",
+  "pluginVersion": "2.0.0",
+  "implementationVersion": "2.0.0",
+  "category": "news",
+  "description": "Official news lane plugin manifest (vendor-neutral, provider-instance-backed): the node reads its explicit providerInstanceRef, and the runtime provider layer resolves the instance and invokes the trusted registered news adapter (keyless or header-BYOK per the selected instance's provider) over the instance-configured window. The node contains no vendor logic and no credential access; external provider calls are NOT deterministic.",
+  "inputSchemaRef": "afi.usignal.v1.1",
+  "outputSchemaRef": "afi.enrichment.news.v1",
+  "deterministic": false,
+  "capabilities": ["provider:instance-backed"],
+  "defaultTimeoutMs": 10000,
+  "defaultRetryPolicy": {
+    "maxRetries": 2,
+    "retryDelayMs": 500,
+    "backoff": "fixed"
+  },
+  "permittedFailurePolicies": ["abort", "degrade"],
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "windowHours": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 168,
+        "description": "Look-back window (hours) for news retrieval; overrides the selected instance's invocation window when present."
+      }
+    }
+  },
+  "multiInstance": true,
+  "mayFeedScorer": true
+}

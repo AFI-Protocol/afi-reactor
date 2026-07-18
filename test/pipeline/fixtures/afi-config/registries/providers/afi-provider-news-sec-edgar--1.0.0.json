@@ -1,0 +1,12 @@
+{
+  "schema": "afi.provider.v1",
+  "providerId": "afi-provider-news-sec-edgar",
+  "recordVersion": "1.0.0",
+  "displayName": "SEC EDGAR filings (keyless US-government source)",
+  "supportedCategories": ["news"],
+  "executionClass": "remote",
+  "deterministic": false,
+  "adapterId": "afi-adapter-news-sec-edgar",
+  "requiresCredential": false,
+  "status": "active"
+}

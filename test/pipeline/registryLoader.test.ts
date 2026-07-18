@@ -23,16 +23,23 @@ import { join } from "node:path";
 import {
   RuntimeConfigValidationError,
   governedDecayTemplateIds,
+  loadProviderRecords,
   validateRuntimeConfig,
 } from "../../src/pipeline/registryLoader.js";
 import { builtinPluginRegistry, createPluginRegistry } from "../../src/pipeline/pluginRegistry.js";
+import { buildProviderRuntime } from "../../src/providers/index.js";
 import { computeAnalystConfigHash } from "../../src/pipeline/hashing.js";
 import { FIXTURE_CONFIG_ROOT } from "./support/testHarness.js";
 
 const FROGGY_KEY = "froggy/trend_pullback_v1@1.0.0";
+
+/** The production plugin registry over an empty provider runtime (binding only). */
+function testBuiltinRegistry() {
+  return builtinPluginRegistry(buildProviderRuntime());
+}
 const CONFIG_REL = "registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.config.json";
 const REGISTRATION_REL = "registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.json";
-const PIPELINE_REL = "registries/pipelines/froggy-trend-pullback--v1.0.0.json";
+const PIPELINE_REL = "registries/pipelines/froggy-trend-pullback--v1.1.0.json";
 
 /** Copies the fixture registries into a scratch root and applies mutations. */
 function scratchRoot(mutate?: (root: string) => void): string {
@@ -60,10 +67,10 @@ function repinConfigHash(root: string): void {
 function expectBootRefusal(root: string, pattern: RegExp): void {
   try {
     expect(() =>
-      validateRuntimeConfig({ pluginRegistry: builtinPluginRegistry(), configRoot: root })
+      validateRuntimeConfig({ pluginRegistry: testBuiltinRegistry(), configRoot: root })
     ).toThrow(RuntimeConfigValidationError);
     expect(() =>
-      validateRuntimeConfig({ pluginRegistry: builtinPluginRegistry(), configRoot: root })
+      validateRuntimeConfig({ pluginRegistry: testBuiltinRegistry(), configRoot: root })
     ).toThrow(pattern);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -73,20 +80,20 @@ function expectBootRefusal(root: string, pattern: RegExp): void {
 describe("validateRuntimeConfig — positive resolution over the fixture registries", () => {
   it("resolves the froggy composition with verified hashes and bindings", () => {
     const validated = validateRuntimeConfig({
-      pluginRegistry: builtinPluginRegistry(),
+      pluginRegistry: testBuiltinRegistry(),
       configRoot: FIXTURE_CONFIG_ROOT,
     });
 
     expect([...validated.strategies.keys()]).toEqual([FROGGY_KEY]);
     const froggy = validated.strategies.get(FROGGY_KEY)!;
     expect(froggy.manifestHash.value).toBe(
-      "b8d9b73410ce8ec0d1827d75ee2a2e750aa85553fb2fc985a7a52fdb75080d49"
+      "87bcb7ed752820994a5b4bdb72bd55d51c39a2c58daa36fe8d0df4778778ae57"
     );
     expect(froggy.analystConfigHash.value).toBe(
-      "269ae355a0d8bfaf53d849c38fba16e167f0571b6319ddc8d94841ff7c275261"
+      "2274978afdffb798440ce08268dd4c0f06af2df94433d25d6f907335c9a3bc03"
     );
     expect(froggy.pluginSetHash.value).toBe(
-      "6d54c8b720d6d709962bc2b8c792b4e8b1657308fac46fbec33a8f24232e0bb7"
+      "5384e1c08ce4bd7f533acc15487df81d7d37b6615d109d611bde968a81f2f386"
     );
     expect(froggy.decay).toEqual({ kind: "template", templateId: "decay-swing-v1" });
     expect(froggy.plugins.size).toBe(7);
@@ -120,7 +127,7 @@ describe("validateRuntimeConfig — positive resolution over the fixture registr
     });
     try {
       const validated = validateRuntimeConfig({
-        pluginRegistry: builtinPluginRegistry(),
+        pluginRegistry: testBuiltinRegistry(),
         configRoot: root,
       });
       expect(validated.strategies.size).toBe(0);
@@ -141,7 +148,7 @@ describe("validateRuntimeConfig — boot refusal negatives (any invalid ACTIVE e
 
   it("refuses a schema-invalid plugin manifest", () => {
     const root = scratchRoot((r) =>
-      editJson(r, "registries/analysis-plugins/afi-analysis-news--1.0.0.json", (doc) => {
+      editJson(r, "registries/analysis-plugins/afi-analysis-news--2.0.0.json", (doc) => {
         delete doc.implementationVersion;
       })
     );
@@ -151,7 +158,7 @@ describe("validateRuntimeConfig — boot refusal negatives (any invalid ACTIVE e
   it("refuses a pipeline whose recomputed manifestHash diverges from the pinned pipelineRef", () => {
     const root = scratchRoot((r) =>
       editJson(r, PIPELINE_REL, (doc) => {
-        doc.nodes.find((n: { id: string }) => n.id === "news").config.windowHours = 6;
+        doc.nodes.find((n: { id: string }) => n.id === "technical").config.candleLimit = 99;
       })
     );
     expectBootRefusal(root, /manifestHash mismatch/);
@@ -235,9 +242,9 @@ describe("validateRuntimeConfig — boot refusal negatives (any invalid ACTIVE e
   it("refuses a graph whose scorer is bypassable (non-scorer sink)", () => {
     const root = scratchRoot((r) =>
       editJson(r, PIPELINE_REL, (doc) => {
-        // Cut aiml -> scorer: aiml becomes a non-scorer sink and the scorer unreachable.
+        // Cut merge -> scorer: merge becomes a non-scorer sink and the scorer unreachable.
         doc.edges = doc.edges.filter(
-          (e: { from: string; to: string }) => !(e.from === "aiml" && e.to === "scorer")
+          (e: { from: string; to: string }) => !(e.from === "merge" && e.to === "scorer")
         );
       })
     );
@@ -260,5 +267,87 @@ describe("validateRuntimeConfig — boot refusal negatives (any invalid ACTIVE e
       })
     );
     expectBootRefusal(root, /does not admit this binding/);
+  });
+});
+
+describe("FLPR-GOV D-FLPR-4 — selection-point status-chain refusals (boot law)", () => {
+  function validateWithProviders(root: string, adapterKeys?: readonly string[]) {
+    const providerRecords = loadProviderRecords({ configRoot: root });
+    return validateRuntimeConfig({
+      pluginRegistry: testBuiltinRegistry(),
+      configRoot: root,
+      providerRecords,
+      providerAdapterKeys:
+        adapterKeys ??
+        [
+          "afi-adapter-technical-local@1.0.0",
+          "afi-adapter-pattern-candlestick@1.0.0",
+          "afi-adapter-pattern-tiny-brains@1.0.0",
+          "afi-adapter-sentiment-cftc-cot@1.0.0",
+          "afi-adapter-sentiment-coinalyze@1.0.0",
+          "afi-adapter-news-http@1.0.0",
+          "afi-adapter-news-sec-edgar@1.0.0",
+          "afi-adapter-aiml-tiny-brains@1.0.0",
+        ],
+    });
+  }
+
+  it("the shipped fixture registries pass the full selection-point chain", () => {
+    const root = scratchRoot();
+    try {
+      expect(() => validateWithProviders(root)).not.toThrow();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("REFUSES a referenced instance whose PROVIDER is inactive", () => {
+    const root = scratchRoot((r) =>
+      editJson(r, "registries/providers/afi-provider-technical-local--1.0.0.json", (doc) => {
+        doc.status = "inactive";
+      })
+    );
+    try {
+      expect(() => validateWithProviders(root)).toThrow(/provider 'afi-provider-technical-local' which is not active/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("REFUSES a referenced instance whose adapterVersion is not in the build-time set", () => {
+    const root = scratchRoot((r) =>
+      editJson(
+        r,
+        "registries/provider-instances/afi-instance-reference-technical-local--1.0.0.json",
+        (doc) => {
+          doc.adapterVersion = "1.1.0";
+        }
+      )
+    );
+    try {
+      expect(() => validateWithProviders(root)).toThrow(/afi-adapter-technical-local@1\.1\.0/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("a DISABLED credentialRef on an UNREFERENCED BYOK instance still boots (revocation without deletion)", () => {
+    const root = scratchRoot((r) => {
+      editJson(r, "registries/credential-refs/credential-coinalyze-reference--1.0.0.json", (doc) => {
+        doc.status = "disabled";
+      });
+      editJson(
+        r,
+        "registries/provider-instances/afi-instance-byok-sentiment-coinalyze--1.0.0.json",
+        (doc) => {
+          doc.status = "inactive";
+        }
+      );
+    });
+    try {
+      expect(() => validateWithProviders(root)).not.toThrow();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

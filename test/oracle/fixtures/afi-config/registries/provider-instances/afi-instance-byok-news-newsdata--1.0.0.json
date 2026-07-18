@@ -1,0 +1,16 @@
+{
+  "schema": "afi.provider-instance.v1",
+  "providerInstanceId": "afi-instance-byok-news-newsdata",
+  "recordVersion": "1.0.0",
+  "tenant": "reference",
+  "category": "news",
+  "providerId": "afi-provider-news-http",
+  "adapterId": "afi-adapter-news-http",
+  "adapterVersion": "1.0.0",
+  "credentialRef": "credential-newsdata-reference",
+  "invocation": {
+    "windowHours": 4,
+    "timeoutMs": 10000
+  },
+  "status": "active"
+}

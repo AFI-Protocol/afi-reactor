@@ -7,7 +7,7 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.analyst-config",
-    "value": "2c515ce272528ec6c2fc20cde2b1a988de1eeb7abbf782a91811c1127a626db3"
+    "value": "0fec790fba83fa3c3508dfac3c8f64195e0a0cbd58ceb0da6dd3f21b5eee7dcb"
   },
   "configRef": "afi-config/registries/analyst-strategies/atlas-probe--multi_branch_v1--1.0.0.config.json",
   "providerBindingPolicy": {
@@ -18,5 +18,5 @@
   },
   "status": "active",
   "registeredAt": "2026-07-16",
-  "registrationRef": "TEST OVERLAY ONLY (afi-reactor test/pipeline/fixtures/afi-config-atlas) \u2014 SECOND-STRATEGY PROOF per W3 spec 8.2 / program 9.5; never a governed registry entry"
+  "registrationRef": "TEST OVERLAY ONLY (afi-reactor test/pipeline/fixtures/afi-config-atlas) — SECOND-STRATEGY PROOF per W3 spec 8.2 / program 9.5; never a governed registry entry"
 }

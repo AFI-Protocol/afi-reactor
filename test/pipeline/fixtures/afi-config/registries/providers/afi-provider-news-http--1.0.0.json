@@ -1,0 +1,13 @@
+{
+  "schema": "afi.provider.v1",
+  "providerId": "afi-provider-news-http",
+  "recordVersion": "1.0.0",
+  "displayName": "AFI HTTP News Provider (BYOK, header-authenticated)",
+  "supportedCategories": ["news"],
+  "executionClass": "remote",
+  "deterministic": false,
+  "adapterId": "afi-adapter-news-http",
+  "requiresCredential": true,
+  "credentialKind": "apiKeyHeader",
+  "status": "active"
+}

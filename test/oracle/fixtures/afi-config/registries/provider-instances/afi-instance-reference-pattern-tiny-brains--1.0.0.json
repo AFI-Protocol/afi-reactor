@@ -1,0 +1,14 @@
+{
+  "schema": "afi.provider-instance.v1",
+  "providerInstanceId": "afi-instance-reference-pattern-tiny-brains",
+  "recordVersion": "1.0.0",
+  "tenant": "reference",
+  "category": "pattern",
+  "providerId": "afi-provider-pattern-tiny-brains",
+  "adapterId": "afi-adapter-pattern-tiny-brains",
+  "adapterVersion": "1.0.0",
+  "invocation": {
+    "timeoutMs": 10000
+  },
+  "status": "active"
+}

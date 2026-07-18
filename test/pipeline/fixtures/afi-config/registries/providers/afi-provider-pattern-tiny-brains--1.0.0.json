@@ -1,0 +1,12 @@
+{
+  "schema": "afi.provider.v1",
+  "providerId": "afi-provider-pattern-tiny-brains",
+  "recordVersion": "1.0.0",
+  "displayName": "AFI Tiny Brains pattern service (STUMPY/ruptures/find_peaks, self-hosted)",
+  "supportedCategories": ["pattern"],
+  "executionClass": "remote",
+  "deterministic": true,
+  "adapterId": "afi-adapter-pattern-tiny-brains",
+  "requiresCredential": false,
+  "status": "active"
+}
