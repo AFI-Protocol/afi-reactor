@@ -27,9 +27,14 @@
  * whose adapters consume graph input: pattern, aiMl) the delivered graph
  * input. No credential, header, logger, abort handle, or volatile field can
  * enter it because the builder signature admits none; functions are dropped
- * structurally by the JSON round-trip. traceId is EXCLUDED (request-scoped,
- * not deterministic replay input). Candle/series content IS included
- * (content binding, hash-only — the series never persists).
+ * structurally by the JSON round-trip; the canonical volatile
+ * runtime/storage timestamp keys (VOLATILE_TIMESTAMP_KEYS — e.g. the
+ * request-scoped `ingestedAt` on the USS provenance) are dropped recursively
+ * from the signal/graph/params material (D-EV3-4(7): no wall-clock moment in
+ * any hashed preimage; identical canonical inputs → identical projections).
+ * traceId is EXCLUDED (request-scoped, not deterministic replay input).
+ * Candle/series content IS included (content binding, hash-only — the series
+ * never persists).
  *
  * BOUNDARY: digest computation only. No I/O, no registry read, no clock.
  */
@@ -38,6 +43,7 @@ import {
   canonicalHashOf,
   type CanonicalHashRef,
 } from "../../pipeline/hashing.js";
+import { VOLATILE_TIMESTAMP_KEYS } from "./canonicalHashV1.js";
 import type { AnalysisCategory } from "../../providers/types.js";
 
 /** D-EV3-4(1) — the provider-provenance domain tags (composition law). */
@@ -75,6 +81,24 @@ export const EVIDENCE_RECORD_EXCLUDED_FIELDS = ["recordHash", "replayHash"] as c
  */
 function jsonSemantics<T>(value: T): unknown {
   return JSON.parse(JSON.stringify(value));
+}
+
+const VOLATILE_KEY_SET: ReadonlySet<string> = new Set(VOLATILE_TIMESTAMP_KEYS);
+
+/**
+ * JSON round-trip that ALSO structurally drops the canonical volatile
+ * runtime/storage timestamp keys (the D2 hash doctrine's
+ * VOLATILE_TIMESTAMP_KEYS — e.g. the request-scoped `ingestedAt` on the
+ * canonical USS provenance). D-EV3-4(3)/(7): the invocation-input projection
+ * admits NO volatile field — two evaluations of the same canonical inputs
+ * MUST produce identical projections, and no wall-clock moment may enter any
+ * hashed preimage of the decision. Domain-declared evidence timestamps
+ * (asOf, publishedAt, …) are ordinary content and pass through.
+ */
+function volatileFreeJsonSemantics<T>(value: T): unknown {
+  return JSON.parse(
+    JSON.stringify(value, (key, v) => (VOLATILE_KEY_SET.has(key) ? undefined : v))
+  );
 }
 
 /**
@@ -142,15 +166,15 @@ export function buildInvocationInputProjection(
   facts: InvocationInputFacts
 ): InvocationInputProjection {
   const input: { signal: unknown; graph?: unknown } = {
-    signal: jsonSemantics(facts.signal),
+    signal: volatileFreeJsonSemantics(facts.signal),
   };
   if (GRAPH_INPUT_LANES.has(facts.category) && facts.graphInput !== undefined) {
-    input.graph = jsonSemantics(facts.graphInput);
+    input.graph = volatileFreeJsonSemantics(facts.graphInput);
   }
   const projection: InvocationInputProjection = {
     category: facts.category,
     adapter: { adapterId: facts.adapterId, adapterVersion: facts.adapterVersion },
-    params: jsonSemantics(facts.params ?? {}) as Record<string, unknown>,
+    params: volatileFreeJsonSemantics(facts.params ?? {}) as Record<string, unknown>,
     input,
   };
   if (facts.model !== undefined) projection.model = facts.model;

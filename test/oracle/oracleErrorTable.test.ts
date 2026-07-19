@@ -19,6 +19,39 @@ jest.mock("ccxt", () => {
   };
 });
 
+// RECORDED remote-lane transports (shared stubs): the error table's 200-rows
+// (auth pass-through, default-strategy resolution, persistence honesty) are
+// FULL scored runs — under froggy v1.3.0 every lane is critical (EV3-GOV
+// D-EV3-5(1)), so they ride the same recorded transports as the enriched
+// golden suite. Every error row runs BEFORE the lanes or fails regardless.
+jest.mock("../../src/providers/adapters/sentimentCftcCotAdapter.js", () => {
+  const actual = jest.requireActual(
+    "../../src/providers/adapters/sentimentCftcCotAdapter.js"
+  ) as typeof import("../../src/providers/adapters/sentimentCftcCotAdapter.js");
+  const stubs = jest.requireActual(
+    "./support/recordedLaneStubs.js"
+  ) as typeof import("./support/recordedLaneStubs.js");
+  return { ...actual, sentimentCftcCotAdapter: stubs.recordedSentimentCftcCotAdapter() };
+});
+jest.mock("../../src/providers/adapters/newsSecEdgarAdapter.js", () => {
+  const actual = jest.requireActual(
+    "../../src/providers/adapters/newsSecEdgarAdapter.js"
+  ) as typeof import("../../src/providers/adapters/newsSecEdgarAdapter.js");
+  const stubs = jest.requireActual(
+    "./support/recordedLaneStubs.js"
+  ) as typeof import("./support/recordedLaneStubs.js");
+  return { ...actual, newsSecEdgarAdapter: stubs.recordedNewsSecEdgarAdapter() };
+});
+jest.mock("../../src/providers/adapters/aimlTinyBrainsAdapter.js", () => {
+  const actual = jest.requireActual(
+    "../../src/providers/adapters/aimlTinyBrainsAdapter.js"
+  ) as typeof import("../../src/providers/adapters/aimlTinyBrainsAdapter.js");
+  const stubs = jest.requireActual(
+    "./support/recordedLaneStubs.js"
+  ) as typeof import("./support/recordedLaneStubs.js");
+  return { ...actual, aimlTinyBrainsAdapter: stubs.recordedAimlTinyBrainsAdapter() };
+});
+
 import app from "../../src/server.js";
 import { setEvidenceStore, resetEvidenceStore } from "../../src/evidence/index.js";
 import {

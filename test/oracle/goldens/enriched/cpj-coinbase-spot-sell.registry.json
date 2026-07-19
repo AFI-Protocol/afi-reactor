@@ -62,7 +62,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "395fd7f9f3b924b033bf56e2f73f92d3567cdc2ba7e1c58de45e895afd89a6d7"
+        "value": "e34471dec8dd3b8fcf0e5576765e469aec1a89f77af6b693ef3c06fc4200bbad"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
@@ -80,10 +80,10 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.composition-manifest",
-        "value": "095b55775cd32147bb29137278185d1c6a95512dfec827f4c98a3eb569b39883"
+        "value": "df3372dadaca1595d0e6d2f6bad9464ccc9abb7106e9f5b7111df148a145bc4f"
       },
       "pipelineId": "froggy-trend-pullback",
-      "pipelineVersion": "v1.2.0",
+      "pipelineVersion": "v1.3.0",
       "pluginSetHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
@@ -121,8 +121,322 @@
       },
       "signalId": "cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002"
     },
+    "providerInvocations": [
+      {
+        "adapter": {
+          "adapterId": "afi-adapter-aiml-tiny-brains",
+          "adapterVersion": "1.1.0",
+          "transportKind": "http"
+        },
+        "aimlInvocation": {
+          "codeConfigFingerprint": "abababababababababababababababababababababababababababababababab",
+          "experts": [
+            {
+              "expertId": "chronos-bolt-forecaster",
+              "expertVersion": "1.0.0",
+              "outputHash": "abababababababababababababababababababababababababababababababab",
+              "posture": "probabilistic",
+              "status": "succeeded"
+            },
+            {
+              "expertId": "trend-baseline",
+              "expertVersion": "1.0.0",
+              "outputHash": "abababababababababababababababababababababababababababababababab",
+              "posture": "deterministic",
+              "status": "succeeded"
+            }
+          ],
+          "hashLaw": "tiny-brains.hash.v1",
+          "inputHash": "abababababababababababababababababababababababababababababababab",
+          "outputHash": "6ccb9d06313e4124adbb8f86b20213d54170eff846f694183ed2783680d35baf",
+          "profileId": "froggy-reference-v1",
+          "profileVersion": "1.0.0",
+          "resolverId": "froggy-agreement",
+          "resolverVersion": "1.0.0",
+          "schema": "afi.aiml-invocation-proof.v1",
+          "status": "succeeded"
+        },
+        "category": "aiMl",
+        "categoryResultHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.lane-output",
+          "value": "711e0209f732e362319da029f54810c27bb056a1fbf8cebcdeca89499c3fc14e"
+        },
+        "credential": {
+          "mode": "keyless"
+        },
+        "invocationInputHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.provider-invocation-input",
+          "value": "47843ee82990d20d87a284ed03feb748e856b33fd39c01ec1a985b9c0487b371"
+        },
+        "provider": {
+          "deterministic": false,
+          "executionClass": "remote",
+          "providerId": "afi-provider-aiml-tiny-brains",
+          "recordFingerprint": {
+            "algorithm": "sha256",
+            "canonicalizationVersion": "afi.hash.v1",
+            "domainTag": "afi.d2.provider-record",
+            "value": "5580f74e66ff1edfcef882c6dc44d52deeebbee51806bab5a73a04426403892e"
+          },
+          "recordVersion": "1.1.0"
+        },
+        "providerInstance": {
+          "model": "froggy-reference-v1",
+          "providerInstanceId": "afi-instance-reference-aiml-tiny-brains",
+          "recordFingerprint": {
+            "algorithm": "sha256",
+            "canonicalizationVersion": "afi.hash.v1",
+            "domainTag": "afi.d2.provider-instance-record",
+            "value": "fa6cda6ca7b6d5f31e8958e22232555a8421e495cd94fd845c48c7824ac576c9"
+          },
+          "recordVersion": "1.1.0"
+        },
+        "providerResultHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.provider-result",
+          "value": "f42e96244178775329d96d7509756aacafee6de0ef63f982462a9879611293f7"
+        },
+        "resultSchema": "afi.enrichment.aiml.v1",
+        "schema": "afi.provider-invocation-proof.v1",
+        "status": "succeeded"
+      },
+      {
+        "adapter": {
+          "adapterId": "afi-adapter-news-sec-edgar",
+          "adapterVersion": "1.0.0",
+          "transportKind": "http"
+        },
+        "category": "news",
+        "categoryResultHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.lane-output",
+          "value": "9242f74b3d76e4eaf9e26dbe130ef62a13d562e861bf10bdf52fc9f773fe41d8"
+        },
+        "credential": {
+          "mode": "keyless"
+        },
+        "invocationInputHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.provider-invocation-input",
+          "value": "6b93561dc4c33405af16bd592f9666b4c8f9be53fc46d566e99cd69c1bb5852f"
+        },
+        "provider": {
+          "deterministic": false,
+          "executionClass": "remote",
+          "providerId": "afi-provider-news-sec-edgar",
+          "recordFingerprint": {
+            "algorithm": "sha256",
+            "canonicalizationVersion": "afi.hash.v1",
+            "domainTag": "afi.d2.provider-record",
+            "value": "6ff51d26635ed6105dc5b9dd11c77c85e9d2d683f056a74ac5f399ac997cc2d1"
+          },
+          "recordVersion": "1.0.0"
+        },
+        "providerInstance": {
+          "providerInstanceId": "afi-instance-reference-news-sec-edgar",
+          "recordFingerprint": {
+            "algorithm": "sha256",
+            "canonicalizationVersion": "afi.hash.v1",
+            "domainTag": "afi.d2.provider-instance-record",
+            "value": "fbfd4ea7999914054c3e240308e801d7dd7f476a690856082f1352091f689e8f"
+          },
+          "recordVersion": "1.0.0"
+        },
+        "providerResultHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.provider-result",
+          "value": "f7faa308e0d3cfba3298198df8460d3b0042acd117dac5d5aea515bb2bdfda8f"
+        },
+        "resultSchema": "afi.enrichment.news.v1",
+        "schema": "afi.provider-invocation-proof.v1",
+        "status": "succeeded"
+      },
+      {
+        "adapter": {
+          "adapterId": "afi-adapter-pattern-candlestick",
+          "adapterVersion": "1.0.0",
+          "transportKind": "in-process"
+        },
+        "category": "pattern",
+        "categoryResultHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.lane-output",
+          "value": "eacf0d47648ea9f1d35a75aaa69caf87254a3d2b28488d91e3c56d50e5d72adc"
+        },
+        "credential": {
+          "mode": "keyless"
+        },
+        "invocationInputHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.provider-invocation-input",
+          "value": "7feef5dbd1b0613a67b6751f1dfd6e3a4bae49f729f4625ff32934116a2d6a02"
+        },
+        "provider": {
+          "deterministic": true,
+          "executionClass": "local",
+          "providerId": "afi-provider-pattern-candlestick",
+          "recordFingerprint": {
+            "algorithm": "sha256",
+            "canonicalizationVersion": "afi.hash.v1",
+            "domainTag": "afi.d2.provider-record",
+            "value": "3ad5fe5ff34ab4c7afe3dbc4edecbf328bbdef3bb5f5b31c99d758bd7fe0bded"
+          },
+          "recordVersion": "1.0.0"
+        },
+        "providerInstance": {
+          "providerInstanceId": "afi-instance-reference-pattern-candlestick",
+          "recordFingerprint": {
+            "algorithm": "sha256",
+            "canonicalizationVersion": "afi.hash.v1",
+            "domainTag": "afi.d2.provider-instance-record",
+            "value": "af4c13116814814d5b4ee22855a14972759e6e66a110d2a8e25764c739bfd877"
+          },
+          "recordVersion": "1.0.0"
+        },
+        "providerResultHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.provider-result",
+          "value": "47d20423f14308ee03c019f82a8d7fc5036e293e9c44097ace3c997b71dae0a4"
+        },
+        "resultSchema": "afi.enrichment.pattern.v1",
+        "schema": "afi.provider-invocation-proof.v1",
+        "status": "succeeded"
+      },
+      {
+        "adapter": {
+          "adapterId": "afi-adapter-sentiment-cftc-cot",
+          "adapterVersion": "1.0.0",
+          "transportKind": "http"
+        },
+        "category": "sentiment",
+        "categoryResultHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.lane-output",
+          "value": "f3845eb75ba246f22b07bc77aa970ff118b0934b6cd586ca68360010a27c4d98"
+        },
+        "credential": {
+          "mode": "keyless"
+        },
+        "invocationInputHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.provider-invocation-input",
+          "value": "e913e6836cd39ceee8f4d54844d688c1ca3e22a1c575a90a0ebbcb5c55d438cd"
+        },
+        "provider": {
+          "deterministic": false,
+          "executionClass": "remote",
+          "providerId": "afi-provider-sentiment-cftc-cot",
+          "recordFingerprint": {
+            "algorithm": "sha256",
+            "canonicalizationVersion": "afi.hash.v1",
+            "domainTag": "afi.d2.provider-record",
+            "value": "4d9af687cf084f9c239dc1961ed6184a058c4ad5f609d1d0caaf7b1da4f09b71"
+          },
+          "recordVersion": "1.0.0"
+        },
+        "providerInstance": {
+          "providerInstanceId": "afi-instance-reference-sentiment-cftc-cot",
+          "recordFingerprint": {
+            "algorithm": "sha256",
+            "canonicalizationVersion": "afi.hash.v1",
+            "domainTag": "afi.d2.provider-instance-record",
+            "value": "9ff8759b533cae8d3f47b24d89ed1247302dae278657ff82143ec44f4167c334"
+          },
+          "recordVersion": "1.0.0"
+        },
+        "providerResultHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.provider-result",
+          "value": "e9966d43bd7fce02cf45c67b196dfadb6bf174fd6bba4720db7e946dc013a937"
+        },
+        "resultSchema": "afi.enrichment.sentiment.v1",
+        "schema": "afi.provider-invocation-proof.v1",
+        "status": "succeeded"
+      },
+      {
+        "adapter": {
+          "adapterId": "afi-adapter-technical-local",
+          "adapterVersion": "1.0.0",
+          "transportKind": "in-process"
+        },
+        "category": "technical",
+        "categoryResultHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.lane-output",
+          "value": "a8d7cb9382b5b638f04efaba745f9823af877e83a74688e23a07ece314f6ee7a"
+        },
+        "credential": {
+          "mode": "keyless"
+        },
+        "invocationInputHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.provider-invocation-input",
+          "value": "f12cc96839ed2de196a14f799e346f9ad8e2f09c0ac11dacb3aabaf48941ec73"
+        },
+        "priceSource": "demo",
+        "provider": {
+          "deterministic": true,
+          "executionClass": "local",
+          "providerId": "afi-provider-technical-local",
+          "recordFingerprint": {
+            "algorithm": "sha256",
+            "canonicalizationVersion": "afi.hash.v1",
+            "domainTag": "afi.d2.provider-record",
+            "value": "685a55e7b286c591678504528653904f734bd07ca27f1d8559b78401620e9e10"
+          },
+          "recordVersion": "1.0.0"
+        },
+        "providerInstance": {
+          "providerInstanceId": "afi-instance-reference-technical-local",
+          "recordFingerprint": {
+            "algorithm": "sha256",
+            "canonicalizationVersion": "afi.hash.v1",
+            "domainTag": "afi.d2.provider-instance-record",
+            "value": "322d27f0955a2a5d0c35af5a85f21eafa8ad194849685a8bc9031f720e074748"
+          },
+          "recordVersion": "1.0.0"
+        },
+        "providerResultHash": {
+          "algorithm": "sha256",
+          "canonicalizationVersion": "afi.hash.v1",
+          "domainTag": "afi.d2.provider-result",
+          "value": "ad9b683eaaea9566ea7d559c33ec199c1a1ba804342f419b30361ac098dd29e7"
+        },
+        "resultSchema": "afi.enrichment.technical.v1",
+        "schema": "afi.provider-invocation-proof.v1",
+        "status": "succeeded"
+      }
+    ],
+    "recordHash": {
+      "algorithm": "sha256",
+      "canonicalizationVersion": "afi.hash.v1",
+      "domainTag": "afi.d2.evidence-record",
+      "value": "8f380e2a5f3f7614e04dc9bd4939a07c0f15608a9c8a8ad633b3561796f1c2ab"
+    },
     "recordVersion": 1,
-    "schema": "afi.scored-signal-evidence.v2",
+    "replayHash": {
+      "algorithm": "sha256",
+      "canonicalizationVersion": "afi.hash.v1",
+      "domainTag": "afi.d2.evidence-replay",
+      "value": "f09a31be0ac6ff09339c2f4acd9803e6a1a6852eab1e8ba4b739e0be77f78886"
+    },
+    "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
       "analystId": "froggy",
       "conviction": 0.5916666666666667,

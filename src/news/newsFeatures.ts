@@ -99,7 +99,16 @@ function containsKeyword(text: string, keywords: string[]): boolean {
  * @returns NewsFeatures or null
  */
 export function computeNewsFeatures(
-  news: NewsShockSummary | null
+  news: NewsShockSummary | null,
+  /**
+   * The evaluation clock the age features are measured against. Defaults to
+   * the wall clock; an adapter that owns a deterministic `now` seam (e.g. the
+   * SEC-EDGAR reference adapter) passes ITS clock so every time-relative
+   * value in its category result derives from the one declared evaluation
+   * moment (EV3-GOV D-EV3-4(7): deterministic replay — identical canonical
+   * inputs must yield identical lane results).
+   */
+  nowMs?: number
 ): NewsFeatures | null {
   // If no news data, return null
   if (!news) {
@@ -124,7 +133,7 @@ export function computeNewsFeatures(
   }
 
   // Timing: compute minutes ago for most recent and oldest articles
-  const now = Date.now();
+  const now = nowMs ?? Date.now();
   const timestamps = news.items.map((item) => item.publishedAt.getTime());
   const mostRecentTimestamp = Math.max(...timestamps);
   const oldestTimestamp = Math.min(...timestamps);
