@@ -16,7 +16,7 @@
  */
 
 import { MongoScoredSignalEvidenceStore } from "afi-infra";
-import type { ScoredSignalEvidenceRecordV2 } from "afi-infra";
+import type { AnyScoredSignalEvidenceRecord } from "afi-infra";
 import type { EvidenceStorePort } from "./submitScoredSignalEvidence.js";
 
 let injected: EvidenceStorePort | null = null;
@@ -54,7 +54,7 @@ export function getEvidenceStore(): EvidenceStorePort {
     // recordHash/replayHash by recomputation before insert, so the runtime
     // contract is enforced by afi-infra, not this cast.
     cached = {
-      submit: (record) => store.submit(record as unknown as ScoredSignalEvidenceRecordV2),
+      submit: (record) => store.submit(record as unknown as AnyScoredSignalEvidenceRecord),
     };
   }
   return cached;
