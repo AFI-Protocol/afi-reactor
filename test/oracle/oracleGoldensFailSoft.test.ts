@@ -5,8 +5,8 @@
  * (POST /api/webhooks/tradingview; POST /api/ingest/cpj) through the REAL
  * shared path — strategy resolution → boot-validated registry composition →
  * GraphExecutor over the registered froggy manifest → the seven category
- * nodes — as committed goldens. Originally captured against the legacy
- * froggyScoringService path; the manifest-driven executor was proven
+ * nodes — as committed goldens. Originally captured against the reactor's
+ * earlier hardcoded scoring path; the manifest-driven executor was proven
  * byte-equivalent against these goldens with ONLY the documented intentional
  * diffs (test/oracle/INTENTIONAL_DIFFS.md) regenerated.
  *
