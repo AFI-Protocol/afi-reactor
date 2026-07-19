@@ -29,6 +29,8 @@ import {
   type RecognizedStrategyRegistration,
 } from "../config/uwrProfilePin.js";
 import type { CompositionRefV1 } from "../pipeline/manifestTypes.js";
+import type { AnalysisCategory } from "../providers/types.js";
+import type { ProviderInvocationProofV1 } from "../providers/invocationProof.js";
 import type { InternalScoringResult } from "./analysis/internalScoringResult.js";
 import type { ProvenanceRecordV1, ScoredSignalV1 } from "./provenance/types.js";
 import { PROVENANCE_RECORD_SCHEMA } from "./provenance/types.js";
@@ -45,15 +47,57 @@ export const EVIDENCE_SCHEMA = "afi.scored-signal-evidence.v2" as const;
 export const REACTOR_LIFECYCLE_STATE = "SCORED" as const;
 
 /**
+ * One lane's EXPECTED identity facts — the boot-verified governed registry
+ * resolution of the manifest's explicit provider selection (D-FLPR-4),
+ * assembled by the graph scoring service (the evidence layer never reads
+ * registries itself — RC-7). The Evidence V3 builder cross-checks every
+ * captured invocation proof against these facts, fail closed (D-EV3-5(3)).
+ */
+export interface LaneBindingExpectation {
+  category: AnalysisCategory;
+  nodeId: string;
+  providerInstanceId: string;
+  instanceRecordVersion: string;
+  providerId: string;
+  providerRecordVersion: string;
+  adapterId: string;
+  adapterVersion: string;
+  /** Present exactly when the governed instance record declares a model. */
+  model?: string;
+  /** The instance's opaque credential reference; keyless posture iff absent. */
+  credentialRef?: string;
+}
+
+/**
+ * The run's captured invocation facts (EV3-GOV D-EV3-5(2)): the per-lane
+ * proofs captured inside the one live graph pass, the ACTUAL category
+ * results the join consumed (for fail-closed hash recomputation), the
+ * expected per-lane registry resolution, and the registration-resolved decay
+ * identity. Produced by src/services/graphScoringService.ts; REQUIRED — a
+ * run that cannot prove its invocations must refuse to submit.
+ */
+export interface EvidenceInvocationCapture {
+  proofs: ProviderInvocationProofV1[];
+  /** category -> the category result the analyst path ACTUALLY consumed. */
+  laneResults: Partial<Record<AnalysisCategory, unknown>>;
+  laneBindings: LaneBindingExpectation[];
+  /** The registration-resolved decay identity (binds via analystConfigHash). */
+  decay: { halfLifeMinutes: number; greeksTemplateId: string };
+}
+
+/**
  * The composition context of the scoring run — the complete
  * afi.composition-ref.v1 stamp plus the resolved registration identity the
- * registry-backed UWR stamp recognition consumes. Produced by
+ * registry-backed UWR stamp recognition consumes, plus the captured
+ * invocation facts (EV3-GOV). Produced by
  * src/services/graphScoringService.ts; REQUIRED (all-or-nothing): a run that
- * cannot pin its full composition must refuse to submit (fail closed).
+ * cannot pin its full composition and prove its five invocations must refuse
+ * to submit (fail closed).
  */
 export interface EvidenceCompositionContext {
   composition: CompositionRefV1;
   registration: RecognizedStrategyRegistration;
+  invocations: EvidenceInvocationCapture;
 }
 
 /**

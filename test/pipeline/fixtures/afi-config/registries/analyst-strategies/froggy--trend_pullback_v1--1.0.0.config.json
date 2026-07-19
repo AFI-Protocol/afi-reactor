@@ -5,12 +5,12 @@
   "strategyVersion": "1.0.0",
   "pipelineRef": {
     "pipelineId": "froggy-trend-pullback",
-    "pipelineVersion": "v1.2.0",
+    "pipelineVersion": "v1.3.0",
     "manifestHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.composition-manifest",
-      "value": "095b55775cd32147bb29137278185d1c6a95512dfec827f4c98a3eb569b39883"
+      "value": "df3372dadaca1595d0e6d2f6bad9464ccc9abb7106e9f5b7111df148a145bc4f"
     }
   },
   "scorerRef": {

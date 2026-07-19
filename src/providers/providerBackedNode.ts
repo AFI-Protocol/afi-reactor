@@ -39,6 +39,10 @@ export function createProviderBackedNode(
         config: ctx.config,
         logger: ctx.logger,
         abort: ctx.abort,
+        // Invocation-proof capture (EV3-GOV D-EV3-5(2)): the runtime deposits
+        // the per-lane proof through the executor-wired sink; the node itself
+        // never reads or reshapes it (carried, never consumed — D-EV3-2).
+        onInvocationProof: ctx.depositInvocationProof,
       });
       // The runtime already enforced result.category === the resolved instance's
       // category and validated the canonical category contract. Additionally

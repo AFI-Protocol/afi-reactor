@@ -33,6 +33,11 @@ import { getRuntimeComposition, type RuntimeComposition } from "../config/runtim
 import { canonicalHashOf, DOMAIN_TAGS } from "../pipeline/hashing.js";
 import type { CompositionRefV1, PipelineManifest } from "../pipeline/manifestTypes.js";
 import { resolveDecayParams, type ResolvedStrategy } from "../pipeline/registryLoader.js";
+import type { AnalysisCategory, ProviderRecordStore } from "../providers/index.js";
+import type {
+  EvidenceInvocationCapture,
+  LaneBindingExpectation,
+} from "../evidence/reactorEvidenceRecord.js";
 
 /** The registration identity the evidence stamp site consumes (registry-backed
  *  UWR recognition — src/config/uwrProfilePin.ts). */
@@ -46,10 +51,72 @@ export interface ResolvedRegistrationIdentity {
 /** One completed scoring run: the response contract + composition provenance. */
 export interface ScoredCompositionRun {
   scored: ReactorScoredSignalV1;
-  /** The complete afi.composition-ref.v1 stamp for the evidence v2 record. */
+  /** The complete afi.composition-ref.v1 stamp for the evidence record. */
   composition: CompositionRefV1;
   /** The resolved registration identity (evidence stamp recognition input). */
   registration: ResolvedRegistrationIdentity;
+  /**
+   * The run's captured invocation facts (EV3-GOV D-EV3-5(2)): per-lane
+   * proofs from the one live graph pass, the actual lane results the join
+   * consumed, the boot-verified expected lane bindings, and the
+   * registration-resolved decay identity. Carried to the sole District Two
+   * Evidence V3 builder — never consumed by any scoring path (D-EV3-2).
+   */
+  invocations: EvidenceInvocationCapture;
+}
+
+/** The five governed analysis lanes (D-FCP-1 namespace, casing exact). */
+const ANALYSIS_LANES: ReadonlySet<string> = new Set([
+  "technical",
+  "pattern",
+  "sentiment",
+  "news",
+  "aiMl",
+]);
+
+/**
+ * Assemble the per-lane EXPECTED identity facts from the manifest's explicit
+ * provider selections + the boot-validated record store (the D-FLPR-4 chain).
+ * The evidence layer cross-checks captured proofs against these — it never
+ * reads registries itself (RC-7).
+ */
+function laneBindingExpectations(
+  manifest: PipelineManifest,
+  records: ProviderRecordStore
+): LaneBindingExpectation[] {
+  const bindings: LaneBindingExpectation[] = [];
+  for (const node of manifest.nodes) {
+    if (!ANALYSIS_LANES.has(node.category) || !node.providerInstanceRef) continue;
+    const ref = node.providerInstanceRef;
+    const instance = records.getProviderInstance(ref.providerInstanceId, ref.recordVersion);
+    if (!instance) {
+      // Boot validation guarantees resolution; reaching here is a defensive
+      // impossibility — refuse rather than emit an unverifiable expectation.
+      throw new Error(
+        `lane '${node.id}' names unresolvable provider instance '${ref.providerInstanceId}@${ref.recordVersion}'`
+      );
+    }
+    const provider = records.getProvider(instance.providerId);
+    if (!provider) {
+      throw new Error(
+        `provider instance '${instance.providerInstanceId}' names unresolvable provider '${instance.providerId}'`
+      );
+    }
+    const binding: LaneBindingExpectation = {
+      category: node.category as AnalysisCategory,
+      nodeId: node.id,
+      providerInstanceId: instance.providerInstanceId,
+      instanceRecordVersion: instance.recordVersion,
+      providerId: provider.providerId,
+      providerRecordVersion: provider.recordVersion,
+      adapterId: instance.adapterId,
+      adapterVersion: instance.adapterVersion,
+    };
+    if (instance.model !== undefined) binding.model = instance.model;
+    if (instance.credentialRef !== undefined) binding.credentialRef = instance.credentialRef;
+    bindings.push(binding);
+  }
+  return bindings;
 }
 
 /** The scorer sink's output envelope (identical to the live analyst plugin's). */
@@ -96,8 +163,9 @@ export async function scoreRegisteredStrategyFromCanonicalUss(
   resolved: ResolvedStrategy,
   composition: RuntimeComposition = getRuntimeComposition()
 ): Promise<ScoredCompositionRun> {
+  const manifest = effectiveManifest(resolved);
   const execution = await composition.executor.execute({
-    manifest: effectiveManifest(resolved),
+    manifest,
     input: {},
     signal: canonicalUss,
   });
@@ -191,6 +259,25 @@ export async function scoreRegisteredStrategyFromCanonicalUss(
     enrichmentHash,
   };
 
+  // The ACTUAL per-lane category results the join consumed (EV3-GOV
+  // D-EV3-5(3) recomputation source): the settled lane-node outputs from the
+  // one live pass. First-write-wins per category — a manifest with duplicate
+  // lane categories fails the builder's duplicate-proof law anyway.
+  const laneResults: Partial<Record<AnalysisCategory, unknown>> = {};
+  for (const node of manifest.nodes) {
+    if (!ANALYSIS_LANES.has(node.category)) continue;
+    const category = node.category as AnalysisCategory;
+    if (laneResults[category] !== undefined) continue;
+    const record = execution.nodes.find((r) => r.nodeId === node.id);
+    if (
+      record &&
+      (record.status === "executed" || record.status === "degraded") &&
+      record.output !== undefined
+    ) {
+      laneResults[category] = record.output;
+    }
+  }
+
   return {
     scored,
     composition: compositionRef,
@@ -199,6 +286,15 @@ export async function scoreRegisteredStrategyFromCanonicalUss(
       strategyId: resolved.registration.strategyId,
       strategyVersion: resolved.registration.strategyVersion,
       uwrProfileRef: { profileId: resolved.config.uwrProfileRef.profileId },
+    },
+    invocations: {
+      proofs: execution.invocationProofs,
+      laneResults,
+      laneBindings: laneBindingExpectations(manifest, composition.providerRecordStore),
+      decay: {
+        halfLifeMinutes: decayParams.halfLifeMinutes,
+        greeksTemplateId: decayParams.greeksTemplateId,
+      },
     },
   };
 }
