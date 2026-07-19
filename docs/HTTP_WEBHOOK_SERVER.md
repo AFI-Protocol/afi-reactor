@@ -340,7 +340,7 @@ The webhook endpoint runs the canonical **scored-only** pipeline. There is no ha
 ## Related Documentation
 
 - [EnrichmentProfile Specification](../../afi-core/docs/ENRICHMENT_PROFILE_SPEC.v0.1.md)
-- [AFI Orchestrator Doctrine](../AFI_ORCHESTRATOR_DOCTRINE.md)
+- [AGENTS.md](../AGENTS.md) — current architecture and constraints
 
 ---
 

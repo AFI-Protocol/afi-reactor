@@ -14,16 +14,12 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "start:demo": "node dist/src/server.js",
-    "replay-vault": "node dist/ops/runner/replay-vault-signals.js",
-    "codex-lint": "node dist/ops/codexLint.js",
-    "mentor-eval": "node dist/ops/mentorChain.js",
     "test": "jest",
     "oracle:regen": "UPDATE_ORACLE_GOLDENS=1 jest --testPathPattern 'test/oracle/'",
     "test:oracle:mongo": "node test/oracle/oracleMongoEquivalence.mjs",
     "test:integration:unavailable": "node test/integration-mongo/reactorEvidenceUnavailable.mjs",
     "test:integration:mongo": "node test/integration-mongo/reactorEvidencePersistence.mjs",
     "test:integration:shutdown": "node test/integration-mongo/reactorShutdown.mjs",
-    "validate-all": "npm run build && npm run codex-lint && npm run mentor-eval",
     "esm:check": "bash scripts/esm-check.sh"
   },
   "devDependencies": {

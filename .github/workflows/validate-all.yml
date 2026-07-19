@@ -57,8 +57,7 @@ jobs:
         working-directory: afi-reactor
         run: |
           mkdir -p tmp
-          mkdir -p codex
-          echo "✅ Created tmp/ and codex/ directories"
+          echo "✅ Created tmp/ directory"
 
       - name: Install and build afi-core
         working-directory: afi-core
@@ -194,35 +193,3 @@ jobs:
           echo "🧪 Proving SIGTERM → graceful shutdown → exit 0 on the compiled server..."
           npm run test:integration:shutdown
           echo "✅ SIGTERM shutdown proof passed"
-
-      - name: Ensure all log files exist
-        if: always()
-        working-directory: afi-reactor
-        run: |
-          echo "📝 Ensuring required logs exist..."
-
-          # Dummy Codex log
-          if [ ! -f "codex/codex.replay.log.json" ]; then
-            echo '{"status":"incomplete","isDummyLog":true,"message":"Codex replay missing"}' > codex/codex.replay.log.json
-          fi
-
-          # Dummy DAG simulation log
-          if [ ! -f "tmp/dag-simulation.log.json" ]; then
-            echo '{"status":"incomplete","isDummyLog":true,"message":"DAG simulation missing"}' > tmp/dag-simulation.log.json
-          fi
-
-          # Dummy Mentor evaluation log
-          if [ ! -f "tmp/mentor-evaluation.json" ]; then
-            echo '{"status":"incomplete","isDummyLog":true,"message":"Mentor evaluation missing"}' > tmp/mentor-evaluation.json
-          fi
-
-      - name: Upload all validation artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: afi-reactor-validation-artifacts
-          path: |
-            afi-reactor/codex/codex.replay.log.json
-            afi-reactor/tmp/dag-simulation.log.json
-            afi-reactor/tmp/mentor-evaluation.json
-          retention-days: 30

@@ -83,7 +83,7 @@ export default {
     "<rootDir>/test/cpj/",
   ],
   collectCoverageFrom: [
-    'ops/**/*.ts',
+    'src/**/*.ts',
     '!**/*.d.ts'
   ],
   // Set NODE_ENV to 'test' to prevent server from starting during tests

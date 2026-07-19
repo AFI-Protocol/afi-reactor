@@ -1,196 +1,100 @@
 # AFI-Reactor ⚡
 
-[![AFI-Reactor Validation](https://github.com/AFI-Protocol/afi-reactor/actions/workflows/validate-all.yml/badge.svg)](https://github.com/AFI-Protocol/afi-reactor/actions/workflows/validate-all.yml)
+**AFI-Reactor is AFI Protocol's scored-signal evaluation runtime (District One).**
 
-**AFI-Reactor is the canonical orchestrator for Agentic Financial Intelligence (AFI).**
-
-It orchestrates a multi-agent DAG-based pipeline capable of generating, analyzing, validating, executing, and observing financial signals at scale.
-
+It ingests signals, runs a single manifest-driven graph executor over five
+vendor-neutral, provider-backed enrichment lanes, produces a UWR score via the
+Froggy analyst, and hands the scored signal to District Two evidence/provenance.
+**The reactor stops at scored** — validator certification and trade execution are
+downstream / external concerns.
 
 ## 🤖 Droid Instructions
 
-**For AI agents and automated contributors**: See [AGENTS.md](./AGENTS.md) for canonical repo constraints, allowed tasks, and safe patch patterns.
+**For AI agents and automated contributors**: see [AGENTS.md](./AGENTS.md) for
+canonical repo constraints, the current architecture, build/test commands, and
+safe patch patterns.
 
-> **Note**: If AGENTS.md conflicts with this README, AGENTS.md wins.
-> **Critical**: Read `AFI_ORCHESTRATOR_DOCTRINE.md` before modifying DAG logic.
+> If AGENTS.md conflicts with this README, **AGENTS.md wins**. If AGENTS.md
+> conflicts with `afi-config/codex/governance/droids/AFI_DROID_CHARTER.v0.1.md`,
+> **the Charter wins**.
 
 ## 🔒 Security
 
-**IMPORTANT**: This repository uses environment variables for sensitive configuration.
+This repository uses environment variables for sensitive configuration, and
+secrets reach adapters only through the injected `SecretResolver` (never a key
+in a URL).
 
-**Quick setup**:
 ```bash
 cp .env.example .env
 # Edit .env with your credentials (NEVER commit this file)
 ```
 
----
+## 🏗️ How It Works
 
-## 🚀 Flexible DAG Architecture
+1. **HTTP ingress** — Universal Signal Schema v1.1 via the Gateway signals path
+   (reactor `POST /api/webhooks/tradingview`), plus the internal CPJ adapter
+   (`POST /api/ingest/cpj`).
+2. **AJV validation** — USS (`src/uss`) and CPJ (`src/cpj`).
+3. **One GraphExecutor** — `src/pipeline/executor.ts`, constructed once in
+   `src/config/runtimeComposition.ts`, running the registered graph
+   **`froggy-trend-pullback` v1.1.0**. Composition is data (boot-validated
+   governed registries), not hardcoded pipeline code.
+4. **Five enrichment lanes** — technical, pattern, sentiment, news, aiMl. Each
+   lane selects an explicit **ProviderInstance** from the governed afi-config
+   registries; the adapter registry in `src/providers/` is the sole enrichment
+   execution seam.
+5. **Join → Froggy analyst → UWR score** — scores `trend_pullback_v1` from
+   afi-core (UWR axes: structure, execution, risk, insight).
+6. **District Two evidence** — the governed `afi.scored-signal-evidence.v2`
+   record is persisted through **afi-infra** (the sole evidence writer) into
+   MongoDB collection `scored_signal_evidence`.
 
-AFI-Reactor implements a **flexible, plugin-based DAG pipeline** that can be customized with as many nodes as needed while adhering to AFI standards. The system supports dynamic pipeline construction through a composable plugin architecture.
-
-### Core Node Types
-
-AFI-Reactor uses two categories of nodes: **core nodes** and **plugin nodes**.
-
-#### Core Nodes (Required)
-
-Core nodes are always present in the DAG and handle fundamental pipeline operations:
-
-- **AnalystNode** — Loads analyst configuration, initializes enrichment pipeline, aggregates enrichment results (including AI/ML predictions), scores signals using ensemble ML models, and generates narratives
-- **ExecutionNode** — Aggregates enrichment results, validates enrichment results, generates final scored signal, and prepares signal for observer
-- **ObserverNode** — Observes the final scored signal, logs execution metrics, publishes signal to downstream consumers, and adds trace entries for execution tracking
-
-#### Plugin Nodes (Optional & Composable)
-
-Plugin nodes provide specific functionality and can be enabled/disabled as needed:
-
-- **ScoutNode** — Scouts for new signals from external sources or AFI-native models, discovers trading opportunities, submits signals to enrichment pipeline, and tracks signal submissions for reward attribution
-- **NewsNode** — Fetches news data from news providers, extracts news features, and stores news enrichment results
-- **SentimentNode** — Fetches sentiment data from sentiment providers, calculates sentiment scores, and stores sentiment enrichment results
-- **PatternRecognitionNode** — Detects chart patterns, calculates pattern metrics, and stores pattern recognition enrichment results
-- **SignalIngressNode** — Ingests external signals, normalizes signal format, and stores signal ingress results
-- **TechnicalIndicatorsNode** — Calculates technical indicators and stores technical indicator enrichment results
-- **AiMlNode** — Calls AI/ML providers for predictions and stores AI/ML enrichment results (conviction scores, direction, regime, risk flags)
-
-### Pipeline Flow
-
-1. **Scout nodes** execute first (independent signal sources, no dependencies)
-2. **Signal Ingress nodes** execute second (may depend on Scout)
-3. **Enrichment nodes** execute in parallel where possible (based on dependencies)
-4. **Required nodes** execute last (analyst → execution → observer)
-
-**Note:** This flexible architecture allows analysts to configure custom pipelines by selecting and ordering plugins as needed, as long as they follow the AFI Orchestrator Doctrine.
-
-✅ **Codex Health:** 100%
-✅ **DAG Success Rate:** 100%
-✅ **Agent Readiness:** 100%
-
----
-
-## 🧠 Node Architecture
-
-### Core vs Plugin Nodes
-
-**Core nodes**:
-- Always present in the DAG
-- Handle fundamental pipeline operations
-- Cannot be disabled or removed
-- Execute in fixed order (analyst → execution → observer)
-
-**Plugin nodes**:
-- Optional and composable
-- Can be enabled/disabled
-- Can be ordered as needed
-- Execute based on DAG configuration and dependencies
-
-### Signal Providers (Scouts)
-
-Scouts are signal providers that bring strategies producing buy/sell signals or trade setups:
-
-- **ScoutNode** — Discovers signals from external sources or AFI-native models
-- Does NOT perform scoring (that's Analyst's responsibility)
-- Does NOT enrich signals (that's Enrichers' responsibility)
-- Tracks submissions for reward attribution (important for third-party Scouts)
-
-### Enrichment Layers
-
-The pipeline supports multiple enrichment layers that can be configured:
-
-- **Technical**: Technical indicators (RSI, MACD, EMA, etc.)
-- **Pattern**: Chart pattern recognition (head and shoulders, triangles, etc.)
-- **Sentiment**: Market sentiment analysis (social media, news sentiment)
-- **News**: News analysis and feature extraction
-- **AI/ML**: AI/ML predictions (conviction scores, direction, regime, risk flags)
-
----
+Scoring, UWR, decay, and evidence are byte-stable (oracle goldens).
 
 ## ⚡ Quick Start
 
-Run the full validation pipeline:
-
 ```bash
-npm run validate-all
+npm install
+npm run build        # tsc → dist
+npm test             # jest: unit + guardrails + oracle goldens
+npm run start:demo   # node dist/src/server.js (port 8080)
 ```
 
----
+Smoke-test the server:
+
+```bash
+curl -s localhost:8080/health
+curl -s -X POST localhost:8080/api/webhooks/tradingview -H 'Content-Type: application/json' \
+  -d '{"symbol":"BTC/USDT","timeframe":"1h","strategy":"trend_pullback_v1","direction":"long"}'
+```
+
+See [docs/HTTP_WEBHOOK_SERVER.md](docs/HTTP_WEBHOOK_SERVER.md) for the full HTTP
+API.
 
 ## 🔏 District 2 Evidence & Provenance (live law)
 
 The District-2 provenance law — CanonicalHash v1 (`afi.hash.v1`, sha256-only,
-domain-tagged preimages, volatile-timestamp exclusion, decimal hash
-projection), the ScoredSignal v1 projection builder, and the D2 M1 schema
-validators — lives under [`src/evidence/provenance/`](src/evidence/provenance)
-and is a REQUIRED step of every live scoring run (`src/evidence/` builds and
-validates the governed `afi.scored-signal-evidence.v2` record before
-submission to the afi-infra store). Canonical status belongs only to the
-merged afi-config schemas, validation rules, and hash doctrine — never to a
-specific pipeline topology or strategy.
+domain-tagged preimages, volatile-timestamp exclusion, decimal hash projection),
+the ScoredSignal v1 projection builder, and the D2 schema validators — lives
+under [`src/evidence/provenance/`](src/evidence/provenance) and is a REQUIRED
+step of every live scoring run (`src/evidence/` builds and validates the governed
+`afi.scored-signal-evidence.v2` record before submission to the afi-infra store).
+Canonical status belongs only to the merged afi-config schemas, validation rules,
+and hash doctrine — never to a specific pipeline topology or strategy.
 
 The historical District-1 pipehead POC (a fenced, offline five-lane reference
 path) was retired under DSC-GOV
-(`afi-governance/decisions/district-surface-consolidation-v0.1.md`); its
-useful invariants were transferred to the live runtime and
-`test/evidence/provenance/`, and git history preserves the former
-implementation. Pipehead-style stage discipline survives as an architectural
-principle implemented by the current pipeline nodes (one node → one validated
-category result → merge → one scorer seam → the D2 evidence boundary).
+(`afi-governance/decisions/district-surface-consolidation-v0.1.md`); its useful
+invariants were transferred to the live runtime and `test/evidence/provenance/`,
+and git history preserves the former implementation. Pipehead-style stage
+discipline survives as an architectural principle implemented by the current
+pipeline (one lane → one validated category result → merge → one scorer seam →
+the D2 evidence boundary).
 
----
+## 🧭 Repo Boundaries
 
-## 📊 CI & Codex
-
-Artifacts from CI include:
-- `config/ops.codex.json` / `config/schema.codex.json` → supporting Codex metadata (the pipeline composition source of truth is the registered manifests loaded by `src/pipeline/registryLoader.ts`)  
-- `codex/codex.replay.log.json` → generated replay log (runtime output; gitignored)  
-- `tmp/dag-simulation.log.json` → Simulation telemetry  
-- `tmp/mentor-evaluation.json` → MentorChain readiness scores
-
-All commits to `main` trigger a full CI run with:
-- **DAG Replay Validation**
-- **Signal Simulation**
-- **MentorChain Evaluation**
-- **Artifact Upload for 30 Days**
-
----
-
-## 📜 AFI Orchestrator Doctrine
-
-**afi-reactor is the ONLY orchestrator in AFI Protocol.** All canonical pipelines, DAGs, and routing logic live here.
-
-### The 10 Commandments
-
-1. **afi-reactor is the orchestrator of AFI** - All canonical pipelines, DAGs, and routing logic live here—not in afi-core, not in random helpers.
-
-2. **afi-core is our runtime library, not our boss** - ElizaOS and AFI agents run inside pipelines defined by afi-reactor.
-
-3. **The DAG is law** - Every signal path (ingest → enrich → score → mint/review) must be expressible as a Reactor DAG; ad-hoc flows are anti-patterns.
-
-4. **Agents are nodes, not gods** - Individual agents (validators, mentors, tools) are pluggable nodes the DAG calls; they never control global orchestration.
-
-5. **Eliza's native orchestrator is an implementation detail** - We may wrap or reuse it, but only as a node/operator under afi-reactor's authority.
-
-6. **State & replay belong here** - Pipeline state, Codex replay, audits, and deterministic re-runs are owned by afi-reactor, even if storage is elsewhere.
-
-7. **Configuration is externalized** - Reactor reads network, persona, and pipeline configs from afi-config and related registries; no hard-coded magic.
-
-8. **No token/econ logic in afi-reactor** - Emissions, rewards, and AFI token rules live in afi-token; Reactor just emits events/hooks.
-
-9. **No infra glue in afi-reactor** - Deployment, Terraform, K8s, etc. live in afi-infra. Reactor exposes clean interfaces they can target.
-
-10. **If orchestration logic doesn't fit this doctrine, it's in the wrong repo** - Move it or refactor it until afi-reactor remains the single, boringly-obvious brain.
-
-**Full doctrine:** See [AFI_ORCHESTRATOR_DOCTRINE.md](docs/AFI_ORCHESTRATOR_DOCTRINE.md)
-
----
-
-## 🌌 AFI-Reactor Vision
-
-AFI-Reactor is **agent-first**, **modular**, and **framework-agnostic**, powering use cases for:
-- Retail traders and institutions
-- Agent developers and ML researchers
-- Real-time financial signal generation and execution
-- Experimentation, stress testing, and open innovation
-
-We embrace **stress-tested resilience**, inviting contributors to push the boundaries and make AFI stronger with every iteration.
+- **afi-reactor** — scored-signal evaluation runtime (this repo). Stops at scored.
+- **afi-core** — scoring / UWR math (runtime library).
+- **afi-config** — governed registries and canonical USS schema.
+- **afi-infra** — canonical evidence store (sole writer).
+- **afi-mint** — downstream mint orchestration (not a reactor responsibility).

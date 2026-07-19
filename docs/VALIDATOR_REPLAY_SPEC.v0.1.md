@@ -1,72 +1,66 @@
-# Validator Replay Spec v0.1 (afi-reactor)
+# Reproducibility & Replay Spec v0.1 (afi-reactor)
+
+## Status
+
+The reactor **stops at scored**. Validator certification, minting decisions, and
+trade execution are **downstream / external** concerns and are **not** reactor
+responsibilities. The earlier in-reactor "validator replay" model — a
+scored → validate → mint-checkpoint → vault lifecycle driven by codex replay
+tooling — has been **removed**, along with the scripts and config that backed it.
+This spec now documents the reproducibility guarantee the reactor actually
+provides.
 
 ## Purpose & Scope
 
-This spec defines how the reactor performs **deterministic replay** of signals and validator decisions. Replay is used to:
-- Verify validator consistency over time.
-- Audit past minting decisions.
-- Support research/evals on validator behavior.
+This spec defines how the reactor guarantees **deterministic, reproducible
+scoring** so runs can be audited and compared over time. It does **not** define
+scoring formulas (those live in `afi-core`); it defines the runtime's
+reproducibility contract up to the scored-signal evidence boundary.
 
-It does **not** define scoring formulas (those live in `afi-core`); it defines orchestrator behavior and contracts for replay.
+## What Is Reproducible
 
-## Replayable Lifecycle (Textual Flow)
+Every live scoring run is reproducible from ingress to the scored-signal evidence
+record:
 
-Replay focuses on the scoring → validation → vaulting slice of the DAG. A typical path:
+- **Boot-validated composition** — the registered pipeline manifest and governed
+  registries are loaded and AJV-validated at boot, with canonical `afi.hash.v1`
+  pins verified fail-closed (`src/pipeline/registryLoader.ts`). The same pinned
+  composition is required for identical outputs.
+- **Deterministic execution** — the single GraphExecutor
+  (`src/pipeline/executor.ts`) runs the five enrichment lanes and the Froggy UWR
+  scorer with no wall-clock or random inputs on the scoring path.
+- **Byte-stable outputs** — scoring, UWR, decay, and evidence are proven
+  byte-identical by the oracle golden suites (`npm test`, and the gated
+  `npm run test:oracle:mongo`).
+- **Canonical provenance** — the District-2 provenance law
+  (`src/evidence/provenance/`) stamps `afi.hash.v1` over a canonical projection
+  (sha256-only, domain-tagged preimages, volatile-timestamp exclusion) into the
+  governed `afi.scored-signal-evidence.v2` record.
 
-`scored-signal` → `afi-ensemble-score` → `dao-mint-checkpoint` → `validated-signal` → `tssd-vault-persist` → `vaulted-signal` → `full-cognition-loop`
+## Reproducibility Invariants
 
-Replay-critical segments:
-- Scorer + validator + mint-decider equivalents (`afi-ensemble-score`, `dao-mint-checkpoint`, downstream validator decision outputs).
-- Persistence of validated artifacts (vaulted/persisted signal) used for later comparison.
-  - The canonical `vaulted-signal` schema is owned by **afi-infra**; afi-reactor consumes it via `config/schema.codex.json` as a DAG contract only, not as the implementation owner.
+- **Determinism**: same pinned composition + same inputs → same scored output and
+  same `afi.hash.v1` projection.
+- **Isolation**: replaying/re-running a scoring path must not mutate production
+  state. Evidence is written only by **afi-infra** (the sole writer); the reactor
+  builds and validates the record, it does not own the store.
+- **Traceability**: the evidence record links the scored signal to the
+  composition it was produced under (`afi.composition-ref.v1`) and to its
+  canonical hash.
 
-## ValidatorReplaySession (Conceptual)
+## Out of Scope (not reactor responsibilities)
 
-A replay session SHOULD capture:
-- `replaySessionId` — unique id.
-- `originalSignalId` — signal being replayed.
-- `codexVersion` — DAG/Codex configuration version used.
-- `configSnapshotId` — validator/scorer configuration snapshot (thresholds, novelty, etc.).
-- `dataSnapshotRef` — reference to the data/Vault snapshot used for inputs.
-- `timestampRequested`, `timestampCompleted`.
+- Validator certification / accept-reject decisions.
+- Minting decisions and mint orchestration (`afi-mint`).
+- Persisting or comparing certified/minted artifacts.
 
-Pinned inputs (codex + config + data) are required so the same replay session yields identical outputs later (within timestamp tolerances).
+Any replay of those downstream decisions is defined and owned by the downstream
+consumers, over the scored-signal evidence the reactor emits — not here.
 
-## Replay Invariants
+## Versioning
 
-- **Determinism:** Same codex version + same config + same data snapshot → same validator outputs.
-- **Isolation:** Replay must not mutate production state (no new mints, no writes to live TSSD collections). Replay writes go to replay/test collections or logs.
-- **Traceability:** Every replay session links to the original signal, validators involved, and a clear log of decisions.
-
-## DAG Contract for Replay
-
-The reactor should be able to:
-- Start replay from a given node (e.g., from `scored-signal`) or from a stored `vaulted-signal` snapshot.
-- Feed the relevant nodes (`afi-ensemble-score`, `dao-mint-checkpoint`, etc.) with the same inputs used originally.
-- Collect outputs and compare to historical outcomes (when available).
-- Emit a replay report artifact (JSON/logs).
-
-This spec is non-prescriptive about implementation details; it defines what a compliant replay must achieve.
-
-## Validator Responsibilities in Replay
-
-Validators (and validator-like nodes) must:
-- Respect deterministic inputs and produce the same decisions given the same inputs.
-- In replay mode: avoid side effects (no writes to live vaults, no live minting); optionally emit diagnostics (e.g., “why approved/rejected”).
-
-Replay is an orchestrator concern, but validators must be replay-friendly.
-Replay consumes validator outputs, decision envelopes, and UWR-derived confidence values as defined in **afi-core** (e.g., `ValidatorDecision`, `UniversalWeightingRule`); afi-reactor does not implement UWR math or PoI/PoInsight logic, it only orchestrates replay over those contracts.
-
-## Interaction with the TSSD Vault
-
-- Live runs: validated signals flow to the TSSD Vault via nodes like `tssd-vault-persist` (Vault implementation lives in `afi-infra`).
-- Replay: reactor may read from the Vault or a replay snapshot, but should write replay results to separate collections/logs/artifacts, not the main Vault.
-
-## Versioning & Future Work
-
-- v0.1 is **normative** for invariants (determinism, isolation, traceability) and concepts (ReplaySession, replayable lifecycle).
-- v0.1 is **non-prescriptive** about file layout, exact logging formats, or DAG rewiring.
-- Future versions may:
-  - Define a concrete `ValidatorReplaySession` schema.
-  - Add DAG nodes/plugins dedicated to replay.
-  - Integrate with AFI evals and PoI/PoInsight measurement.
+- v0.1 is **normative** for the reproducibility invariants (determinism,
+  isolation, traceability) as implemented by the oracle goldens and the D2
+  provenance law.
+- v0.1 is **non-prescriptive** about downstream certification/mint replay, which
+  lives outside this repo.

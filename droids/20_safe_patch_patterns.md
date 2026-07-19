@@ -1,274 +1,106 @@
 # AFI Reactor - Safe Patch Patterns
 
-How to make safe, reviewable changes to the DAG orchestrator.
+How to make safe, reviewable changes to the scored-signal evaluation runtime.
+The pipeline is one manifest-driven GraphExecutor; nodes and provider adapters
+are small, composable units it runs. Read `AGENTS.md` before starting.
 
 ---
 
-## Pattern 1: Stateless DAG Nodes
+## Pattern 1: Keep Nodes & Adapters Stateless
 
-**Good** ✅:
-```typescript
-// Node is stateless - no instance variables
-export class ProcessingNode implements DAGNode {
-  async execute(input: Signal): Promise<Signal> {
-    const processed = this.process(input);
-    return processed;
-  }
-  
-  private process(input: Signal): Signal {
-    // Pure function - no side effects
-    return { ...input, processed: true };
-  }
-}
-```
+Nodes (`src/pipeline/nodes/`) and provider adapters (`src/providers/adapters/`)
+must not carry mutable instance/module state across invocations. Given the same
+input they must produce the same output. State (caches, snapshots, persistence)
+belongs to the store layer (afi-infra), not to a node.
 
-**Bad** ❌:
-```typescript
-// Node has state - violates Doctrine
-export class ProcessingNode implements DAGNode {
-  private cache = new Map();  // State!
-  
-  async execute(input: Signal): Promise<Signal> {
-    this.cache.set(input.id, input);  // Side effect!
-    return input;
-  }
-}
-```
-
-**Why**: Stateless nodes are composable and testable (Doctrine Commandment #3).
+**Why**: stateless units are composable, testable, and keep runs reproducible.
 
 ---
 
-## Pattern 2: Single Responsibility Nodes
+## Pattern 2: Single Responsibility
 
-**Good** ✅:
-```typescript
-// Node does ONE thing
-export class SentimentAnalysisNode implements DAGNode {
-  async execute(input: Signal): Promise<Signal> {
-    const sentiment = analyzeSentiment(input.text);
-    return { ...input, sentiment };
-  }
-}
-```
+One node / one adapter does one thing — a technical adapter fetches and shapes
+technical indicators; the merge node merges lane results; the scorer node scores.
+Do not fold sentiment + pattern + scoring into one unit. Split it.
 
-**Bad** ❌:
-```typescript
-// Node does MANY things
-export class ProcessingNode implements DAGNode {
-  async execute(input: Signal): Promise<Signal> {
-    const sentiment = analyzeSentiment(input.text);
-    const entities = extractEntities(input.text);
-    const summary = summarize(input.text);
-    const keywords = extractKeywords(input.text);
-    // Too much! Split into separate nodes
-    return { ...input, sentiment, entities, summary, keywords };
-  }
-}
-```
-
-**Why**: Single responsibility makes nodes reusable (Doctrine Commandment #4).
+**Why**: single responsibility keeps units reusable and reviewable.
 
 ---
 
-## Pattern 3: Preserve DAG Determinism
+## Pattern 3: Preserve Determinism
 
-**Good** ✅:
-```typescript
-// Deterministic - same input = same output
-export class ScoreNode implements DAGNode {
-  async execute(input: Signal): Promise<Signal> {
-    const score = calculateScore(input.confidence, input.sentiment);
-    return { ...input, score };
-  }
-}
-```
+Never introduce non-determinism (`Math.random()`, wall-clock time, unordered map
+iteration) into a scoring or enrichment path. Determinism is what makes the
+oracle byte-equivalence goldens meaningful and the `afi.hash.v1` provenance
+stable.
 
-**Bad** ❌:
-```typescript
-// Non-deterministic - uses random/time
-export class ScoreNode implements DAGNode {
-  async execute(input: Signal): Promise<Signal> {
-    const randomBoost = Math.random();  // Non-deterministic!
-    const score = input.confidence + randomBoost;
-    return { ...input, score };
-  }
-}
-```
-
-**Why**: Determinism enables Codex replay (Doctrine Commandment #6).
+**Why**: any drift in the goldens means behavior changed — that must be a
+deliberate, reviewed decision, never an accident.
 
 ---
 
-## Pattern 4: Additive DAG Changes
+## Pattern 4: Additive Changes to Composition
 
-**Good** ✅:
-```typescript
-// Add new node without changing existing ones
-export const dagConfig = {
-  nodes: [
-    ...existingNodes,
-    { name: 'new-node', class: NewNode },  // Additive
-  ],
-};
-```
+Composition is data (registered pipeline manifests + governed registries), not
+code. Prefer additive changes: register a new node/adapter and reference it,
+rather than removing or reordering existing lanes. Keep the composition hash
+discipline intact (`src/pipeline/hashing.ts`); registries are pinned with
+canonical `afi.hash.v1` and verified at boot (fail-closed).
 
-**Bad** ❌:
-```typescript
-// Removing or reordering nodes breaks replay
-export const dagConfig = {
-  nodes: [
-    { name: 'node-2', class: Node2 },  // Removed node-1!
-    { name: 'node-1', class: Node1 },  // Reordered!
-  ],
-};
-```
-
-**Why**: Additive changes preserve backward compatibility.
+**Why**: additive, hash-pinned changes preserve backward compatibility and boot
+integrity.
 
 ---
 
-## Pattern 5: Test DAG Nodes in Isolation
+## Pattern 5: Never Regenerate Oracle Goldens to Pass
 
-**Good** ✅:
-```typescript
-// Test node independently
-describe('SentimentNode', () => {
-  it('should analyze sentiment', async () => {
-    const node = new SentimentNode();
-    const input = { text: 'Great news!' };
-    const output = await node.execute(input);
-    expect(output.sentiment).toBe('positive');
-  });
-});
-```
-
-**Why**: Isolated tests are fast and reliable.
+If a change makes an oracle golden fail, that is the signal — investigate the
+behavior change. Do **not** run the golden-regeneration path to make CI green
+unless the byte change is intended, understood, and reviewed.
 
 ---
 
-## Pattern 6: Document DAG Changes
+## Pattern 6: Secrets Only Through the Injected Resolver
 
-**Good** ✅:
-```markdown
-## DAG Change: Added SentimentAnalysisNode
-
-### Position
-Inserted between TextExtractionNode and ScoringNode
-
-### Purpose
-Analyze sentiment of signal text for improved scoring
-
-### Impact
-- Adds `sentiment` field to Signal
-- Increases pipeline latency by ~50ms
-- No breaking changes (field is optional)
-
-### Diagram
-[Before] -> [After] (include visual)
-```
-
-**Why**: DAG changes affect entire pipeline—documentation is critical.
+Provider adapters receive credentials only via the injected `SecretResolver`
+(`src/providers/secretResolver.ts`). Never read a secret from a URL, a registry
+entry, a manifest, or a committed file.
 
 ---
 
-## Pattern 7: Fail Fast in Nodes
+## Pattern 7: Respect the Scored-Only Boundary
 
-**Good** ✅:
-```typescript
-export class ValidationNode implements DAGNode {
-  async execute(input: Signal): Promise<Signal> {
-    if (!input.text) {
-      throw new Error('Signal missing required field: text');
-    }
-    if (input.confidence < 0 || input.confidence > 1) {
-      throw new Error(`Invalid confidence: ${input.confidence}`);
-    }
-    return input;
-  }
-}
-```
-
-**Why**: Early failures prevent bad data from propagating.
+The reactor stops at scored. Do not add validator-certification, trade-execution,
+or evidence-persistence logic to a node — evidence is written only by afi-infra,
+and certification/mint are downstream / external (afi-mint). A node's job ends at
+producing a validated category result or a UWR score.
 
 ---
 
-## Pattern 8: Use Codex for Replay Testing
+## Pattern 8: Test in Isolation, Then Run the Gates
 
-**Good** ✅:
+Unit-test a new node/adapter against fixed inputs, then run the full gates:
+
 ```bash
-# Test DAG changes with historical signals
-npm run codex:replay --from 2024-01-01 --to 2024-01-31
-
-# Verify outputs match expected
-npm run codex:verify
+npm run build && npm test -- --maxWorkers=2
 ```
 
-**Why**: Codex replay ensures changes don't break existing behavior.
-
----
-
-## Pattern 9: Respect Orchestrator Doctrine
-
-**Good** ✅:
-```typescript
-// afi-reactor is the ONLY orchestrator
-// Agents are nodes, not orchestrators
-export class AgentNode implements DAGNode {
-  async execute(input: Signal): Promise<Signal> {
-    // Agent processes signal, doesn't orchestrate
-    return processSignal(input);
-  }
-}
-```
-
-**Bad** ❌:
-```typescript
-// Making agent an orchestrator violates Doctrine
-export class AgentNode implements DAGNode {
-  async execute(input: Signal): Promise<Signal> {
-    // Agent orchestrates other agents - WRONG!
-    const result1 = await agent1.process(input);
-    const result2 = await agent2.process(result1);
-    return result2;
-  }
-}
-```
-
-**Why**: Violating Doctrine breaks the entire architecture.
-
----
-
-## Pattern 10: Version DAG Configs
-
-**Good** ✅:
-```typescript
-// config/dag.v2.config.ts
-export const dagConfigV2 = {
-  version: '2.0.0',
-  nodes: [
-    // ... nodes
-  ],
-};
-```
-
-**Why**: Versioning enables rollback and A/B testing.
+Remember `jest.config.js` `testMatch` is an ALLOWLIST — a test file outside the
+listed globs never runs.
 
 ---
 
 ## Checklist Before Submitting
 
-- [ ] Read AFI_ORCHESTRATOR_DOCTRINE.md
-- [ ] DAG nodes are stateless
-- [ ] Single responsibility per node
-- [ ] Tests added for new nodes
-- [ ] Tests pass locally (`npm test`)
-- [ ] Codex replay tested
-- [ ] DAG diagram updated (if structure changed)
-- [ ] No breaking changes (or documented)
-- [ ] Follows existing patterns
+- [ ] Read `AGENTS.md`
+- [ ] Nodes/adapters are stateless and deterministic
+- [ ] Single responsibility per unit
+- [ ] New units registered with a pinned `pluginId@version`; hash discipline intact
+- [ ] Secrets only via the injected `SecretResolver`
+- [ ] No validator/execution/evidence-write logic added (scored-only boundary respected)
+- [ ] Tests added and passing (`npm test`)
+- [ ] Oracle goldens NOT regenerated (unless the byte change is intended and reviewed)
 
 ---
 
-**Last Updated**: 2025-11-22
-
+**Last Updated**: 2026-07-18
