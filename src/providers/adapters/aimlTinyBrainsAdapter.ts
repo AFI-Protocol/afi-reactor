@@ -1,31 +1,30 @@
 /**
- * afi-adapter-aiml-tiny-brains@1.0.0 — the KEYLESS first-party aiMl adapter
+ * afi-adapter-aiml-tiny-brains@1.1.0 — the KEYLESS first-party aiMl adapter
  * (FLPR-GOV D-FLPR-2 item 3): invokes the self-hosted Tiny Brains service and
  * emits exactly ONE governed 'aiMl' category result.
  *
  * The aiMl lane is a PRE-MERGE analysis lane: its joined input is the sibling
- * lane outputs ({ parents: { nodeId: output } } namespaces for technical /
- * pattern / sentiment / news). The adapter classifies parents by their
- * category marker (never by node id), projects them through the SAME shared
- * lane-view helpers the merge uses, posts the projection to the service, and
- * maps the prediction into the governed forecast shape. Free-prose service
- * notes are dropped at this edge (the governed contract is anti-prose).
+ * lane outputs ({ parents: { nodeId: output } } namespaces). The adapter
+ * classifies parents by their category marker (never by node id), derives the
+ * REAL close-price candle series from the technical lane's contribution, and
+ * posts ONE canonical request naming the EXPLICIT Tiny Brains orchestration
+ * profile — ctx.model, the governed ProviderInstance `model` field, verbatim.
+ * Which internal experts run behind that profile is invisible here: the
+ * Reactor knows no expert names, no model names, no resolver details.
  *
  * Tiny Brains remains a replaceable, non-authority, first-party service
  * (PBF-GOV D-PBF-3): the result is never read by the scorer. FAIL-CLOSED on
- * service absence/error — the lane's declared failure policy records the
- * degradation; nothing is fabricated.
+ * missing profile, missing/malformed candles, and service absence/error —
+ * the lane's declared failure policy records the degradation; nothing is
+ * fabricated and nothing falls back silently.
  */
-import {
-  viewPattern,
-  viewSentiment,
-  viewTechnical,
-  type AiMlLanePayload,
-  type PatternLanePayload,
-  type SentimentAxisObservation,
-} from "../../pipeline/nodes/laneView.js";
-import type { TechnicalLensV1 } from "../../types/UssLenses.js";
-import type { callAimlService, AimlServiceInput } from "../clients/aimlServiceClient.js";
+import type { AfiCandle } from "../../types/AfiCandle.js";
+import { NodeConfigurationError } from "../../pipeline/nodeSdk.js";
+import type {
+  callAimlService,
+  AimlCandle,
+  AimlServiceInput,
+} from "../clients/aimlServiceClient.js";
 import type { CategoryResult, ProviderAdapter, ProviderAdapterContext } from "../types.js";
 
 export interface AimlTinyBrainsAdapterDeps {
@@ -40,42 +39,85 @@ async function loadProductionDeps(): Promise<AimlTinyBrainsAdapterDeps> {
 
 const REGIME_LABEL_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
 
-interface SiblingLanes {
-  technical?: { technical?: TechnicalLensV1["payload"] };
-  pattern?: PatternLanePayload;
-  sentiment?: { axes?: SentimentAxisObservation[] };
-  news?: { newsFeatures?: unknown };
-}
+/** Series bounds mirroring the Tiny Brains canonical request contract. */
+const MIN_CANDLES = 32;
+const MAX_CANDLES = 512;
 
 /** Classify the joined parent namespaces by category marker (sorted node ids). */
-function classifyParents(input: unknown): SiblingLanes {
-  const lanes: SiblingLanes = {};
-  if (input === null || typeof input !== "object") return lanes;
+function technicalParent(input: unknown): Record<string, unknown> | undefined {
+  if (input === null || typeof input !== "object") return undefined;
   const parents = (input as { parents?: Record<string, unknown> }).parents;
-  if (!parents || typeof parents !== "object") return lanes;
+  if (!parents || typeof parents !== "object") return undefined;
   for (const nodeId of Object.keys(parents).sort()) {
     const contribution = parents[nodeId];
     if (contribution === null || typeof contribution !== "object") continue;
-    const category = (contribution as { category?: unknown }).category;
-    if (category === "technical") lanes.technical = contribution as SiblingLanes["technical"];
-    else if (category === "pattern") lanes.pattern = contribution as unknown as PatternLanePayload;
-    else if (category === "sentiment") lanes.sentiment = contribution as SiblingLanes["sentiment"];
-    else if (category === "news") lanes.news = contribution as SiblingLanes["news"];
+    if ((contribution as { category?: unknown }).category === "technical") {
+      return contribution as Record<string, unknown>;
+    }
   }
-  return lanes;
+  return undefined;
+}
+
+/**
+ * Derive the bounded close-price candle series from the technical lane's
+ * contribution. A missing/short/malformed series is an upstream-data absence
+ * (e.g. a degraded technical lane): an ordinary error, absorbed by the node's
+ * declared failure policy as a recorded degradation — never fabricated.
+ */
+function extractCandles(input: unknown): AimlCandle[] {
+  const technical = technicalParent(input);
+  const raw = technical?.candles;
+  if (!Array.isArray(raw) || raw.length < MIN_CANDLES) {
+    throw new Error(
+      "aiMl tiny-brains adapter requires the technical lane's candles (>= 32) in its joined input"
+    );
+  }
+  const bounded = raw.slice(-MAX_CANDLES);
+  const candles: AimlCandle[] = [];
+  for (const c of bounded) {
+    const candle = c as AfiCandle;
+    if (
+      typeof candle?.close !== "number" ||
+      !Number.isFinite(candle.close) ||
+      typeof candle?.timestamp !== "number" ||
+      !Number.isFinite(candle.timestamp)
+    ) {
+      throw new Error(
+        "aiMl tiny-brains adapter requires candles with finite numeric close and timestamp values"
+      );
+    }
+    const out: AimlCandle = { timestamp: candle.timestamp, close: candle.close };
+    if (typeof candle.open === "number" && Number.isFinite(candle.open)) out.open = candle.open;
+    if (typeof candle.high === "number" && Number.isFinite(candle.high)) out.high = candle.high;
+    if (typeof candle.low === "number" && Number.isFinite(candle.low)) out.low = candle.low;
+    if (typeof candle.volume === "number" && Number.isFinite(candle.volume)) {
+      out.volume = candle.volume;
+    }
+    candles.push(out);
+  }
+  return candles;
 }
 
 export function createAimlTinyBrainsAdapter(deps?: AimlTinyBrainsAdapterDeps): ProviderAdapter {
   return {
     adapterId: "afi-adapter-aiml-tiny-brains",
-    adapterVersion: "1.0.0",
+    adapterVersion: "1.1.0",
     category: "aiMl",
     providerCompatibility: ["afi-provider-aiml-tiny-brains"],
     requiresCredential: false,
     async run(ctx: ProviderAdapterContext): Promise<CategoryResult> {
       const d = deps ?? (await loadProductionDeps());
-      const lanes = classifyParents(ctx.input);
 
+      // The explicit orchestration profile MUST come from the governed
+      // ProviderInstance record — there is no default and no adapter-side
+      // profile knowledge (fail closed as a configuration error).
+      if (typeof ctx.model !== "string" || ctx.model.length === 0) {
+        throw new NodeConfigurationError(
+          "aiMl tiny-brains adapter requires the provider instance to name an orchestration profile via its governed 'model' field"
+        );
+      }
+
+      const candles = extractCandles(ctx.input);
       const signalId = ctx.signal.provenance?.signalId ?? "";
       const symbol = typeof ctx.signal.facts?.symbol === "string" ? ctx.signal.facts.symbol : "";
       const timeframe =
@@ -86,10 +128,8 @@ export function createAimlTinyBrainsAdapter(deps?: AimlTinyBrainsAdapterDeps): P
         symbol,
         timeframe,
         traceId: signalId,
-        technical: viewTechnical(lanes.technical?.technical ?? null),
-        pattern: viewPattern(lanes.pattern ?? null),
-        sentiment: viewSentiment(lanes.sentiment?.axes ?? null),
-        newsFeatures: lanes.news?.newsFeatures ?? undefined,
+        profile: ctx.model,
+        candles,
       };
 
       const timeoutRaw = ctx.config["timeoutMs"];
@@ -100,11 +140,12 @@ export function createAimlTinyBrainsAdapter(deps?: AimlTinyBrainsAdapterDeps): P
 
       ctx.logger.info("aiMl forecast computed (tiny-brains provider adapter)", {
         signalId,
+        profile: ctx.model,
         direction: prediction.direction,
         conviction: prediction.convictionScore,
       });
 
-      const result: AiMlLanePayload & { category: "aiMl" } = {
+      const result: CategoryResult = {
         category: "aiMl",
         forecast: {
           direction: prediction.direction,
@@ -115,12 +156,12 @@ export function createAimlTinyBrainsAdapter(deps?: AimlTinyBrainsAdapterDeps): P
         typeof prediction.regime === "string" &&
         REGIME_LABEL_PATTERN.test(prediction.regime)
       ) {
-        result.regime = { label: prediction.regime };
+        (result as Record<string, unknown>).regime = { label: prediction.regime };
       }
       if (typeof prediction.riskFlag === "boolean") {
-        result.riskFlag = prediction.riskFlag;
+        (result as Record<string, unknown>).riskFlag = prediction.riskFlag;
       }
-      return result as unknown as CategoryResult;
+      return result;
     },
   };
 }

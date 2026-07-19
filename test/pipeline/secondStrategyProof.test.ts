@@ -67,8 +67,8 @@ const TV = "/api/webhooks/tradingview";
 // The atlas fixture pins (computed by the fixture generator, verified against
 // the same canonical-json-hashing.v1 rules the boot loader recomputes with —
 // a divergence refuses boot, so these assertions double as hash-rule pins).
-const ATLAS_MANIFEST_HASH = "e5ee64bb7a64c24d4181138367ebacdde788b5e5d0f68d8e6c549736282a1b6e";
-const ATLAS_CONFIG_HASH = "0fec790fba83fa3c3508dfac3c8f64195e0a0cbd58ceb0da6dd3f21b5eee7dcb";
+const ATLAS_MANIFEST_HASH = "474b2daa714b116d977858dfbf1e04be6a36e4f09613d0b72f65ff62db4a13d2";
+const ATLAS_CONFIG_HASH = "45dc692b004bb8623eed418c815df2f608d3272cc493984687cd7f444c321567";
 
 const ENV_KEYS = [
   "AFI_PRICE_FEED_SOURCE",
@@ -203,7 +203,7 @@ describe("second registered strategy (atlas-probe/multi_branch_v1@1.0.0) — pro
     expect(record.composition).toMatchObject({
       schema: "afi.composition-ref.v1",
       pipelineId: "atlas-multi-branch",
-      pipelineVersion: "v1.0.0",
+      pipelineVersion: "v1.1.0",
       scorerPluginId: "afi-scorer-atlas-probe",
       scorerPluginVersion: "1.0.0",
     });
@@ -219,7 +219,7 @@ describe("second registered strategy (atlas-probe/multi_branch_v1@1.0.0) — pro
     });
     // the composition pins differ from froggy's (a REAL second composition)
     expect(record.composition.manifestHash.value).not.toBe(
-      "87bcb7ed752820994a5b4bdb72bd55d51c39a2c58daa36fe8d0df4778778ae57"
+      "095b55775cd32147bb29137278185d1c6a95512dfec827f4c98a3eb569b39883"
     );
   });
 
@@ -269,7 +269,7 @@ describe("second registered strategy (atlas-probe/multi_branch_v1@1.0.0) — pro
     const record = store.records.get("atlas-proof-froggy-0001");
     expect(record.composition.pipelineId).toBe("froggy-trend-pullback");
     expect(record.composition.manifestHash.value).toBe(
-      "87bcb7ed752820994a5b4bdb72bd55d51c39a2c58daa36fe8d0df4778778ae57"
+      "095b55775cd32147bb29137278185d1c6a95512dfec827f4c98a3eb569b39883"
     );
   });
 

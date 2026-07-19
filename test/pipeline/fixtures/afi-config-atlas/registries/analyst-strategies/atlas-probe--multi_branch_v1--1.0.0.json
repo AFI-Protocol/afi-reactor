@@ -7,7 +7,7 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.analyst-config",
-    "value": "0fec790fba83fa3c3508dfac3c8f64195e0a0cbd58ceb0da6dd3f21b5eee7dcb"
+    "value": "45dc692b004bb8623eed418c815df2f608d3272cc493984687cd7f444c321567"
   },
   "configRef": "afi-config/registries/analyst-strategies/atlas-probe--multi_branch_v1--1.0.0.config.json",
   "providerBindingPolicy": {

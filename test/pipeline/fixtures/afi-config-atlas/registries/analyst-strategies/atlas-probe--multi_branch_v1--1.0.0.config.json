@@ -5,12 +5,12 @@
   "strategyVersion": "1.0.0",
   "pipelineRef": {
     "pipelineId": "atlas-multi-branch",
-    "pipelineVersion": "v1.0.0",
+    "pipelineVersion": "v1.1.0",
     "manifestHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.composition-manifest",
-      "value": "e5ee64bb7a64c24d4181138367ebacdde788b5e5d0f68d8e6c549736282a1b6e"
+      "value": "474b2daa714b116d977858dfbf1e04be6a36e4f09613d0b72f65ff62db4a13d2"
     }
   },
   "scorerRef": {

@@ -182,6 +182,7 @@ export class ProviderRuntime {
       signal: ctx.signal,
       input: ctx.input,
       config,
+      model: instance.model,
       logger: scrubbingLogger(ctx.logger, secretsToScrub),
       abort: ctx.abort,
       credential,

@@ -2,21 +2,33 @@
  * Trusted client for the self-hosted Tiny Brains aiMl inference endpoint
  * (POST /predict/froggy). Service address comes from the deployment's
  * TINY_BRAINS_URL (never an analyst-supplied URL), with an X-AFI-Client
- * header and a bounded timeout. FAIL-CLOSED: configuration absence, non-2xx
- * responses, transport errors, and malformed response shapes all throw — the
- * invoking lane's declared failure policy records the degradation honestly
- * (no fabricated enrichment, FLPR-GOV D-FLPR-2 scope-guard).
+ * header and a bounded timeout. The request carries the EXPLICIT
+ * orchestration profile (the governed ProviderInstance's `model` field,
+ * verbatim) and the real close-price candle series the technical lane
+ * produced. FAIL-CLOSED: configuration absence, non-2xx responses, transport
+ * errors, malformed response shapes, and profile-echo mismatches all throw —
+ * the invoking lane's declared failure policy records the degradation
+ * honestly (no fabricated enrichment, FLPR-GOV D-FLPR-2 scope-guard).
  */
+
+export interface AimlCandle {
+  timestamp: number;
+  close: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  volume?: number;
+}
 
 export interface AimlServiceInput {
   signalId: string;
   symbol: string;
   timeframe: string;
   traceId?: string;
-  technical?: unknown;
-  pattern?: unknown;
-  sentiment?: unknown;
-  newsFeatures?: unknown;
+  /** Explicit Tiny Brains orchestration profile (instance `model`, verbatim). */
+  profile: string;
+  /** Real close-price series from the technical lane (bounded upstream). */
+  candles: AimlCandle[];
 }
 
 export interface AimlServicePrediction {
@@ -24,7 +36,8 @@ export interface AimlServicePrediction {
   direction: "long" | "short" | "neutral";
   regime?: string;
   riskFlag?: boolean;
-  notes?: string | null;
+  profileId?: string;
+  profileVersion?: string;
 }
 
 export interface AimlServiceClientOptions {
@@ -72,6 +85,14 @@ export async function callAimlService(
     !["long", "short", "neutral"].includes(data.direction as string)
   ) {
     throw new Error("aiMl service returned a malformed prediction");
+  }
+  // Profile-echo law (fail CLOSED, not skippable): the service MUST name the
+  // orchestration profile it ran, and it MUST be the one this invocation
+  // selected. A missing profileId (a stale/mis-routed service that never ran
+  // the governed profile) or a mismatch is rejected — never a silent
+  // acceptance or downgrade.
+  if (typeof data.profileId !== "string" || data.profileId !== input.profile) {
+    throw new Error("aiMl service did not confirm the selected orchestration profile");
   }
   return data as AimlServicePrediction;
 }

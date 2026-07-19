@@ -62,6 +62,13 @@ export interface ProviderAdapterContext {
   input?: unknown;
   /** Non-secret invocation settings (from the provider instance + node config). */
   config: Record<string, unknown>;
+  /**
+   * The resolved instance's governed model/profile identity (afi.provider-instance.v1
+   * `model`, validated against the provider's supportedModels). First-party services
+   * with internal orchestration (e.g. Tiny Brains) receive it verbatim as their
+   * explicit orchestration-profile selection. Absent when the instance names none.
+   */
+  model?: string;
   /** Scrubbing operational logger (secrets never reach console). */
   logger: NodeLogger;
   /** Per-invocation abort signal. */

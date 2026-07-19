@@ -1,8 +1,8 @@
 {
   "schema": "afi.pipeline.v1",
   "pipelineId": "froggy-trend-pullback",
-  "pipelineVersion": "v1.1.0",
-  "description": "Official froggy trend-pullback composition on the five-lane provider runtime (FLPR-GOV): five vendor-neutral provider-instance-backed category lanes (technical entry fanning out to pattern/sentiment/news, with the aiMl lane joining the four sibling lane outputs), one deterministic five-category namespace-by-node merge, and the single froggy trend-pullback scorer sink. Every lane node selects its provider through an explicit providerInstanceRef; the committed refs form the all-five keyless/self-hosted reference profile.",
+  "pipelineVersion": "v1.2.0",
+  "description": "Official froggy trend-pullback composition on the five-lane provider runtime (FLPR-GOV): five vendor-neutral provider-instance-backed category lanes (technical entry fanning out to pattern/sentiment/news, with the aiMl lane joining the four sibling lane outputs), one deterministic five-category namespace-by-node merge, and the single froggy trend-pullback scorer sink. Every lane node selects its provider through an explicit providerInstanceRef; the committed refs form the all-five keyless/self-hosted reference profile. The aiMl lane pins provider-instance record 1.1.0, whose governed model field selects the Tiny Brains orchestration profile (froggy-reference-v1).",
   "entry": "technical",
   "nodes": [
     {
@@ -65,7 +65,7 @@
       "failurePolicy": "degrade",
       "providerInstanceRef": {
         "providerInstanceId": "afi-instance-reference-aiml-tiny-brains",
-        "recordVersion": "1.0.0"
+        "recordVersion": "1.1.0"
       },
       "join": {
         "policy": "all",

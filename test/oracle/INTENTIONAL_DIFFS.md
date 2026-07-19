@@ -117,3 +117,31 @@ absorbed into a golden.
    `sec-edgar`, `shockDirection: "unknown"`, accession-linked items) rather
    than the prior recorded headlines. News is score-inert (D-FLPR-5) —
    `scorerInput`/`analystScore`/hashes verified byte-equal across the swap.
+
+## Mission D reconciliation — Tiny Brains internal orchestration (composition re-pin)
+
+The aiMl lane moved to the governed orchestration-profile contract: the
+provider record is `1.1.0` (adds `supportedModels: ["froggy-reference-v1"]`),
+the reference aiMl ProviderInstance is `1.1.0` (adds `model:
+froggy-reference-v1`, `adapterVersion: 1.1.0`), and the official pipeline is
+re-versioned `froggy-trend-pullback v1.2.0` (aiml node pins instance `1.1.0`;
+topology — nodes and edges — byte-unchanged). The froggy composition pin was
+re-recorded onto v1.2.0. Goldens were regenerated ONCE via
+`npm run oracle:regen`; **exactly three field pairs changed per golden file
+(all 24), all composition-identity, no behavioral or scored field:**
+
+| Field (golden path) | Goldens | Old → new | Why |
+|---|---|---|---|
+| `.../composition/pipelineVersion` | all 24 | `v1.1.0` → `v1.2.0` | official pipeline re-versioned (aiml lane pins instance 1.1.0; geometry unchanged) |
+| `.../composition/manifestHash/value` | all 24 | `87bcb7ed…` → `095b5577…` | manifestHash hashes the re-versioned manifest bytes |
+| `.../composition/analystConfigHash/value` | all 24 | `2274978a…` → `395fd7f9…` | analyst config re-recorded its `pipelineRef` (v1.2.0 + new manifestHash) |
+
+Verified byte-EQUAL across the re-pin (no golden diff): every `scoredSignal`
+field (`direction`/`uwrScore`/`uwrAxes`/`riskBucket`/`conviction`), the
+`enrichmentHash` and `pluginSetHash` (the aiMl payload shape and plugin set
+are unchanged — `afi.enrichment.aiml.v1` and `afi-analysis-aiml@2.0.0` are
+untouched), `executionSummaryHash`, `inputHash`, and `outputHash`. aiMl
+remains score-inert (D-FLPR-5); Evidence V2 shape is frozen and unchanged.
+
+Anything else diffing would have been a defect to fix in code, never
+absorbed into a golden.

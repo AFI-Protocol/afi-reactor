@@ -66,7 +66,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "2274978afdffb798440ce08268dd4c0f06af2df94433d25d6f907335c9a3bc03"
+        "value": "395fd7f9f3b924b033bf56e2f73f92d3567cdc2ba7e1c58de45e895afd89a6d7"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
@@ -84,10 +84,10 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.composition-manifest",
-        "value": "87bcb7ed752820994a5b4bdb72bd55d51c39a2c58daa36fe8d0df4778778ae57"
+        "value": "095b55775cd32147bb29137278185d1c6a95512dfec827f4c98a3eb569b39883"
       },
       "pipelineId": "froggy-trend-pullback",
-      "pipelineVersion": "v1.1.0",
+      "pipelineVersion": "v1.2.0",
       "pluginSetHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",

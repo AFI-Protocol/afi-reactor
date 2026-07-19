@@ -1,12 +1,13 @@
 {
   "schema": "afi.provider-instance.v1",
   "providerInstanceId": "afi-instance-reference-aiml-tiny-brains",
-  "recordVersion": "1.0.0",
+  "recordVersion": "1.1.0",
   "tenant": "reference",
   "category": "aiMl",
   "providerId": "afi-provider-aiml-tiny-brains",
   "adapterId": "afi-adapter-aiml-tiny-brains",
-  "adapterVersion": "1.0.0",
+  "adapterVersion": "1.1.0",
+  "model": "froggy-reference-v1",
   "invocation": {
     "timeoutMs": 10000
   },
