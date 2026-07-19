@@ -6,7 +6,7 @@
  * evidence store — NO fakes, NO Jest module mapping. Proves:
  *
  *   1. POST /api/webhooks/tradingview constructs, validates, and PERSISTS a
- *      governed afi.scored-signal-evidence.v2 record (persistence.outcome
+ *      governed afi.scored-signal-evidence.v3 record (persistence.outcome
  *      = "inserted").
  *   2. POST /api/ingest/cpj does the same — with a DECIMAL parse.confidence
  *      (0.87), proving the afi.hash.v1 fixed-point projection of
@@ -53,7 +53,7 @@ process.env.AFI_PRICE_FEED_SOURCE = process.env.AFI_PRICE_FEED_SOURCE ?? "demo";
 const EVIDENCE_COLLECTION = process.env.AFI_EVIDENCE_COLLECTION ?? "scored_signal_evidence";
 const HISTORY_COLLECTION =
   process.env.AFI_EVIDENCE_HISTORY_COLLECTION ?? "scored_signal_evidence_history";
-const EVIDENCE_SCHEMA = "afi.scored-signal-evidence.v2";
+const EVIDENCE_SCHEMA = "afi.scored-signal-evidence.v3";
 const LEGACY_COLLECTION = "reactor_scored_signals_v1";
 
 const COMPILED_SERVER = pathToFileURL(

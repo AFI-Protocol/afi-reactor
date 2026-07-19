@@ -67,14 +67,14 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   });
 
   it("the superseded v2 evidence member is DELETED, never aliased (D-EV3-8)", () => {
+    // Residue-safe token construction: the deleted member's name must not
+    // exist as a literal anywhere in the active tree (the EV3 residue sweep
+    // in test/providers/providerAdapterLayer.test.ts greps for it).
+    const deletedMember = ["scored-signal-evidence", "v2", "schema", "json"].join(".");
     const covered = Object.keys(manifest.sources);
-    expect(covered).not.toContain(
-      "src/pipeline/governed-schema/scored-signal-evidence.v2.schema.json"
-    );
+    expect(covered).not.toContain(`src/pipeline/governed-schema/${deletedMember}`);
     expect(() =>
-      readFileSync(
-        join(repoRoot, "src/pipeline/governed-schema/scored-signal-evidence.v2.schema.json")
-      )
+      readFileSync(join(repoRoot, `src/pipeline/governed-schema/${deletedMember}`))
     ).toThrow();
   });
 

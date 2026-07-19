@@ -11,7 +11,8 @@
  *  - canonical category-output validation before scoring
  *  - scoring equivalence (provider output == legacy node output)
  *  - executor resolution + execution of a provider-backed node
- *  - Evidence V2 freeze
+ *  - the EV3-GOV Evidence V3 guard (replacing the superseded V2 freeze guard
+ *    per D-EV3-1/D-EV3-8) + the D-EV3-8 active-tree residue sweep
  */
 import { describe, it, expect, jest } from "@jest/globals";
 
@@ -25,8 +26,8 @@ jest.mock("ccxt", () => {
   return { __esModule: true, default: { blofin: UnusedExchange, coinbase: UnusedExchange } };
 });
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { join, relative } from "node:path";
 import {
   ProviderRuntime,
   createAdapterRegistry,
@@ -58,6 +59,12 @@ import { DEFAULT_NEWS_SUMMARY } from "../../src/news/newsProvider.js";
 import { demoPriceFeedAdapter } from "../support/deterministicPriceFeedAdapter.js";
 import { testSignal } from "../pipeline/support/testHarness.js";
 import type { PipelineManifest } from "../../src/pipeline/manifestTypes.js";
+import {
+  buildReactorEvidenceRecord,
+  EVIDENCE_SCHEMA,
+} from "../../src/evidence/reactorEvidenceRecord.js";
+import { validateEvidenceRecordV3 } from "../../src/evidence/evidenceV3Schema.js";
+import { makeScored, makeContext } from "../evidence/support/evidenceV3World.js";
 
 // A distinctive synthetic secret marker — must appear NOWHERE outside the
 // resolver -> adapter boundary (the header value sent to the transport).
@@ -531,18 +538,123 @@ describe("PBF-GOV — provider-backed node enforces its declared category", () =
   });
 });
 
-describe("PBF-GOV — Evidence V2 freeze", () => {
-  it("the vendored scored-signal-evidence schema is still v2 and carries no provider field", () => {
+// ---------------------------------------------------------------------------
+// EV3-GOV — the Evidence V3 guard (D-EV3-1 / D-EV3-2 / D-EV3-5).
+//
+// Supersedes the PBF-GOV "Evidence V2 freeze" guard that stood here: the
+// freeze dissolved into the V3 contract it protected the ground for
+// (D-EV3-1), and D-EV3-8 requires the superseded freeze guards to be
+// REPLACED by V3-shaped guards, never deleted silently.
+// ---------------------------------------------------------------------------
+describe("EV3-GOV — Evidence V3 guard (D-EV3-1/D-EV3-2/D-EV3-5; supersedes the V2 freeze guard per D-EV3-8)", () => {
+  it("the vendored evidence schema is v3 — the SOLE current contract, closed, with exactly the three v3 additions", () => {
     const schema = JSON.parse(
-      readFileSync(join(process.cwd(), "src/pipeline/governed-schema/scored-signal-evidence.v2.schema.json"), "utf-8")
-    ) as { $id: string; properties: { schema: { const: string } } };
+      readFileSync(
+        join(process.cwd(), "src/pipeline/governed-schema/scored-signal-evidence.v3.schema.json"),
+        "utf-8"
+      )
+    ) as {
+      $id: string;
+      additionalProperties: boolean;
+      required: string[];
+      properties: Record<string, { const?: string } & Record<string, unknown>>;
+    };
     expect(schema.$id).toBe(
-      "https://afi-protocol.org/schemas/scored-signal-evidence/v2/scored-signal-evidence.schema.json"
+      "https://afi-protocol.org/schemas/scored-signal-evidence/v3/scored-signal-evidence.schema.json"
     );
-    expect(schema.properties.schema.const).toBe("afi.scored-signal-evidence.v2");
-    // No provider/credential surface was added to the evidence record.
-    for (const forbidden of ["provider", "providerInstance", "credential", "credentialRef", "providerProvenance"]) {
-      expect(Object.keys(schema.properties)).not.toContain(forbidden);
+    expect(schema.properties.schema.const).toBe("afi.scored-signal-evidence.v3");
+    expect(schema.additionalProperties).toBe(false);
+    // the v2 core carried forward + EXACTLY the three v3 additions, REQUIRED
+    for (const added of ["providerInvocations", "recordHash", "replayHash"]) {
+      expect(schema.required).toContain(added);
     }
+    const proofs = schema.properties.providerInvocations as { minItems?: number; maxItems?: number };
+    expect(proofs.minItems).toBe(5);
+    expect(proofs.maxItems).toBe(5);
+  });
+
+  it("a built record IS v3: five proofs uniquely and deterministically ordered, the nested aiMl proof only at position 0", () => {
+    const record = buildReactorEvidenceRecord(makeScored(), makeContext());
+    expect(record.schema).toBe("afi.scored-signal-evidence.v3");
+    expect(EVIDENCE_SCHEMA).toBe("afi.scored-signal-evidence.v3");
+    expect(record.providerInvocations.map((p) => p.category)).toEqual([
+      "aiMl",
+      "news",
+      "pattern",
+      "sentiment",
+      "technical",
+    ]);
+    expect(record.providerInvocations[0].aimlInvocation).toBeDefined();
+    for (const proof of record.providerInvocations.slice(1)) {
+      expect(proof.aimlInvocation).toBeUndefined();
+    }
+    expect(validateEvidenceRecordV3(record).ok).toBe(true);
+  });
+
+  it("forbidden content is structurally ABSENT from the record: no timing keys, no secret-shaped keys, no raw payload members (D-EV3-4(7)/D-EV3-6)", () => {
+    const record = buildReactorEvidenceRecord(makeScored(), makeContext());
+    const keys = new Set<string>();
+    const collect = (v: unknown): void => {
+      if (Array.isArray(v)) return v.forEach(collect);
+      if (v && typeof v === "object") {
+        for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+          keys.add(k);
+          collect(x);
+        }
+      }
+    };
+    collect(record);
+
+    // volatile/operational timing facts stay runtime logs — never evidence
+    const timingKeys = [
+      "scoredAt", "ingestedAt", "enrichedAt", "createdAt", "updatedAt", "storedAt",
+      "processedAt", "startedAt", "endedAt", "finishedAt", "durationMs", "durations",
+      "attempt", "attempts", "retries", "retryCount", "latencyMs", "elapsedMs",
+      "firstSeenAt", "timestamp", "timings", "wave",
+    ];
+    // no secret, secret-derived, or header material of any shape
+    const secretKeys = [
+      "apiKey", "apikey", "token", "accessToken", "accessKey", "authorization",
+      "bearer", "secret", "password", "headerValue", "cookie", "privateKey",
+      "credentialValue", "secretValue",
+    ];
+    // hashes-only provenance: raw provider/service payloads never ride evidence
+    const rawPayloadKeys = [
+      "candles", "series", "headlines", "items", "articles", "body",
+      "rawResponse", "rawUss", "rawPayload", "prompt", "weights",
+    ];
+    for (const forbidden of [...timingKeys, ...secretKeys, ...rawPayloadKeys]) {
+      expect(keys.has(forbidden)).toBe(false);
+    }
+  });
+
+  it("NO V1/V2 evidence or enrichment provenance residue survives in the active tree (D-EV3-8 forward-only deletion)", () => {
+    // Residue-safe construction: the banned tokens are assembled from parts
+    // so this guard never trips itself. The '.' is regex-any — matching the
+    // mission's sweep pattern exactly (it also catches the '/v2' URL form).
+    const banned = new RegExp(
+      [
+        ["scored-signal-evidence", ".v", "2"].join(""),
+        ["EvidenceV", "2"].join(""),
+        ["evidenceV", "2"].join(""),
+        ["enrichment", "-provenance"].join(""),
+        ["EnrichmentProven", "ance"].join(""),
+      ].join("|")
+    );
+    const SKIP_DIRS = new Set([".git", "node_modules", "dist", ".logs", "tmp", "coverage"]);
+    const offenders: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (!SKIP_DIRS.has(entry.name)) walk(full);
+        } else if (entry.isFile()) {
+          const text = readFileSync(full, "utf-8");
+          if (banned.test(text)) offenders.push(relative(process.cwd(), full));
+        }
+      }
+    };
+    walk(process.cwd());
+    expect(offenders).toEqual([]);
   });
 });

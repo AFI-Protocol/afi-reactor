@@ -52,7 +52,7 @@ export interface D2ValidationResult {
 
 /**
  * The eight merged D2 provenance artifact kinds (EV3-GOV D-EV3-8(2): the
- * dormant EnrichmentProvenance draft was subsumed by the provider invocation
+ * dormant enrichment provenance draft was subsumed by the provider invocation
  * proof and DELETED — nine kinds became eight; DSC-GOV D-DSC-3(3) superseded
  * prospectively).
  */

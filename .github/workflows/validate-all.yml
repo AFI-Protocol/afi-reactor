@@ -144,7 +144,7 @@ jobs:
 
       # Real end-to-end persistence PROOF against the compiled build + the real,
       # packaged afi-infra store + real MongoDB: both endpoints construct,
-      # validate, and persist afi.scored-signal-evidence.v1; read-back by
+      # validate, and persist afi.scored-signal-evidence.v3; read-back by
       # signalId + identifier continuity; idempotent duplicate; conflicting
       # duplicate (409); and NO dual-write to reactor_scored_signals_v1.
       - name: Real-MongoDB canonical persistence integration (compiled build)

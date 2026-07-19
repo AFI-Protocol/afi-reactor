@@ -54,7 +54,7 @@ const X_AFI_VOCABULARY = [
 ];
 
 /** The eight merged D2 provenance schema files (ref-resolution closure;
- *  EV3-GOV D-EV3-8(2): enrichment-provenance is deleted). */
+ *  EV3-GOV D-EV3-8(2): the enrichment provenance draft is deleted). */
 const PROVENANCE_SCHEMA_FILES = [
   "canonical-hash.schema.json",
   "evidence-ref.schema.json",

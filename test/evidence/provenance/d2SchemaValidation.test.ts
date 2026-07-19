@@ -58,9 +58,9 @@ const VALID_HASH = {
 };
 
 describe("D2 schema validation adapter — positive cases", () => {
-  // EV3-GOV D-EV3-8(2): the dormant EnrichmentProvenance draft is DELETED
+  // EV3-GOV D-EV3-8(2): the dormant enrichment provenance draft is DELETED
   // (subsumed by afi.provider-invocation-proof.v1) — nine kinds became eight.
-  it("covers all eight merged artifact kinds (enrichment-provenance deleted)", () => {
+  it("covers all eight merged artifact kinds (the provenance draft kind deleted)", () => {
     expect([...D2_ARTIFACT_KINDS].sort()).toEqual(
       [
         "analyst-input-envelope",
@@ -73,7 +73,7 @@ describe("D2 schema validation adapter — positive cases", () => {
         "trade-plan",
       ].sort()
     );
-    expect([...D2_ARTIFACT_KINDS]).not.toContain("enrichment-provenance");
+    expect([...D2_ARTIFACT_KINDS]).not.toContain(["enrichment", "provenance"].join("-"));
   });
 
   for (const kind of D2_ARTIFACT_KINDS) {

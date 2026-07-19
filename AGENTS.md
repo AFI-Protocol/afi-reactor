@@ -43,7 +43,7 @@ source. Flow:
    score (Utility / Work-quality / Rarity; axes: structure, execution, risk,
    insight).
 6. **District Two evidence/provenance** — the governed record
-   `afi.scored-signal-evidence.v2` is persisted through **afi-infra** (the SOLE
+   `afi.scored-signal-evidence.v3` is persisted through **afi-infra** (the SOLE
    evidence writer) into MongoDB collection `scored_signal_evidence`.
 
 **Output**: a scored-only signal with
@@ -165,7 +165,7 @@ Validate with `npm run build` and `npm run esm:check`.
   public API and not a route around the Gateway. See
   `docs/HTTP_WEBHOOK_SERVER.md`.
 - Evidence is written only by afi-infra. The reactor builds/validates
-  `afi.scored-signal-evidence.v2` and submits it — it is not the store owner.
+  `afi.scored-signal-evidence.v3` and submits it — it is not the store owner.
 
 ---
 
