@@ -62,6 +62,7 @@ const REMOVED_IMPORT_FRAGMENTS = [
 function tsFiles(dir: string): string[] {
   const out: string[] = [];
   const walk = (d: string) => {
+    if (!existsSync(d)) return;
     for (const entry of readdirSync(d, { withFileTypes: true })) {
       const full = path.join(d, entry.name);
       if (entry.isDirectory()) {

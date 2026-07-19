@@ -11,7 +11,6 @@ declare module "afi-core/analyst" {
   export type AnalystScoreTemplate = any;
 }
 declare module "afi-core/analysts/froggy.enrichment_adapter.js" {
-  export type EnrichmentProfile = any;
   export type FroggyEnrichedView = any;
   export function buildFroggyTrendPullbackInputFromEnriched(enriched: any): any;
 }

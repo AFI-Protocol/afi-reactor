@@ -1,6 +1,6 @@
 # Branch Doctrine v0.1 (afi-reactor)
 
-AFI Reactor is the DAG/orchestrator for AFI Protocol. Careless branching here can break replay guarantees, validator determinism, and downstream repos. This doctrine exists for both droids and humans to keep the orchestrator predictable and replayable.
+AFI Reactor is AFI Protocol's scored-signal evaluation runtime. Careless branching here can break scoring determinism, evidence provenance, and downstream repos. These rules exist for both droids and humans to keep the runtime predictable and reproducible.
 
 ## Branch Roles
 
@@ -49,14 +49,11 @@ Droids operating in afi-reactor MUST:
 
 3. **Keep branches small and focused.**
    - Prefer narrow, single-purpose patches that are easy to review and roll back.
-   - Avoid mixing DAG changes, validator changes, and docs changes in one branch unless explicitly requested.
+   - Avoid mixing pipeline/composition changes, scoring changes, and docs changes in one branch unless explicitly requested.
 
-4. **Respect replayability.**
-   - Changes that affect DAG behavior, validator wiring, or replay tools MUST be clearly documented in:
-     - `docs/AFI_REACTOR_DAG_SPEC.md`
-     - `docs/AGENT_INTEGRATION_GUIDE.md`
-     - `docs/REACTOR_HARDENING_SUMMARY.md` (when applicable)
-   - Do not introduce non-deterministic behavior into core orchestrator paths without an explicit spec.
+4. **Respect reproducibility.**
+   - Changes that affect pipeline composition, scoring, or the evidence boundary MUST be clearly documented in the PR description and reflected in `AGENTS.md` and the relevant `docs/`.
+   - Do not introduce non-deterministic behavior into scoring or enrichment paths without an explicit spec.
 
 5. **Never modify branch protection or repo settings.**
    - Droids must not alter:
@@ -77,8 +74,8 @@ The following actions are reserved for humans:
 
 ## Safety Notes for AFI Reactor
 
-- afi-reactor is the orchestrator; branch mistakes here can break the whole pipeline.
+- afi-reactor is the scored-signal evaluation runtime; branch mistakes here can break the whole pipeline.
 - Droids should prefer small, focused `feature/*` branches with minimal diffs.
 - When in doubt, open an issue or draft PR and ask instead of inventing new branching patterns.
-- Keep replayability in mind: predictable branching keeps DAG and validator replays deterministic and auditable.
+- Keep reproducibility in mind: predictable branching keeps scoring and evidence deterministic and auditable.
 

@@ -1,716 +1,220 @@
 # afi-reactor — Agent Instructions
 
-**afi-reactor** is the canonical DAG orchestrator for AFI Protocol. It implements a **flexible, plugin-based DAG pipeline** following the AFI Orchestrator Doctrine. This is the **ONLY orchestrator** in the AFI ecosystem—agents are nodes, not orchestrators.
+**afi-reactor** is AFI Protocol's **scored-signal evaluation runtime (District One)**.
+It ingests signals, runs **one** manifest-driven graph executor over five
+provider-backed enrichment lanes, produces a UWR score via the Froggy analyst,
+and hands the scored signal to District Two evidence/provenance. It **stops at
+scored** — validator certification and trade execution are downstream / external.
 
 **Naming Note**: Use "afi-reactor" naming throughout.
 
-**Global Authority**: All agents operating in AFI Protocol repos must follow `afi-config/codex/governance/droids/AFI_DROID_CHARTER.v0.1.md`. If this AGENTS.md conflicts with the Charter, **the Charter wins**.
+**Global Authority**: All agents/droids operating in AFI Protocol repos must
+follow `afi-config/codex/governance/droids/AFI_DROID_CHARTER.v0.1.md` (LIVE
+authority). If this AGENTS.md conflicts with the Charter, **the Charter wins**.
 
 For global droid behavior and terminology, see:
 - `afi-config/codex/governance/droids/AFI_DROID_CHARTER.v0.1.md`
 - `afi-config/codex/governance/droids/AFI_DROID_PLAYBOOK.v0.1.md`
 - `afi-config/codex/governance/droids/AFI_DROID_GLOSSARY.md`
 
-**⚠️ CRITICAL**: Read `AFI_ORCHESTRATOR_DOCTRINE.md` (10 Commandments) before touching DAG logic.
-
 ---
 
-## Canonical Scored-Only Pipeline
+## Architecture (current)
 
-afi-reactor is **scored-only**. There is no hardcoded pipeline in source: composition flows from the boot-validated registries (`src/config/runtimeComposition.ts`), the strategy resolves from the provider binding (`src/config/strategyResolution.ts`), and the registered pipeline manifest is executed by the generic graph executor (`src/pipeline/executor.ts` via `src/services/graphScoringService.ts`). The registered froggy composition enriches (technical+pattern ∥ sentiment+news → merge, optional AI/ML fail-soft), scores `trend_pullback_v1` from afi-core (UWR), and persists the governed evidence record through the packaged afi-infra canonical store.
+Pipeline composition is **data, not code**: there is no hardcoded pipeline in
+source. Flow:
 
-**Output**: a scored-only `ReactorScoredSignalV1` — `{ signalId, rawUss, lenses?, _priceFeedMetadata?, analystScore { uwrScore, uwrAxes { structure, execution, risk, insight } }, scoredAt, decayParams, meta }`. There is **no** `validatorDecision` and **no** execution block.
+1. **HTTP ingress** — Universal Signal Schema v1.1 via the Gateway signals path
+   (reactor endpoint `POST /api/webhooks/tradingview`; the governed
+   structured-ingress front is afi-gateway `POST /api/v1/signals`), plus the
+   internal CPJ adapter (`POST /api/ingest/cpj`).
+2. **AJV validation** — `src/uss` (USS) and `src/cpj` (CPJ) validators.
+3. **One manifest-driven GraphExecutor** — `src/pipeline/executor.ts`,
+   constructed once in `src/config/runtimeComposition.ts`, running the
+   registered graph **`froggy-trend-pullback` v1.1.0**.
+4. **Five vendor-neutral, provider-backed enrichment lanes** — technical,
+   pattern, sentiment, news, aiMl. Each lane selects an explicit
+   **ProviderInstance** from the governed afi-config registries
+   (`registries/{providers,provider-instances,provider-bindings,pipelines,analysis-plugins,analyst-strategies}`).
+   The static adapter registry in **`src/providers/`** (`adapterRegistry.ts` +
+   `adapters/`) is the SOLE enrichment execution seam.
+5. **Join → Froggy analyst → UWR score** — the five lane results join, then the
+   Froggy analyst scores `trend_pullback_v1` from **afi-core**, producing a UWR
+   score (Utility / Work-quality / Rarity; axes: structure, execution, risk,
+   insight).
+6. **District Two evidence/provenance** — the governed record
+   `afi.scored-signal-evidence.v2` is persisted through **afi-infra** (the SOLE
+   evidence writer) into MongoDB collection `scored_signal_evidence`.
 
-**Not the reactor's responsibility**: validator certification and trade execution are downstream / external (external certification consumers; mint orchestration lives in `afi-mint`). The legacy demo personas (ingest scout, signal structurer, validator decision evaluator, execution simulator) have been **removed** and must not be reintroduced as the current flow.
+**Output**: a scored-only signal with
+`analystScore { uwrScore, uwrAxes { structure, execution, risk, insight } }`
+(plus `rawUss`, optional `lenses`, optional `_priceFeedMetadata`, `scoredAt`,
+`decayParams`, `meta`). There is **no** `validatorDecision` and **no** execution
+block.
+
+**Not the reactor's responsibility** (stops at scored): validator certification
+and trade execution are downstream / external; mint orchestration lives in
+`afi-mint`. The legacy Froggy demo personas (Alpha Scout / Pixel Rick / Val Dook
+/ Execution Sim) were removed and must not return.
+
+Scoring, UWR, decay, and evidence are unchanged and **byte-stable** (oracle
+goldens).
 
 ---
 
 ## Build & Test
 
 ```bash
-# Install dependencies
-npm install
-
-# Build TypeScript
-npm run build
-
-# Run tests (Jest)
-npm test
-
-# Check ESM invariants (lint for cross-repo imports, missing .js extensions, etc.)
-npm run esm:check
-
-# Validate all DAG configs and Codex metadata
-npm run validate-all
-
-# Replay vault for determinism testing
-npm run replay-vault
-
-# Lint Codex metadata
-npm run codex-lint
-
-# Run mentor evaluations
-npm run mentor-eval
-
-# Start demo server
-npm run start:demo
+npm install              # install deps (siblings afi-core/afi-math/afi-config linked via file:../)
+npm run build            # tsc → dist
+npm run typecheck        # tsc --noEmit
+npm test                 # jest: unit + guardrails + behavioral oracle goldens
+npm run start:demo       # node dist/src/server.js (port 8080)
+npm run esm:check        # ESM invariant lint
 ```
 
-**Expected outcomes**: All tests pass, DAG configs validate, signal simulation succeeds, demo server starts successfully.
-
----
-
-## Run Locally / Dev Workflow
+Real-Mongo proofs (gated; CI runs them):
 
 ```bash
-# Replay vault for determinism testing
-npm run replay-vault
-
-# Lint Codex metadata
-npm run codex-lint
-
-# Run mentor evaluations
-npm run mentor-eval
+npm run test:integration:unavailable   # 503 smoke when the store is unavailable
+npm run test:integration:mongo         # evidence persistence
+npm run test:integration:shutdown      # graceful shutdown
+npm run test:oracle:mongo              # oracle byte-equivalence against real Mongo
 ```
+
+Never regenerate oracle goldens to make a change pass — byte drift is the signal
+that behavior changed.
 
 ---
 
-## Architecture Overview
+## Graph Executor
 
-**Purpose**: Orchestrate signal pipelines via DAG. **Not** for business logic, token economics, or agent personas.
-
-**Key directories**:
-- `src/pipeline/` — the manifest-driven graph executor (executor, registryLoader, nodeSdk, hashing, category nodes)
-- `src/aiMl/` — Tiny Brains HTTP clients (tinyBrainsClient for the live aiMl node, patternServiceClient for the pattern provider adapter)
-- `src/evidence/` — canonical evidence construction + District-2 provenance law (`provenance/`: CanonicalHash v1, projection builders, D2 schema validation; `analysis/`: the internal scoring carrier)
-- `src/adapters/` — External service adapters (Coinalyze, CoinGecko, exchanges)
-- `src/collectors/` — Data collectors (Telegram, MTProto)
-- `src/core/` — Core services (VaultService)
-- `src/cpj/` — CPJ (Canonical Protocol JSON) validation and mapping
-- `src/enrichment/` — Enrichment logic (pattern recognition, technical indicators)
-- `src/indicator/` — Indicator profiles and kernels
-- `src/news/` — News providers and features
-- `src/services/` — Business logic services (graphScoringService, ingestDedupeService)
-- `src/uss/` — USS (Universal Signal Schema) mappers and validators
-- `src/utils/` — Utility functions (marketUtils)
-- `src/types/` — TypeScript type definitions
-- `codex/` — Codex configuration and replay logic
-- `config/` — DAG configuration files
-- `test/` — Jest tests
-
-**Depends on**: afi-core (runtime, validators)
-**Consumed by**: afi-infra (templates), Eliza gateways (via HTTP/WS APIs)
-
-**Boundary with afi-core**:
-- `afi-reactor` = orchestration (DAG wiring, pipeline execution)
-- `afi-core` = runtime behavior (validators, scoring)
-
-**Eliza integration**:
-- `afi-reactor` exposes HTTP/WS APIs for signal scoring, replay, and DAG introspection.
-- Eliza-based gateways and plugins may call these APIs as external clients.
-- `afi-reactor` MUST NOT import ElizaOS code, SDKs, or character definitions.
-- **Dependency direction**: Eliza gateways depend on afi-reactor; afi-reactor never depends on Eliza.
-
-### afi-gateway Integration
-
-afi-reactor integrates with afi-gateway via HTTP/WS APIs, enabling ElizaOS agents to interact with the Froggy pipeline.
-
-#### AFI Reactor Actions Plugin
-
-Located in `afi-gateway/plugins/afi-reactor-actions/index.ts`, the AFI Reactor Actions Plugin provides ElizaOS actions for interacting with afi-reactor's Froggy trend-pullback pipeline.
-
-**Available Actions**:
-
-1. **SUBMIT_SIGNAL_DRAFT**
-   - Purpose: Submit a trend-pullback signal draft to AFI Reactor's Froggy pipeline for scoring
-   - Endpoint: `POST http://localhost:8080/api/webhooks/tradingview`
-   - Input: Symbol, timeframe, strategy, direction, market, setup summary, notes, enrichment profile
-   - Output: Scored-only `ReactorScoredSignalV1` (signalId, `analystScore.uwrScore` + `uwrAxes`). No validator decision, no execution result.
-
-2. **CHECK_AFI_REACTOR_HEALTH** (Phoenix Guide)
-   - Purpose: Check if AFI Reactor is online and available
-   - Character: Phoenix Guide
-   - Endpoint: `GET http://localhost:8080/health`
-   - Output: Health status, availability
-
-3. **EXPLAIN_LAST_DECISION** (Phoenix Guide)
-   - Purpose: Explain the last UWR scoring rationale produced by AFI Reactor
-   - Character: Phoenix Guide
-   - Endpoint: In-memory cache (future: persistent storage)
-   - Output: Last signal details and UWR score breakdown (`uwrAxes`). No validator decision, no execution result.
-
-#### Enrichment Layers
-
-The Froggy pipeline supports multiple enrichment layers that can be configured via the enrichment profile:
-
-- **Technical**: Technical indicators (RSI, MACD, EMA, etc.)
-- **Pattern**: Chart pattern recognition (head and shoulders, triangles, etc.)
-- **Sentiment**: Market sentiment analysis (social media, news sentiment)
-- **News**: News analysis and feature extraction
-- **AI/ML**: AI/ML predictions (conviction scores, direction, regime, risk flags)
-
-#### Community Agents
-
-afi-gateway provides community agent configurations for Discord and Telegram:
-
-- **Phoenix Guide**: Checks AFI Reactor health and explains the last UWR scoring rationale
-- **Froggy**: Provides trend-pullback analysis and UWR scoring explanations
-
-Gateway clients submit signal drafts via the `SUBMIT_SIGNAL_DRAFT` action; the reactor responds with a scored-only `ReactorScoredSignalV1`.
-
-#### Integration Architecture
-
-```
-┌─────────────────────────────────────┐
-│  afi-gateway                        │
-│  - SUBMIT_SIGNAL_DRAFT (submission)  │
-│  - Phoenix Guide (health/explain)   │
-│  - AFI Reactor Actions Plugin       │
-└──────────────┬──────────────────────┘
-               │
-               │ HTTP POST /api/webhooks/tradingview
-               │ HTTP GET /health
-               ▼
-┌─────────────────────────────────────┐
-│  afi-reactor (scored-only)          │
-│  - Froggy DAG Pipeline (6 stages)    │
-│  - Telemetry → Enrichment → Analyst  │
-│  - Froggy Trend-Pullback UWR scoring │
-│  - TSSD Vault Write                  │
-└──────────────┬──────────────────────┘
-               │ ReactorScoredSignalV1 (scored-only)
-               ▼
-   external certification / afi-mint
-   (validator + mint orchestration —
-    NOT reactor responsibilities)
-```
-
-#### Configuration
-
-Environment variable: `AFI_REACTOR_BASE_URL` (default: `http://localhost:8080`)
-
-Required for AFI Reactor integration:
-- AFI Reactor must be running on the configured URL
-- HTTP endpoints must be accessible
-- Webhook endpoint must be configured for signal submission
-
----
-
-## Agent Registry
-
-afi-reactor uses a registry system to manage agent configurations and their integration with the DAG pipeline. The registry enables dynamic agent discovery, registration, and lifecycle management.
-
-### Registry Files
-
-#### agent.registry.json
-
-Located in [`config/agent.registry.json`](config/agent.registry.json), this registry contains agent definitions for signal generation and analysis.
-
-**Structure**:
-```json
-[
-  {
-    "agentName": "signal-agent",
-    "entry": "tools/agents/signal-agent.ts",
-    "strategy": "mean-reversion",
-    "version": "0.1.0",
-    "description": "A stub strategy simulating mean-reversion behavior.",
-    "enabled": true,
-    "tags": ["stub", "strategy", "demo"]
-  }
-]
-```
-
-**Purpose**: Defines available signal agents and their entry points.
-
-**Fields**:
-- `agentName`: Unique name for the agent
-- `entry`: File path to the agent implementation
-- `strategy`: Trading strategy type
-- `version`: Semantic version of the agent
-- `description`: Human-readable description
-- `enabled`: Whether the agent is enabled
-- `tags`: Array of tags for categorization
-
-#### execution-agent.registry.json
-
-Located in [`config/execution-agent.registry.json`](config/execution-agent.registry.json), this registry contains execution agent configurations for trade execution.
-
-**Structure**:
-```json
-{
-  "binance-local": {
-    "type": "local",
-    "auth": "env",
-    "entry": "tools/execution/binance-local.ts",
-    "description": "Direct Binance API execution using local environment variables.",
-    "mode": "simulated",
-    "environment": "dev"
-  },
-  "coinbase-remote": {
-    "type": "remote",
-    "auth": "injected",
-    "entry": "tools/execution/coinbase-remote.ts",
-    "description": "Remote execution via secure agent, credentials injected at runtime."
-  },
-  "paper-sim": {
-    "type": "simulated",
-    "auth": "none",
-    "entry": "tools/execution/paper-sim.ts",
-    "description": "Simulation agent for testing execution logic without real orders.",
-    "mode": "simulated",
-    "environment": "dev"
-  }
-}
-```
-
-**Purpose**: Defines available execution agents and their authentication methods.
-
-**Fields**:
-- `type`: Execution type (local, remote, simulated)
-- `auth`: Authentication method (env, injected, none)
-- `entry`: File path to the execution agent implementation
-- `description`: Human-readable description
-- `mode`: Execution mode (simulated, live)
-- `environment`: Target environment (dev, staging, prod)
-
-#### agents.codex.json
-
-Located in [`config/agents.codex.json`](config/agents.codex.json), this registry contains comprehensive metadata for all agents in the AFI ecosystem.
-
-**Structure**:
-```json
-[
-  {
-    "agentId": "MarketDataAgentV1",
-    "linkedNodes": ["market-data-streamer"],
-    "description": "Streams real-time market prices, OHLCV, and order books from multiple exchanges",
-    "maintainer": "afi-reactor",
-    "agentReady": true,
-    "status": "active",
-    "role": "generator",
-    "capabilities": ["price-streaming", "orderbook-analysis", "volume-tracking"],
-    "version": "1.0.0"
-  }
-]
-```
-
-**Purpose**: Provides canonical metadata for agents, including their capabilities, roles, and integration points.
-
-### Agent Metadata Fields
-
-**Key Fields**:
-
-- **agentId**: Unique identifier for the agent (e.g., "MarketDataAgentV1", "TechnicalAnalysisAgentV1")
-- **linkedNodes**: Array of DAG node IDs this agent connects to (e.g., ["market-data-streamer"], ["technical-indicators"])
-- **description**: Human-readable description of the agent's purpose and functionality
-- **maintainer**: Repository or team responsible for maintaining the agent
-- **agentReady**: Boolean flag indicating if the agent is ready for production use
-- **status**: Current status of the agent (active, deprecated, experimental)
-- **role**: Functional role in the pipeline:
-  - **generator**: Produces signals or data
-  - **analyzer**: Analyzes signals or data
-  - **scorer**: Assigns scores to signals
-  - **validator**: Validates signals
-  - **persister**: Persists signals
-  - **executor**: Executes trades
-  - **observer**: Observes and logs results
-- **capabilities**: Array of capabilities the agent provides (e.g., ["price-streaming", "technical-indicators"])
-- **version**: Semantic version of the agent implementation
-
-### Agent Roles
-
-#### Generator Agents
-
-Produce signals or data for the pipeline:
-
-- **MarketDataAgentV1**: Streams real-time market prices, OHLCV, and order books from multiple exchanges
-- **OnchainFeedAgentV1**: Ingests blockchain events and DeFi protocol data from multiple networks
-- **SocialSignalAgentV1**: Collects Twitter, Discord, and social sentiment signals for market analysis
-- **NewsFeedAgentV1**: Parses financial news and RSS feeds for breaking events and market impact
-- **AIStrategyAgentV1**: Generates candidate trading signals using AI models and strategy frameworks
-
-#### Analyzer Agents
-
-Analyze signals or data:
-
-- **TechnicalAnalysisAgentV1**: Runs MACD, RSI, Bollinger, and other TA indicators for signal validation
-- **PatternRecognitionAgentV1**: Detects price action setups and chart patterns for trading opportunities
-- **SentimentAnalysisAgentV1**: Scores market and social sentiment for bias detection and trend confirmation
-- **NewsEventAgentV1**: Evaluates market impact of news and events for signal enhancement
-- **AIEnsembleAgentV1**: Aggregates multiple analyses into a final weighted score using ensemble methods
-
-#### Scorer Agents
-
-Assign scores to signals:
-
-- **afi-reactor**: Handles ensemble-based signal scoring using PoI and PoInsight balancing
-
-#### Validator Agents
-
-Validate signals:
-
-- **factory.droid**: Handles DAO quorum verification and checkpoint validation
-
-#### Persister Agents
-
-Persist signals:
-
-- **scarlet**: Manages MongoDB T.S.S.D. Vault persistence of approved signals
-
-#### Executor Agents
-
-Execute trades:
-
-- **ExchangeExecutionAgentV1**: Executes trades via exchanges with risk controls and position management
-
-#### Observer Agents
-
-Observe and log results:
-
-- **TelemetryAgentV1**: Logs all signals, scores, and execution results to T.S.S.D. vault for monitoring
-
-### Agent Discovery and Registration
-
-**Discovery Process**:
-1. Registry files are loaded at startup from [`config/`](config/) directory
-2. Agent metadata is parsed and validated
-3. Agents are indexed by `agentId` for fast lookup
-4. Agents with `agentReady: true` are marked as available for production use
-
-**Registration Process**:
-1. New agents are added to registry files
-2. Agent metadata is validated against schema
-3. `agentReady` flag is set to `false` for new agents until testing is complete
-4. Once tested and validated, `agentReady` is set to `true`
-5. Registry is reloaded to pick up new agents
-
-### agentReady Flag
-
-**Purpose**: The `agentReady` flag indicates whether an agent is ready for production use.
-
-**Usage**:
-- **true**: Agent has been tested, validated, and is ready for production deployment
-- **false**: Agent is under development, testing, or not yet validated
-
-**Lifecycle**:
-1. **Development**: `agentReady: false` - Agent is being developed
-2. **Testing**: `agentReady: false` - Agent is undergoing testing
-3. **Validation**: `agentReady: false` - Agent is being validated
-4. **Production**: `agentReady: true` - Agent has passed all validation and is production-ready
-
-### Integration with DAG
-
-Agents integrate with the DAG pipeline through their `linkedNodes` field:
-
-1. **Generator Agents**: Connect to ingress nodes (e.g., ScoutNode, SignalIngressNode)
-2. **Analyzer Agents**: Connect to enrichment nodes (e.g., TechnicalIndicatorsNode, PatternRecognitionNode, SentimentNode, NewsNode, AiMlNode)
-3. **Scorer Agents**: Connect to AnalystNode for final scoring
-4. **Validator Agents**: Connect to validation nodes in the DAG
-5. **Persister Agents**: Connect to persistence nodes (e.g., TSSD Vault)
-6. **Executor Agents**: Connect to ExecutionNode for trade execution
-7. **Observer Agents**: Connect to ObserverNode for logging and telemetry
-
-**Example Integration**:
-```json
-{
-  "agentId": "TechnicalAnalysisAgentV1",
-  "linkedNodes": ["technical-indicators-node"],
-  "description": "Runs MACD, RSI, Bollinger, and other TA indicators for signal validation",
-  "maintainer": "afi-reactor",
-  "agentReady": true,
-  "status": "active",
-  "role": "analyzer",
-  "capabilities": ["technical-indicators", "trend-analysis", "support-resistance"],
-  "version": "1.0.0"
-}
-```
-
-This agent connects to the `TechnicalIndicatorsNode` plugin in the DAG, providing technical indicator enrichment for signals.
-
-### Examples
-
-**Example 1: Generator Agent**
-```json
-{
-  "agentId": "MarketDataAgentV1",
-  "linkedNodes": ["market-data-streamer"],
-  "description": "Streams real-time market prices, OHLCV, and order books from multiple exchanges",
-  "maintainer": "afi-reactor",
-  "agentReady": true,
-  "status": "active",
-  "role": "generator",
-  "capabilities": ["price-streaming", "orderbook-analysis", "volume-tracking"],
-  "version": "1.0.0"
-}
-```
-
-**Example 2: Analyzer Agent**
-```json
-{
-  "agentId": "TechnicalAnalysisAgentV1",
-  "linkedNodes": ["technical-analysis-node"],
-  "description": "Runs MACD, RSI, Bollinger, and other TA indicators for signal validation",
-  "maintainer": "afi-reactor",
-  "agentReady": true,
-  "status": "active",
-  "role": "analyzer",
-  "capabilities": ["technical-indicators", "trend-analysis", "support-resistance"],
-  "version": "1.0.0"
-}
-```
-
-**Example 3: Scorer Agent**
-```json
-{
-  "agentId": "afi-reactor",
-  "linkedNodes": ["afi-ensemble-score"],
-  "description": "AFI Reactor handles ensemble-based signal scoring using PoI and PoInsight balancing",
-  "maintainer": "afi-reactor",
-  "agentReady": true,
-  "status": "active",
-  "role": "scorer",
-  "capabilities": ["poi-scoring", "insight-balancing", "ensemble-validation"],
-  "version": "1.0.0"
-}
-```
-
-**Example 4: Validator Agent**
-```json
-{
-  "agentId": "factory.droid",
-  "linkedNodes": ["dao-mint-checkpoint"],
-  "description": "Factory Droids handle DAO quorum verification and checkpoint validation",
-  "maintainer": "factory.droid",
-  "agentReady": true,
-  "status": "active",
-  "role": "validator",
-  "capabilities": ["dao-consensus", "quorum-verification", "mint-eligibility"],
-  "version": "1.0.0"
-}
-```
-
-**Example 5: Persister Agent**
-```json
-{
-  "agentId": "scarlet",
-  "linkedNodes": ["tssd-vault-persist"],
-  "description": "Scarlet manages MongoDB T.S.S.D. Vault persistence of approved signals",
-  "maintainer": "Scarlet",
-  "agentReady": true,
-  "status": "active",
-  "role": "persister",
-  "capabilities": ["vault-storage", "data-persistence", "signal-archival"],
-  "version": "1.0.0"
-}
-```
-
-**Example 6: Executor Agent**
-```json
-{
-  "agentId": "ExchangeExecutionAgentV1",
-  "linkedNodes": ["exchange-execution-node"],
-  "description": "Executes trades via exchanges with risk controls and position management",
-  "maintainer": "afi-reactor",
-  "agentReady": true,
-  "status": "active",
-  "role": "executor",
-  "capabilities": ["trade-execution", "risk-management", "position-sizing"],
-  "version": "1.0.0"
-}
-```
-
-**Example 7: Observer Agent**
-```json
-{
-  "agentId": "TelemetryAgentV1",
-  "linkedNodes": ["telemetry-log-node"],
-  "description": "Logs all signals, scores, and execution results to T.S.S.D. vault for monitoring",
-  "maintainer": "Scarlet",
-  "agentReady": true,
-  "status": "active",
-  "role": "observer",
-  "capabilities": ["telemetry-logging", "performance-monitoring", "data-analytics"],
-  "version": "1.0.0"
-}
-```
-
-### Best Practices
-
-**For Contributors**:
-1. When adding a new agent, update the appropriate registry file
-2. Set `agentReady: false` during development and testing
-3. Set `agentReady: true` only after thorough testing and validation
-4. Provide clear descriptions and capabilities
-5. Specify the correct `linkedNodes` for DAG integration
-6. Use semantic versioning for `version` field
-7. Tag agents appropriately (e.g., "stub", "strategy", "demo")
-
-**For Maintainers**:
-1. Review agent registry changes in pull requests
-2. Validate agent metadata against schema
-3. Test agent integration with DAG before setting `agentReady: true`
-4. Monitor agent performance and status
-5. Update agent status as needed (active, deprecated, etc.)
-
-### Related Documentation
-
-- [Flexible DAG Architecture](#flexible-dag-architecture) - How DAG nodes are composed and executed
-- [afi-gateway Integration](#afi-gateway-integration) - ElizaOS agent integration
-- [AFI Orchestrator Doctrine](../AFI_ORCHESTRATOR_DOCTRINE.md) - Guidelines for agent behavior
-
----
-
-## Graph Executor Architecture
-
-Pipeline composition is data, not code. The single execution path is the
-generic graph executor:
+The single execution path is the generic graph executor; composition is loaded
+and validated at boot:
 
 - `src/pipeline/registryLoader.ts` — loads + AJV-validates the governed
-  registries (pipelines, analysis plugins, strategy registrations, provider
-  bindings) and verifies canonical afi.hash.v1 pins at boot (fail-closed).
+  registries (pipelines, analysis plugins, analyst strategies, provider
+  bindings/instances) and verifies canonical `afi.hash.v1` pins at boot
+  (fail-closed; the server refuses to boot on an invalid registry).
 - `src/config/runtimeComposition.ts` — the boot-validated composition seam
   (`initRuntimeComposition`); tests may inject overlay registry roots.
 - `src/config/strategyResolution.ts` — resolves the provider binding to a
   registered strategy triple (never free text).
 - `src/pipeline/executor.ts` — executes the REGISTERED pipeline manifest
   (categories, ports, join determinism, failure policies) over the plugin
-  registry; `src/services/graphScoringService.ts` drives it for the live
-  scored endpoints and stamps `afi.composition-ref.v1` provenance.
-- `src/pipeline/nodes/` — the production category nodes (technical, pattern,
-  sentiment, news, aiml, mergeEnrichedView, scorer).
+  registry (`src/pipeline/pluginRegistry.ts`).
+- `src/providers/` — the provider-adapter framework; `adapterRegistry.ts` +
+  `adapters/` is the SOLE enrichment execution seam (secrets only via the
+  injected `SecretResolver`; never a key in a URL; output validated against the
+  governed category contract).
+- `src/evidence/` — evidence construction + District-2 provenance law
+  (`provenance/`: CanonicalHash v1, projection builders, D2 schema validation;
+  `analysis/`: the internal scoring carrier).
 
-There is no hardcoded pipeline, no mock plugin, and no scaffold DAG engine in
-production source (guardrail: `test/guardrails/no-hardcoded-composition.test.ts`).
-
----
-
-## Security
-
-- **DAG changes affect all signals**: Incorrect orchestration can corrupt signal processing.
-- **Codex replay must be deterministic**: Changes that break replay break auditability.
-- **No secrets in DAG configs**: Use environment variables.
-- **Plugin validation**: Plugins must follow plugin contract and security review.
+Guardrail: `test/guardrails/no-hardcoded-composition.test.ts` — there is no
+hardcoded pipeline in production source.
 
 ---
 
-## Git Workflows
+## Repo Layout
 
-- **Base branch**: `main` or `migration/multi-repo-reorg`
-- **Branch naming**: `feat/`, `fix/`, `refactor/`
-- **Commit messages**: Conventional commits (e.g., `feat(dag): add sentiment analysis node`)
-- **Before committing**: Run `npm test && npm run validate-all`
+```
+src/     # runtime source: pipeline/ providers/ config/ evidence/ uss/ cpj/
+         # services/ adapters/ collectors/ core/ enrichment/ indicator/ news/
+         # utils/ types/  + server.ts
+test/    # jest unit + guardrails + oracle goldens + integration-mongo proofs
+docs/    # architecture + operational docs
+droids/  # droid orientation (00_repo_orientation, 10_common_tasks, 20_safe_patch_patterns)
+scripts/ # esm-check.sh and helpers
+```
+Root config: `package.json`, `tsconfig.json`, `jest.config.js`, `typings.d.ts`.
 
-### Feature Branches
-
-There are no long-lived feature branches; work lands via short-lived
-mission/feature branches merged through pull requests.
-
-**Branch Protection Rules**:
-- Direct pushes to `main` are disabled
-- All changes must be submitted via pull requests
-- PRs require at least one approval before merging
-- CI/CD checks must pass before merge
-
-**Pull Request Process**:
-1. Create feature branch from `main` or `migration/multi-repo-reorg`
-2. Make changes following the AFI Orchestrator Doctrine
-3. Run `npm test && npm run validate-all` locally
-4. Submit pull request with clear description
-5. Address review feedback
-6. Ensure CI/CD checks pass
-7. Merge after approval
-
-**For Contributors**: Always work on feature branches and submit PRs. Never push directly to protected branches.
-
----
-
-## Conventions & Patterns
-
-- **Language**: TypeScript (ESM)
-- **DAG nodes**: Stateless, composable, follow Doctrine
-- **Naming**: Use "afi-reactor" naming throughout
-- **Tests**: Jest, located in `test/`
-- **Codex**: All DAG runs must be Codex-replayable
+**Depends on**: afi-core (scoring, ESM package via `file:../`), afi-config
+(governed registries + canonical USS schema), afi-infra (canonical evidence
+store — sole writer).
+**Consumed by**: gateways (e.g. afi-gateway) as external HTTP clients.
 
 ---
 
 ## ESM Invariants
 
-**afi-reactor is pure ESM** and depends on **afi-core** as an ESM package. All code must follow strict ESM conventions to ensure runtime compatibility.
+afi-reactor is **pure ESM**. Required practices:
 
-**Required practices**:
-- All imports from **afi-core** must use the package name, never relative paths across repos:
+- Import from **afi-core** by package name, never cross-repo relative paths:
   ```typescript
   // ✅ CORRECT
   import { scoreFroggyTrendPullbackFromEnriched } from "afi-core/analysts/froggy.trend_pullback_v1.js";
-  import type { ValidatorDecisionBase } from "afi-core/validators/ValidatorDecision.js";
-
-  // ❌ WRONG - Never use cross-repo relative paths
+  // ❌ WRONG — cross-repo relative path breaks at runtime
   import { scoreFroggyTrendPullbackFromEnriched } from "../../afi-core/analysts/froggy.trend_pullback_v1.js";
-  import type { ValidatorDecisionBase } from "../../afi-core/validators/ValidatorDecision.js";
   ```
-- All relative imports within afi-reactor (e.g., from `src/` to `plugins/`) **must** include `.js` extensions:
-  ```typescript
-  // ✅ CORRECT
-  import froggyEnrichmentTechPattern from "../../plugins/froggy-enrichment-tech-pattern.plugin.js";
+- All relative imports within afi-reactor **must** include `.js` extensions
+  (`tsc`-only build, no bundler; Node ESM requires explicit extensions).
+- No imports may reference `.ts` files at runtime. No CommonJS.
 
-  // ❌ WRONG
-  import froggyEnrichmentTechPattern from "../../plugins/froggy-enrichment-tech-pattern.plugin";
-  ```
-- External package imports (e.g., `from "express"`) do **not** need `.js` extensions.
-- No imports may reference `.ts` files at runtime.
-- New plugins and services must follow the same ESM pattern—no CommonJS.
+Validate with `npm run build` and `npm run esm:check`.
 
-**Why these rules matter**:
-- afi-reactor uses plain `tsc` compilation (no bundler).
-- Node.js ESM requires explicit file extensions for relative imports.
-- Cross-repo relative paths break at runtime because `afi-core` is a separate npm package.
-- afi-core is linked via npm (`node_modules/afi-core -> ../../afi-core`), so imports must use the package name.
+---
 
-**Validation**:
-- Run `npm run build` to verify TypeScript compiles without errors.
-- Run `npm run start:demo` to ensure the server starts without ESM module resolution errors.
+## Security & Boundaries
 
-**For new contributors**: When adding new plugins or services, always use `afi-core/...` for cross-repo imports and include `.js` extensions for relative paths. This is non-negotiable for ESM compatibility.
+- Secrets only through the injected `SecretResolver`; never a key in a URL,
+  never a secret in a registry or manifest.
+- afi-reactor MUST NOT import ElizaOS code, SDKs, or character definitions.
+  Gateways depend on afi-reactor via HTTP; afi-reactor never depends on them.
+- `POST /api/ingest/cpj` is an **internal trusted service boundary** — not a
+  public API and not a route around the Gateway. See
+  `docs/HTTP_WEBHOOK_SERVER.md`.
+- Evidence is written only by afi-infra. The reactor builds/validates
+  `afi.scored-signal-evidence.v2` and submits it — it is not the store owner.
+
+---
+
+## Git Workflow
+
+- **Base branch**: `main`. Direct pushes to `main` are disabled; all changes
+  land via PRs from short-lived `feature/`/`fix/`/`mission/` branches derived
+  from `origin/main`.
+- **Before committing**: `npm run build && npm test`.
+- See `docs/BRANCH_DOCTRINE.v0.1.md` for the full branch rules.
 
 ---
 
 ## Scope & Boundaries for Agents
 
 **Allowed**:
-- Add new pipeline nodes under `src/pipeline/nodes/` (following Doctrine and the registered-manifest model)
-- Add tests, update Codex configs, add plugins
-- Update `.afi-codex.json` if capabilities change
+- Add provider adapters under `src/providers/adapters/` (registered once via
+  `builtinProviderAdapters()` in `src/providers/index.ts`).
+- Add pipeline nodes under `src/pipeline/nodes/` and register them in
+  `src/pipeline/pluginRegistry.ts` with a pinned `pluginId@version`.
+- Add tests; extend the governed registries (keeping hash discipline intact).
 
 **Forbidden**:
-- Violate AFI Orchestrator Doctrine (10 Commandments)
-- Make agents into orchestrators (agents are nodes only)
-- Change the registered pipeline manifests / composition model without explicit approval
-- Modify Codex replay logic without understanding impact
-- Add orchestration logic to other repos (afi-reactor is ONLY orchestrator)
+- Change the registered composition model / manifests without explicit approval.
+- Regenerate oracle goldens to force a change to pass.
+- Add validator-certification, execution, or evidence-writing logic that belongs
+  downstream / to afi-infra.
+- Import ElizaOS or make the reactor depend on a gateway.
 
-**When unsure**: Read `AFI_ORCHESTRATOR_DOCTRINE.md` first. Ask for explicit spec on DAG changes. Prefer no-op over breaking orchestration.
+**When unsure**: prefer a no-op and ask for an explicit spec before changing the
+composition model, scoring, or the evidence boundary.
 
 ---
 
-## Cursor Cloud / Dev Environment Notes
+## Dev Environment Notes
 
-Durable, non-obvious notes for running afi-reactor in a Cursor Cloud VM (or any
-dev checkout). Standard commands live in **Build & Test** above; only caveats
-are captured here.
+Non-obvious notes for running afi-reactor in a fresh checkout / cloud VM.
+Standard commands are in **Build & Test** above; only caveats are here.
 
 ### Sibling repos are mandatory and live beside the repo
 
 `package.json` links `afi-core` and `afi-config` via `file:../` (afi-core also
-pulls in `afi-math`). With the repo checked out at `/workspace`, `../` resolves
-to `/`, so the siblings must exist at `/afi-core`, `/afi-math`, and
-**`/afi-config`** (required since Mission 1.5-B made afi-config a real schema
-dependency of the canonical USS validator). afi-factory is NOT a dependency:
-authoring stays in afi-factory, and the executor conformance fixtures are
-vendored byte-copies under `test/pipeline/fixtures/conformance/`. If any
-sibling is missing, clone it beside the repo (creating dirs under `/` needs
-`sudo`):
+pulls in `afi-math`). With the repo at `/workspace`, `../` resolves to `/`, so
+the siblings must exist at `/afi-core`, `/afi-math`, and **`/afi-config`**
+(required since afi-config became a real schema dependency of the canonical USS
+validator). afi-factory is NOT a dependency: authoring stays in afi-factory, and
+the executor conformance fixtures are vendored byte-copies under
+`test/pipeline/fixtures/conformance/`. If a sibling is missing, clone it beside
+the repo:
 
 ```bash
 for r in afi-core afi-math afi-config; do
@@ -724,26 +228,19 @@ done
 `afi-config` declares a `prepare` script (`npm run build` → `tsc`). Because
 afi-reactor depends on `afi-config@file:../afi-config`, a plain `npm install`
 in afi-reactor can trigger that hook — which may fail on a bare afi-config
-checkout (no local toolchain) and will regenerate `afi-config/dist/**`
-artifacts (harmless drift; restore with `git -C /afi-config restore dist`).
-Mitigations:
-
-- Run `npm ci` inside `/afi-config` first so the hook resolves afi-config's own
-  locked `tsc` — the CI workflow (`.github/workflows/validate-all.yml`) already
-  does exactly this via its "Install and build afi-config" step before
-  installing afi-reactor.
-- Or install in afi-reactor with `npm install --ignore-scripts` when you only
-  need dependency resolution.
+checkout and will regenerate `afi-config/dist/**` (harmless drift; restore with
+`git -C /afi-config restore dist`). Mitigations: run `npm ci` inside
+`/afi-config` first (CI already builds afi-config before installing
+afi-reactor), or install with `npm install --ignore-scripts` when you only need
+dependency resolution.
 
 ### Runtime deps required for server bootability
 
 `npm run start:demo` (`dist/src/server.js`, port 8080) statically imports
-modules beyond the test surface: `ccxt` (BloFin/Coinbase price-feed
-adapters) and `telegram` / `node-telegram-bot-api` / `input` (Telegram
-collectors — opt-in at runtime but statically imported). These are declared in
-`package.json`; without them the server exits at startup with
-`ERR_MODULE_NOT_FOUND`. The validation/indicator stack (`ajv`, `ajv-formats`,
-`trading-signals`, `afi-config`) is canonical and wired.
+`ccxt` (BloFin/Coinbase price-feed adapters) and `telegram` /
+`node-telegram-bot-api` / `input` (Telegram collectors — opt-in at runtime but
+statically imported). These are declared in `package.json`; without them the
+server exits at startup with `ERR_MODULE_NOT_FOUND`.
 
 ### Running / smoke-testing the server
 
@@ -752,7 +249,7 @@ collectors — opt-in at runtime but statically imported). These are declared in
 `Listening on http://localhost:8080`. The `❌ Missing required MTProto env vars`
 line is expected — Telegram collectors are opt-in
 (`AFI_TELEGRAM_MTPROTO_ENABLED=1`). No env vars or MongoDB are required for the
-demo flow; the default `demo` price feed and fail-soft enrichment cover it.
+demo flow.
 
 ```bash
 curl -s localhost:8080/health
@@ -760,18 +257,11 @@ curl -s -X POST localhost:8080/api/webhooks/tradingview -H 'Content-Type: applic
   -d '{"symbol":"BTC/USDT","timeframe":"1h","strategy":"trend_pullback_v1","direction":"long"}'
 ```
 
-The webhook returns a scored-only `ReactorScoredSignalV1`
-(`analystScore.uwrScore` + `uwrAxes`; no validator/execution block).
-
-### Known caveats (pre-existing, verified 2026-07-02)
-
-- `npm run codex-lint` (and therefore `npm run validate-all`) fails because
-  `tsc` does not copy `config/*.json` into `dist/`, so the codex manifests are
-  absent under `dist/config/`. CI runs `build` + `test`, not `validate-all`.
-- The repo-wide `npm run esm:check` still flags a handful of pre-existing
-  files importing without `.js` extensions (e.g. `test/uss/*`). This is
-  long-standing and does not affect build/test.
+The webhook returns a scored-only signal (`analystScore.uwrScore` + `uwrAxes`;
+no validator/execution block). Note: the repo-wide `npm run esm:check` still
+flags a handful of pre-existing files importing without `.js` extensions (e.g.
+`test/uss/*`); this is long-standing and does not affect build/test.
 
 ---
 
-**Last Updated**: 2025-11-26 | **Maintainers**: AFI Reactor Team | **Charter**: `afi-config/codex/governance/droids/AFI_DROID_CHARTER.v0.1.md` | **Doctrine**: `AFI_ORCHESTRATOR_DOCTRINE.md`
+**Maintainers**: AFI Reactor Team | **Charter**: `afi-config/codex/governance/droids/AFI_DROID_CHARTER.v0.1.md`

@@ -217,3 +217,36 @@ describe("FLPR-3: the registered reference manifest selects all five lanes expli
     expect(new Set(laneNodes.map((n) => n.category)).size).toBe(5);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Mission R forward-only residue eradication: the retired "classic codex/DAG
+// orchestrator" surface (MCP tool suite, ops runner/server/codex scripts,
+// eliza plugins, codex/agent config registries, DAG-node type shims) is
+// unreachable from the live five-lane GraphExecutor runtime and is DELETED.
+// git history is the archive; none of it may return.
+// ---------------------------------------------------------------------------
+
+describe("MR-1: the retired classic codex/DAG orchestrator surface may not return", () => {
+  it("no classic orchestrator directory, config, or DAG-node type returns", () => {
+    for (const retired of [
+      "ops",
+      "tools",
+      "plugins",
+      "cli",
+      "codex",
+      "types/DAGNode.ts",
+      "types/codex.ts",
+      "types/CodexReplayResult.ts",
+      "types/ReactorSignalEnvelope.ts",
+      "config/agent.registry.json",
+      "config/agents.codex.json",
+      "config/execution-agent.registry.json",
+      "config/ops.codex.json",
+      "config/schema.codex.json",
+      ".afi-codex.json",
+      ".factory/skills/add-dag-node",
+    ]) {
+      expect(existsSync(path.resolve(REPO_ROOT, retired))).toBe(false);
+    }
+  });
+});
