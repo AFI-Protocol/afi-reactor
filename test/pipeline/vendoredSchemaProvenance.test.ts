@@ -22,11 +22,12 @@ function sha256(relPath: string): string {
 
 describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   it("pins the authorizing afi-config commit", () => {
-    // FLPR-GOV five-lane re-pin: afi-config PR #30 (five-lane provider runtime
-    // records + the candlestick pattern amendment) merged as 85d5d40; the
-    // vendored closure is byte-identical at that commit and now includes all
-    // five enrichment category-result contracts.
-    expect(manifest.afiConfigCommit).toBe("85d5d40d867dca4b08d20288d25d6b1f91ddff8d");
+    // EV3-GOV re-vendor (Mission C): the closure gains the V3 evidence +
+    // provider-invocation-proof + aiml-invocation-proof members and DROPS the
+    // superseded v2 evidence member (D-EV3-1/D-EV3-8), byte-identical at the
+    // afi-config Evidence V3 branch head. NOTE: this pin is re-recorded to
+    // the squash-merge commit before this repo merges.
+    expect(manifest.afiConfigCommit).toBe("9497afc24bf380b21701bee453c13ebdf8881a26");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {
@@ -44,7 +45,11 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
       "analyst-strategy-registration.schema.json",
       "provider-strategy-binding.schema.json",
       "composition-ref.schema.json",
-      "scored-signal-evidence.v2.schema.json",
+      // EV3-GOV (D-EV3-1/D-EV3-2/D-EV3-3): the sole current evidence
+      // contract + the per-lane and nested invocation proof contracts.
+      "scored-signal-evidence.v3.schema.json",
+      "provider-invocation-proof.schema.json",
+      "aiml-invocation-proof.schema.json",
       "canonical-hash.schema.json",
       "canonical-json-hashing.v1.md",
       "canonical-json-hashing.kat.json",
@@ -61,6 +66,18 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
     ].forEach((f) => expect(covered).toContain(`src/pipeline/governed-schema/${f}`));
   });
 
+  it("the superseded v2 evidence member is DELETED, never aliased (D-EV3-8)", () => {
+    // Residue-safe token construction: the deleted member's name must not
+    // exist as a literal anywhere in the active tree (the EV3 residue sweep
+    // in test/providers/providerAdapterLayer.test.ts greps for it).
+    const deletedMember = ["scored-signal-evidence", "v2", "schema", "json"].join(".");
+    const covered = Object.keys(manifest.sources);
+    expect(covered).not.toContain(`src/pipeline/governed-schema/${deletedMember}`);
+    expect(() =>
+      readFileSync(join(repoRoot, `src/pipeline/governed-schema/${deletedMember}`))
+    ).toThrow();
+  });
+
   it("every vendored schema keeps its governed $id", () => {
     const ids: Record<string, string> = {
       "pipeline.schema.json": "https://afi-protocol.org/schemas/pipeline/v1/pipeline.schema.json",
@@ -74,8 +91,12 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
         "https://afi-protocol.org/schemas/provider-strategy-binding/v1/provider-strategy-binding.schema.json",
       "composition-ref.schema.json":
         "https://afi-protocol.org/schemas/composition-ref/v1/composition-ref.schema.json",
-      "scored-signal-evidence.v2.schema.json":
-        "https://afi-protocol.org/schemas/scored-signal-evidence/v2/scored-signal-evidence.schema.json",
+      "scored-signal-evidence.v3.schema.json":
+        "https://afi-protocol.org/schemas/scored-signal-evidence/v3/scored-signal-evidence.schema.json",
+      "provider-invocation-proof.schema.json":
+        "https://afi-protocol.org/schemas/provider-invocation-proof/v1/provider-invocation-proof.schema.json",
+      "aiml-invocation-proof.schema.json":
+        "https://afi-protocol.org/schemas/aiml-invocation-proof/v1/aiml-invocation-proof.schema.json",
       "canonical-hash.schema.json":
         "https://afi-protocol.org/schemas/provenance/v1/canonical-hash.schema.json",
       "provider.schema.json": "https://afi-protocol.org/schemas/provider/v1/provider.schema.json",

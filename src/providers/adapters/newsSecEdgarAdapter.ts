@@ -92,6 +92,7 @@ export function createNewsSecEdgarAdapter(deps: NewsSecEdgarAdapterDeps = {}): P
   return {
     adapterId: "afi-adapter-news-sec-edgar",
     adapterVersion: "1.0.0",
+    transportKind: "http",
     category: "news",
     providerCompatibility: ["afi-provider-news-sec-edgar"],
     requiresCredential: false,
@@ -202,7 +203,10 @@ export function createNewsSecEdgarAdapter(deps: NewsSecEdgarAdapterDeps = {}): P
             publishedAt: item.publishedAt.toISOString(),
           })),
         },
-        newsFeatures: computeFeatures(summary) ?? {},
+        // Age features measured against the SAME declared evaluation clock as
+        // the window math (the injectable `now` seam) — never a second,
+        // divergent wall-clock read (EV3-GOV D-EV3-4(7) deterministic replay).
+        newsFeatures: computeFeatures(summary, now.getTime()) ?? {},
       };
     },
   };

@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { startTinyBrainsStub } from "./support/tinyBrainsStub.mjs";
 
 const URI = process.env.AFI_EVIDENCE_MONGODB_URI;
 if (!URI) {
@@ -32,6 +33,12 @@ const PRELOAD = pathToFileURL(
   path.resolve(process.cwd(), "test/support/registerDeterministicPriceFeed.mjs")
 ).href;
 
+// Under pipeline v1.3.0 every lane is CRITICAL (EV3-GOV D-EV3-5(1)): the
+// scored request this proof drives needs a live aiMl lane. Start the governed
+// Tiny Brains stub in THIS process and hand its URL to the child; an
+// operator-provided TINY_BRAINS_URL is respected untouched.
+const tinyBrains = process.env.TINY_BRAINS_URL?.trim() ? null : await startTinyBrainsStub();
+
 const child = spawn(process.execPath, ["--import", PRELOAD, SERVER], {
   // NODE_ENV must NOT be "test" so the server actually listens + installs the
   // SIGTERM handler. It also must not be "production": the deterministic-feed
@@ -44,6 +51,7 @@ const child = spawn(process.execPath, ["--import", PRELOAD, SERVER], {
     AFI_EVIDENCE_DB_NAME: DB,
     PORT,
     AFI_PRICE_FEED_SOURCE: "demo",
+    ...(tinyBrains ? { TINY_BRAINS_URL: tinyBrains.url } : {}),
   },
   stdio: ["ignore", "pipe", "pipe"],
 });
@@ -121,15 +129,17 @@ const emergency = setTimeout(() => {
 }, EMERGENCY_MS);
 
 run()
-  .then(() => {
+  .then(async () => {
+    await tinyBrains?.close().catch(() => {});
     clearTimeout(emergency);
     // child has exited; no open handles remain → natural termination.
   })
-  .catch((err) => {
+  .catch(async (err) => {
     console.error("\nFAIL — SIGTERM shutdown proof failed:\n", err);
     try {
       child.kill("SIGKILL");
     } catch {}
+    await tinyBrains?.close().catch(() => {});
     clearTimeout(emergency);
     process.exit(1);
   });

@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import request from "supertest";
+import { startTinyBrainsStub } from "./support/tinyBrainsStub.mjs";
 
 // Ensure the store is genuinely unconfigured (no URI, no fallback URI).
 delete process.env.AFI_EVIDENCE_MONGODB_URI;
@@ -26,6 +27,14 @@ process.env.NODE_ENV = "test"; // prevent the compiled server from listening
 // the proof reaches the store-unavailable 503, not a feed-config 500).
 await import("../support/registerDeterministicPriceFeed.mjs");
 process.env.AFI_PRICE_FEED_SOURCE = "demo";
+
+// Under pipeline v1.3.0 every lane is CRITICAL (EV3-GOV D-EV3-5(1)): this
+// proof SCORES before it reaches the unavailable store, so the aiMl lane
+// needs a live Tiny Brains service too. Default to the governed
+// self-verifying stub (started BEFORE the compiled server import); an
+// operator-provided TINY_BRAINS_URL is respected untouched.
+const tinyBrains = process.env.TINY_BRAINS_URL?.trim() ? null : await startTinyBrainsStub();
+if (tinyBrains) process.env.TINY_BRAINS_URL = tinyBrains.url;
 
 const COMPILED_SERVER = pathToFileURL(
   path.resolve(process.cwd(), "dist/src/server.js")
@@ -94,11 +103,13 @@ const emergency = setTimeout(() => {
 main()
   .then(async (shutdownReactor) => {
     await shutdownReactor().catch(() => {});
+    await tinyBrains?.close().catch(() => {});
     clearTimeout(emergency);
     console.log("Clean shutdown: all handles released; process exits naturally.");
   })
-  .catch((err) => {
+  .catch(async (err) => {
     console.error("\nFAIL — honest-unavailable smoke failed:\n", err);
+    await tinyBrains?.close().catch(() => {});
     clearTimeout(emergency);
     process.exit(1);
   });

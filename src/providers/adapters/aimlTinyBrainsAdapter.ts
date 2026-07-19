@@ -25,7 +25,12 @@ import type {
   AimlCandle,
   AimlServiceInput,
 } from "../clients/aimlServiceClient.js";
-import type { CategoryResult, ProviderAdapter, ProviderAdapterContext } from "../types.js";
+import type {
+  AdapterRunEnvelope,
+  CategoryResult,
+  ProviderAdapter,
+  ProviderAdapterContext,
+} from "../types.js";
 
 export interface AimlTinyBrainsAdapterDeps {
   callService: typeof callAimlService;
@@ -102,10 +107,11 @@ export function createAimlTinyBrainsAdapter(deps?: AimlTinyBrainsAdapterDeps): P
   return {
     adapterId: "afi-adapter-aiml-tiny-brains",
     adapterVersion: "1.1.0",
+    transportKind: "http",
     category: "aiMl",
     providerCompatibility: ["afi-provider-aiml-tiny-brains"],
     requiresCredential: false,
-    async run(ctx: ProviderAdapterContext): Promise<CategoryResult> {
+    async run(ctx: ProviderAdapterContext): Promise<AdapterRunEnvelope> {
       const d = deps ?? (await loadProductionDeps());
 
       // The explicit orchestration profile MUST come from the governed
@@ -138,6 +144,16 @@ export function createAimlTinyBrainsAdapter(deps?: AimlTinyBrainsAdapterDeps): P
       // Fail CLOSED on service absence/error — no fabricated neutral, no fallback.
       const prediction = await d.callService(serviceInput, { timeoutMs, abort: ctx.abort });
 
+      // The client verifies the D-EV3-3 invocation block (strict parse,
+      // profile echo, tiny-brains.hash.v1 outputHash recomputation) before it
+      // reaches this adapter. Its ABSENCE here means an injected transport
+      // bypassed the trusted client — fail closed, never an unproven lane.
+      if (!prediction.invocation) {
+        throw new Error(
+          "aiMl service prediction carried no verified invocation block (EV3-GOV D-EV3-3)"
+        );
+      }
+
       ctx.logger.info("aiMl forecast computed (tiny-brains provider adapter)", {
         signalId,
         profile: ctx.model,
@@ -161,7 +177,10 @@ export function createAimlTinyBrainsAdapter(deps?: AimlTinyBrainsAdapterDeps): P
       if (typeof prediction.riskFlag === "boolean") {
         (result as Record<string, unknown>).riskFlag = prediction.riskFlag;
       }
-      return result;
+      // Side-channel: the VERIFIED invocation block rides the envelope to the
+      // provider runtime's proof capture — never the CategoryResult (the
+      // governed afi.enrichment.aiml.v1 payload is unchanged).
+      return { result, serviceInvocation: prediction.invocation };
     },
   };
 }

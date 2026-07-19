@@ -39,7 +39,7 @@ function testBuiltinRegistry() {
 }
 const CONFIG_REL = "registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.config.json";
 const REGISTRATION_REL = "registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.json";
-const PIPELINE_REL = "registries/pipelines/froggy-trend-pullback--v1.2.0.json";
+const PIPELINE_REL = "registries/pipelines/froggy-trend-pullback--v1.3.0.json";
 
 /** Copies the fixture registries into a scratch root and applies mutations. */
 function scratchRoot(mutate?: (root: string) => void): string {
@@ -87,10 +87,10 @@ describe("validateRuntimeConfig — positive resolution over the fixture registr
     expect([...validated.strategies.keys()]).toEqual([FROGGY_KEY]);
     const froggy = validated.strategies.get(FROGGY_KEY)!;
     expect(froggy.manifestHash.value).toBe(
-      "095b55775cd32147bb29137278185d1c6a95512dfec827f4c98a3eb569b39883"
+      "df3372dadaca1595d0e6d2f6bad9464ccc9abb7106e9f5b7111df148a145bc4f"
     );
     expect(froggy.analystConfigHash.value).toBe(
-      "395fd7f9f3b924b033bf56e2f73f92d3567cdc2ba7e1c58de45e895afd89a6d7"
+      "e34471dec8dd3b8fcf0e5576765e469aec1a89f77af6b693ef3c06fc4200bbad"
     );
     expect(froggy.pluginSetHash.value).toBe(
       "5384e1c08ce4bd7f533acc15487df81d7d37b6615d109d611bde968a81f2f386"

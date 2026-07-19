@@ -17,7 +17,7 @@
  */
 import type { NodeLogger } from "../pipeline/nodeSdk.js";
 import type { CanonicalUss } from "../types/canonicalUss.js";
-import type { CategoryResult, ProviderInstanceRef } from "./types.js";
+import { isAdapterRunEnvelope, type CategoryResult, type ProviderInstanceRef } from "./types.js";
 import type { AdapterRegistry } from "./adapterRegistry.js";
 import type { ProviderRecordStore } from "./records.js";
 import type { SecretResolver } from "./secretResolver.js";
@@ -29,6 +29,22 @@ import {
   CredentialScopeError,
   ProviderOutputInvalidError,
 } from "./errors.js";
+import {
+  RESULT_SCHEMA_BY_CATEGORY,
+  toAimlInvocationProof,
+  type CredentialBindingProof,
+  type ProviderInvocationProofV1,
+  type TinyBrainsInvocationBlock,
+} from "./invocationProof.js";
+import {
+  buildInvocationInputProjection,
+  categoryResultHash,
+  invocationInputHash,
+  providerInstanceRecordFingerprint,
+  providerRecordFingerprint,
+  providerResultHash,
+} from "../evidence/provenance/invocationProofHashes.js";
+import type { CanonicalHashRef } from "../pipeline/hashing.js";
 
 export interface ProviderInvokeContext {
   signal: CanonicalUss;
@@ -38,6 +54,13 @@ export interface ProviderInvokeContext {
   config?: Record<string, unknown>;
   logger: NodeLogger;
   abort: AbortSignal;
+  /**
+   * Invocation-proof capture sink (EV3-GOV D-EV3-5(2)): when present, the
+   * runtime builds the per-lane afi.provider-invocation-proof.v1 from the
+   * identity chain it JUST resolved (capture inside the one live graph pass —
+   * never a re-call) and deposits it here after output validation succeeds.
+   */
+  onInvocationProof?: (proof: ProviderInvocationProofV1) => void;
 }
 
 export interface ProviderRuntimeDeps {
@@ -48,7 +71,26 @@ export interface ProviderRuntimeDeps {
 }
 
 export class ProviderRuntime {
+  /**
+   * Record fingerprints are content commitments over IMMUTABLE loaded records
+   * — computed once per record object and cached for the runtime's lifetime
+   * (D-EV3-5(2): no per-invocation recompute cost, no drift window).
+   */
+  private readonly fingerprints = new WeakMap<object, CanonicalHashRef>();
+
   constructor(private readonly deps: ProviderRuntimeDeps) {}
+
+  private fingerprintOf(
+    record: object,
+    compute: (record: object) => CanonicalHashRef
+  ): CanonicalHashRef {
+    let cached = this.fingerprints.get(record);
+    if (!cached) {
+      cached = compute(record);
+      this.fingerprints.set(record, cached);
+    }
+    return cached;
+  }
 
   /** Resolve one provider-backed category node into exactly one validated result. */
   async invoke(ref: ProviderInstanceRef, ctx: ProviderInvokeContext): Promise<CategoryResult> {
@@ -122,6 +164,7 @@ export class ProviderRuntime {
 
     // 9. least-privilege credential resolution
     let credential = undefined as Awaited<ReturnType<SecretResolver["resolve"]>> | undefined;
+    let credRecord = undefined as ReturnType<ProviderRecordStore["getCredentialRef"]>;
     const secretsToScrub: string[] = [];
     if (provider.requiresCredential) {
       if (!instance.credentialRef) {
@@ -129,7 +172,7 @@ export class ProviderRuntime {
           `credential required but no credential reference on provider instance '${instance.providerInstanceId}'`
         );
       }
-      const credRecord = records.getCredentialRef(instance.credentialRef);
+      credRecord = records.getCredentialRef(instance.credentialRef);
       if (!credRecord) {
         throw new CredentialUnavailableError(
           `credential reference for provider instance '${instance.providerInstanceId}' does not resolve`
@@ -178,7 +221,7 @@ export class ProviderRuntime {
 
     // 10. invoke the adapter with a bounded bundle + scrubbing logger; validate output
     const config = { ...(instance.invocation ?? {}), ...(ctx.config ?? {}) };
-    const result = await adapter.run({
+    const runResult = await adapter.run({
       signal: ctx.signal,
       input: ctx.input,
       config,
@@ -188,13 +231,94 @@ export class ProviderRuntime {
       credential,
     });
 
+    // Unwrap the optional adapter envelope (EV3-GOV D-EV3-3): the verified
+    // service-invocation side-channel travels ONLY to the proof capture —
+    // never into the CategoryResult, never to the join.
+    let serviceInvocation: TinyBrainsInvocationBlock | undefined;
+    let result: unknown = runResult;
+    if (runResult && typeof runResult === "object" && isAdapterRunEnvelope(runResult)) {
+      serviceInvocation = runResult.serviceInvocation;
+      result = runResult.result;
+    }
+
     if (!result || typeof result !== "object" || (result as CategoryResult).category !== instance.category) {
       throw new ProviderOutputInvalidError(
         `adapter for '${instance.providerInstanceId}' returned a result whose category marker is not '${instance.category}'`
       );
     }
     // canonical category validation BEFORE scoring — malformed output never passes
-    return outputValidator.validate(instance.category, result);
+    const validated = outputValidator.validate(instance.category, result);
+
+    // 11. invocation-proof capture (EV3-GOV D-EV3-2/D-EV3-5(2)): describe the
+    // invocation that JUST occurred from the resolved identity chain — no
+    // re-call, no re-fetch. Built only when the caller captures proofs.
+    if (ctx.onInvocationProof) {
+      const credentialBinding: CredentialBindingProof = provider.requiresCredential
+        ? {
+            mode: "credentialRef",
+            credentialKind: provider.credentialKind!,
+            credentialRef: credRecord!.credentialRef,
+            recordVersion: credRecord!.recordVersion,
+            status: credRecord!.status,
+          }
+        : { mode: "keyless" };
+
+      const proof: ProviderInvocationProofV1 = {
+        schema: "afi.provider-invocation-proof.v1",
+        category: instance.category,
+        resultSchema: RESULT_SCHEMA_BY_CATEGORY[instance.category],
+        provider: {
+          providerId: provider.providerId,
+          recordVersion: provider.recordVersion,
+          recordFingerprint: this.fingerprintOf(provider, providerRecordFingerprint),
+          executionClass: provider.executionClass,
+          deterministic: provider.deterministic,
+        },
+        providerInstance: {
+          providerInstanceId: instance.providerInstanceId,
+          recordVersion: instance.recordVersion,
+          recordFingerprint: this.fingerprintOf(instance, providerInstanceRecordFingerprint),
+          ...(instance.model !== undefined ? { model: instance.model } : {}),
+        },
+        adapter: {
+          adapterId: adapter.adapterId,
+          adapterVersion: adapter.adapterVersion,
+          transportKind: adapter.transportKind,
+        },
+        credential: credentialBinding,
+        invocationInputHash: invocationInputHash(
+          buildInvocationInputProjection({
+            category: instance.category,
+            adapterId: adapter.adapterId,
+            adapterVersion: adapter.adapterVersion,
+            model: instance.model,
+            params: config,
+            signal: ctx.signal,
+            graphInput: ctx.input,
+          })
+        ),
+        providerResultHash: providerResultHash(validated),
+        categoryResultHash: categoryResultHash(validated),
+        status: "succeeded",
+      };
+      if (instance.category === "technical" && typeof validated.priceSource === "string") {
+        proof.priceSource = validated.priceSource;
+      }
+      if (instance.category === "aiMl") {
+        // The aiMl proof REQUIRES the nested Tiny Brains projection
+        // (D-EV3-3): a lane that produced no verified side-channel cannot be
+        // proven and must not look successful.
+        if (!serviceInvocation) {
+          throw new ProviderOutputInvalidError(
+            `aiMl adapter for '${instance.providerInstanceId}' surfaced no verified service invocation block (EV3-GOV D-EV3-3)`
+          );
+        }
+        proof.aimlInvocation = toAimlInvocationProof(serviceInvocation);
+      }
+      ctx.onInvocationProof(proof);
+    }
+
+    return validated;
   }
 }
 

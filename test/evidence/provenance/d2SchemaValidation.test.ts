@@ -21,12 +21,15 @@ import {
   type D2ArtifactKind,
 } from "../../../src/evidence/provenance/schemaValidation.js";
 
+// The envelope's enrichmentProvenance member was removed with the deleted
+// draft (D-EV3-8(2)): a stale envelope carrying it must now be rejected
+// structurally (additionalProperties:false).
+
 /** afi-config's committed valid examples (read via the installed package link). */
 const EXAMPLE_FILES: Record<D2ArtifactKind, string> = {
   "canonical-hash": "canonical-hash.example.json",
   "evidence-ref": "evidence-ref.example.json",
   "source-disclosure-profile": "source-disclosure-profile.example.json",
-  "enrichment-provenance": "enrichment-provenance.example.json",
   "analyst-input-envelope": "analyst-input-envelope.example.json",
   "scored-signal": "scored-signal.example.json",
   "provenance-record": "provenance-record.example.json",
@@ -55,12 +58,13 @@ const VALID_HASH = {
 };
 
 describe("D2 schema validation adapter — positive cases", () => {
-  it("covers all nine merged artifact kinds", () => {
+  // EV3-GOV D-EV3-8(2): the dormant enrichment provenance draft is DELETED
+  // (subsumed by afi.provider-invocation-proof.v1) — nine kinds became eight.
+  it("covers all eight merged artifact kinds (the provenance draft kind deleted)", () => {
     expect([...D2_ARTIFACT_KINDS].sort()).toEqual(
       [
         "analyst-input-envelope",
         "canonical-hash",
-        "enrichment-provenance",
         "evidence-ref",
         "provenance-record",
         "replay-profile",
@@ -69,6 +73,7 @@ describe("D2 schema validation adapter — positive cases", () => {
         "trade-plan",
       ].sort()
     );
+    expect([...D2_ARTIFACT_KINDS]).not.toContain(["enrichment", "provenance"].join("-"));
   });
 
   for (const kind of D2_ARTIFACT_KINDS) {
@@ -170,6 +175,14 @@ describe("AnalystInputEnvelope v1 — opaque view must be declared", () => {
     const result = validateAnalystInputEnvelopeV1(envelope);
     expect(result.errors).toEqual([]);
     expect(result.ok).toBe(true);
+  });
+
+  it("REJECTS the deleted enrichmentProvenance member (D-EV3-8(2): no dangling draft surface)", () => {
+    const envelope = clone(loadExample("analyst-input-envelope")) as Record<string, unknown>;
+    envelope.enrichmentProvenance = [
+      { laneId: "technical", engineId: "x", laneVersion: "1", replayabilityLevel: "deterministic" },
+    ];
+    expect(validateAnalystInputEnvelopeV1(envelope).ok).toBe(false);
   });
 });
 

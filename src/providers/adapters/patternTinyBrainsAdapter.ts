@@ -98,6 +98,7 @@ export function createPatternTinyBrainsAdapter(deps?: PatternTinyBrainsAdapterDe
   return {
     adapterId: "afi-adapter-pattern-tiny-brains",
     adapterVersion: "1.0.0",
+    transportKind: "http",
     category: "pattern",
     providerCompatibility: ["afi-provider-pattern-tiny-brains"],
     requiresCredential: false,

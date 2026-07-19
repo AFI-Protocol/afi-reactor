@@ -40,6 +40,7 @@ import {
   buildProviderRuntime,
   builtinProviderAdapters,
   createProviderRecordStore,
+  type ProviderRecordStore,
 } from "../providers/index.js";
 import { createReferenceSecretResolver } from "../providers/referenceSecretBackend.js";
 import type { SecretResolver } from "../providers/secretResolver.js";
@@ -60,6 +61,14 @@ export interface RuntimeComposition {
    * (duplicate registration throws).
    */
   providerRuntime: ProviderRuntime;
+  /**
+   * The boot-validated governed provider/instance/credential-ref record view
+   * (non-secret). The graph scoring service reads it to assemble the per-lane
+   * EXPECTED identity facts the Evidence V3 builder cross-checks the captured
+   * invocation proofs against (EV3-GOV D-EV3-5(3)) — the D2 evidence surfaces
+   * themselves never read registries (RC-7).
+   */
+  providerRecordStore: ProviderRecordStore;
 }
 
 /** Structured operational node logger (console-backed; never hash material). */
@@ -132,7 +141,7 @@ export function initRuntimeComposition(): RuntimeComposition {
       );
     },
   });
-  current = { runtime, pluginRegistry, executor, providerRuntime };
+  current = { runtime, pluginRegistry, executor, providerRuntime, providerRecordStore: records };
   return current;
 }
 

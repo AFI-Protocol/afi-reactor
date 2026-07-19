@@ -1,25 +1,27 @@
 /**
- * Canonical evidence submission tests — afi.scored-signal-evidence.v2
- * (MONGO-REACTOR-SUBMIT evolved by FCP-GOV D-FCP-7: v2 = v1 + REQUIRED
- * composition provenance; the projection/provenance preimages are UNCHANGED).
+ * Canonical evidence submission tests — afi.scored-signal-evidence.v3
+ * (MONGO-REACTOR-SUBMIT evolved by EV3-GOV D-EV3-1: v3 = the v2 core carried
+ * forward unchanged + REQUIRED providerInvocations/recordHash/replayHash;
+ * the projection/provenance preimages are UNCHANGED).
  *
  * Focused behaviors: success, idempotent duplicate, conflicting duplicate,
  * store unavailable, schema rejection (invalid record never submitted),
  * persistence-failure propagation (never a silent success), the registry-
- * backed UWR stamp recognition, and the all-or-nothing composition rule.
- * Uses a fake store (the Reactor is a submitter; it never touches MongoDB).
+ * backed UWR stamp recognition, the all-or-nothing composition rule, and the
+ * baseline five-proof construction path (the exhaustive D-EV3-5(3)
+ * contract/mutation suites live in the §15 proof-layer tests). Uses a fake
+ * store (the Reactor is a submitter; it never touches MongoDB).
  */
 
-import type { ReactorScoredSignalV1 } from "../../src/types/ReactorScoredSignalV1.js";
 import {
   validateProvenanceRecordV1,
   validateScoredSignalV1,
 } from "../../src/evidence/provenance/schemaValidation.js";
-import { validateEvidenceRecordV2 } from "../../src/evidence/evidenceV2Schema.js";
+import { validateEvidenceRecordV3 } from "../../src/evidence/evidenceV3Schema.js";
 import {
   buildReactorEvidenceRecord,
+  EvidenceProofViolationError,
   ReactorEvidenceConstructionError,
-  type EvidenceCompositionContext,
   type ReactorEvidenceRecord,
 } from "../../src/evidence/reactorEvidenceRecord.js";
 import {
@@ -28,70 +30,16 @@ import {
   type EvidenceStorePort,
   type EvidenceSubmitResult,
 } from "../../src/evidence/submitScoredSignalEvidence.js";
+import {
+  evidenceRecordHash,
+  evidenceReplayHash,
+} from "../../src/evidence/provenance/invocationProofHashes.js";
 import { canonicalHashOf, DOMAIN_TAGS } from "../../src/pipeline/hashing.js";
-import type { CompositionRefV1 } from "../../src/pipeline/manifestTypes.js";
+// The shared five-lane Evidence V3 fixture world (EV3-GOV §15): scored
+// signal, lane results, bindings, self-consistent proofs, composition context.
+import { makeScored, makeInvocations, makeContext } from "./support/evidenceV3World.js";
 
 const SILENT = { info: () => {}, error: () => {} };
-
-function makeScored(overrides: Record<string, unknown> = {}): ReactorScoredSignalV1 {
-  const signalId = (overrides.signalId as string) ?? "sig-reactor-unit-1";
-  const analystScore = {
-    analystId: "froggy",
-    strategyId: "trend_pullback_v1",
-    strategyVersion: "1.0.0",
-    direction: "long",
-    riskBucket: "medium",
-    conviction: 0.72,
-    uwrScore: 0.81,
-    uwrAxes: { structure: 0.8, execution: 0.7, risk: 0.85, insight: 0.9 },
-    ...((overrides.analystScore as Record<string, unknown>) ?? {}),
-  };
-  return {
-    signalId,
-    rawUss: {
-      schema: "afi.usignal.v1.1",
-      provenance: { signalId, providerId: "prov-test", source: "test" },
-      facts: { symbol: "BTCUSDT", timeframe: "1h", direction: "long", strategy: "trend_pullback_v1" },
-    },
-    analystScore,
-    // RC-6 source PROPAGATED from the composition path (default: builtin).
-    // `in` (not ??) so a test can force an explicitly-absent source.
-    uwrResolvedSource:
-      "uwrResolvedSource" in overrides ? overrides.uwrResolvedSource : "builtin",
-    scoredAt: "2026-01-15T12:00:00Z",
-    decayParams: null,
-    meta: { symbol: "BTCUSDT", timeframe: "1h", strategy: "trend_pullback_v1", direction: "long", source: "test" },
-  } as unknown as ReactorScoredSignalV1;
-}
-
-/** A complete, schema-valid composition context (real CanonicalHash refs). */
-function makeContext(
-  overrides: Partial<EvidenceCompositionContext> = {}
-): EvidenceCompositionContext {
-  const composition: CompositionRefV1 = {
-    schema: "afi.composition-ref.v1",
-    pipelineId: "froggy-trend-pullback",
-    pipelineVersion: "v1.0.0",
-    manifestHash: canonicalHashOf({ fixture: "manifest" }, DOMAIN_TAGS.compositionManifest),
-    analystConfigHash: canonicalHashOf({ fixture: "config" }, DOMAIN_TAGS.analystConfig),
-    scorerPluginId: "afi-scorer-froggy-trend-pullback",
-    scorerPluginVersion: "1.0.0",
-    pluginSetHash: canonicalHashOf({ fixture: "plugins" }, DOMAIN_TAGS.pluginSet),
-    executionSummaryHash: canonicalHashOf({ fixture: "summary" }, DOMAIN_TAGS.executionSummary),
-    enrichmentHash: canonicalHashOf({ fixture: "enrichment" }, DOMAIN_TAGS.enrichmentBundle),
-  };
-  return {
-    composition: (overrides.composition as CompositionRefV1) ?? composition,
-    registration:
-      overrides.registration ??
-      ({
-        analystId: "froggy",
-        strategyId: "trend_pullback_v1",
-        strategyVersion: "1.0.0",
-        uwrProfileRef: { profileId: "uwr-weighted-lifts-v0.1" },
-      } as EvidenceCompositionContext["registration"]),
-  };
-}
 
 /** Fake afi-infra evidence store. Records submissions; drives outcomes/errors. */
 class FakeStore implements EvidenceStorePort {
@@ -113,11 +61,11 @@ class FakeStore implements EvidenceStorePort {
   }
 }
 
-describe("buildReactorEvidenceRecord (v2)", () => {
-  it("produces a governed, schema-valid, identifier-continuous SCORED v2 record", () => {
+describe("buildReactorEvidenceRecord (v3)", () => {
+  it("produces a governed, schema-valid, identifier-continuous SCORED v3 record", () => {
     const record = buildReactorEvidenceRecord(makeScored(), makeContext());
 
-    expect(record.schema).toBe("afi.scored-signal-evidence.v2");
+    expect(record.schema).toBe("afi.scored-signal-evidence.v3");
     expect(record.lifecycleState).toBe("SCORED");
     expect(record.finalized).toBe(false);
     // complete strategy triple carried at top level
@@ -129,15 +77,31 @@ describe("buildReactorEvidenceRecord (v2)", () => {
     expect(record.provenanceRecord.schema).toBe("afi.provenance-record.v1");
     expect(record.provenanceRecord.inputHash).toBeTruthy();
     expect(record.provenanceRecord.outputHash).toBeTruthy();
-    // v2's one addition: the REQUIRED composition provenance
+    // the REQUIRED composition provenance (carried forward from v2)
     expect(record.composition.schema).toBe("afi.composition-ref.v1");
     expect(record.composition.executionSummaryHash.domainTag).toBe("afi.d2.execution-summary");
     expect(record.composition.enrichmentHash.domainTag).toBe("afi.d2.enrichment-bundle");
+    // v3's three additions: five ordered proofs + the two record commitments
+    expect(record.providerInvocations.map((p) => p.category)).toEqual([
+      "aiMl",
+      "news",
+      "pattern",
+      "sentiment",
+      "technical",
+    ]);
+    expect(record.providerInvocations[0].aimlInvocation?.schema).toBe(
+      "afi.aiml-invocation-proof.v1"
+    );
+    expect(record.recordHash.domainTag).toBe("afi.d2.evidence-record");
+    expect(record.replayHash.domainTag).toBe("afi.d2.evidence-replay");
+    // recordHash/replayHash recompute over the assembled record (D-EV3-4(6))
+    expect(evidenceRecordHash(record)).toEqual(record.recordHash);
+    expect(evidenceReplayHash(record)).toEqual(record.replayHash);
 
-    // the FULL record valid against the VENDORED v2 schema
-    const v2 = validateEvidenceRecordV2(record);
-    expect(v2.errors).toEqual([]);
-    expect(v2.ok).toBe(true);
+    // the FULL record valid against the VENDORED v3 closure
+    const v3 = validateEvidenceRecordV3(record);
+    expect(v3.errors).toEqual([]);
+    expect(v3.ok).toBe(true);
     // sub-artifacts valid against their governed afi-config D2 schemas
     expect(validateScoredSignalV1(record.scoredSignal).ok).toBe(true);
     expect(validateProvenanceRecordV1(record.provenanceRecord).ok).toBe(true);
@@ -148,7 +112,7 @@ describe("buildReactorEvidenceRecord (v2)", () => {
     expect(record.provenanceRecord.canonicalizationVersion).toBe(record.canonicalizationVersion);
   });
 
-  it("the v1→v2 evolution left the projection/provenance PREIMAGES unchanged (hashes are composition-independent)", () => {
+  it("the v2→v3 evolution left the projection/provenance PREIMAGES unchanged; replayHash excludes lifecycle custody", () => {
     const a = buildReactorEvidenceRecord(makeScored(), makeContext());
     const b = buildReactorEvidenceRecord(makeScored(), {
       ...makeContext(),
@@ -160,6 +124,13 @@ describe("buildReactorEvidenceRecord (v2)", () => {
     expect(a.provenanceRecord.inputHash).toEqual(b.provenanceRecord.inputHash);
     expect(a.provenanceRecord.outputHash).toEqual(b.provenanceRecord.outputHash);
     expect(a.scoredSignal).toEqual(b.scoredSignal);
+    // a composition change MOVES both record-level commitments
+    expect(a.recordHash.value).not.toBe(b.recordHash.value);
+    expect(a.replayHash.value).not.toBe(b.replayHash.value);
+    // identical canonical inputs → identical replay projections (D-EV3-4(7))
+    const c = buildReactorEvidenceRecord(makeScored(), makeContext());
+    expect(c.replayHash).toEqual(a.replayHash);
+    expect(c.recordHash).toEqual(a.recordHash);
   });
 
   it("rejects a score missing the strategyVersion triple member", () => {
@@ -169,7 +140,7 @@ describe("buildReactorEvidenceRecord (v2)", () => {
     );
   });
 
-  it("FAILS CLOSED without composition provenance (all-or-nothing; no v1 emission path remains)", () => {
+  it("FAILS CLOSED without composition provenance (all-or-nothing)", () => {
     expect(() => buildReactorEvidenceRecord(makeScored(), undefined)).toThrow(
       ReactorEvidenceConstructionError
     );
@@ -186,7 +157,75 @@ describe("buildReactorEvidenceRecord (v2)", () => {
     );
   });
 
-  // Governed scoring-profile stamp (PR-UWR-STAMP / RC-6), now REGISTRY-BACKED
+  it("FAILS CLOSED without the invocation capture (no v3 record without its five proofs)", () => {
+    const context = makeContext();
+    (context as unknown as Record<string, unknown>).invocations = undefined;
+    let caught: unknown;
+    try {
+      buildReactorEvidenceRecord(makeScored(), context);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(EvidenceProofViolationError);
+    expect((caught as EvidenceProofViolationError).reason).toBe("invocation-capture-missing");
+  });
+
+  it("FAILS CLOSED on a missing lane proof (all five lanes required, D-EV3-5(1))", () => {
+    const invocations = makeInvocations();
+    invocations.proofs = invocations.proofs.filter((p) => p.category !== "sentiment");
+    let caught: unknown;
+    try {
+      buildReactorEvidenceRecord(makeScored(), makeContext({ invocations }));
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(EvidenceProofViolationError);
+    expect((caught as EvidenceProofViolationError).reason).toBe("proof-count");
+  });
+
+  it("FAILS CLOSED on a category-result hash that does not recompute from the consumed result", () => {
+    const invocations = makeInvocations();
+    (invocations.laneResults.news as Record<string, unknown>).news = {
+      hasShockEvent: true,
+      headlines: ["tampered"],
+    };
+    let caught: unknown;
+    try {
+      buildReactorEvidenceRecord(makeScored(), makeContext({ invocations }));
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(EvidenceProofViolationError);
+    expect((caught as EvidenceProofViolationError).reason).toBe("category-result-hash-mismatch");
+  });
+
+  it("FAILS CLOSED on a proof identity that differs from the boot-verified registry resolution", () => {
+    const invocations = makeInvocations();
+    const technical = invocations.proofs.find((p) => p.category === "technical")!;
+    technical.adapter = { ...technical.adapter, adapterVersion: "9.9.9" };
+    let caught: unknown;
+    try {
+      buildReactorEvidenceRecord(makeScored(), makeContext({ invocations }));
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(EvidenceProofViolationError);
+    expect((caught as EvidenceProofViolationError).reason).toBe("registry-identity-mismatch");
+  });
+
+  it("FAILS CLOSED on a decay identity that differs from the registration-resolved values", () => {
+    const scored = makeScored({ decayParams: { halfLifeMinutes: 999, greeksTemplateId: "decay-swing-v1" } });
+    let caught: unknown;
+    try {
+      buildReactorEvidenceRecord(scored, makeContext());
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(EvidenceProofViolationError);
+    expect((caught as EvidenceProofViolationError).reason).toBe("decay-identity-mismatch");
+  });
+
+  // Governed scoring-profile stamp (PR-UWR-STAMP / RC-6), REGISTRY-BACKED
   // (FCP-GOV D-FCP-9 item 5): recognition flows from the resolved registration.
   it("stamps the governed profile, discriminating builtin as builtin-value-identity", () => {
     const record = buildReactorEvidenceRecord(
@@ -274,7 +313,7 @@ describe("buildReactorEvidenceRecord (v2)", () => {
   });
 });
 
-describe("submitScoredSignalEvidence (v2)", () => {
+describe("submitScoredSignalEvidence (v3)", () => {
   it("submits and reports an inserted outcome (persistence succeeded)", async () => {
     const store = new FakeStore("inserted");
     const out = await submitScoredSignalEvidence(makeScored(), store, makeContext(), SILENT);
@@ -282,8 +321,11 @@ describe("submitScoredSignalEvidence (v2)", () => {
     expect(out.lifecycleState).toBe("SCORED");
     expect(store.submissions).toHaveLength(1);
     expect(store.submissions[0].signalId).toBe("sig-reactor-unit-1");
-    expect(store.submissions[0].schema).toBe("afi.scored-signal-evidence.v2");
+    expect(store.submissions[0].schema).toBe("afi.scored-signal-evidence.v3");
     expect(store.submissions[0].composition.schema).toBe("afi.composition-ref.v1");
+    expect(store.submissions[0].providerInvocations).toHaveLength(5);
+    expect(store.submissions[0].recordHash.value).toMatch(/^[a-f0-9]{64}$/);
+    expect(store.submissions[0].replayHash.value).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("reports an idempotent duplicate as a (still successful) persisted state", async () => {
@@ -328,15 +370,25 @@ describe("submitScoredSignalEvidence (v2)", () => {
     expect(store.submissions).toHaveLength(0); // invalid record never reached the store
   });
 
-  it("rejects a record whose composition violates the vendored v2 schema BEFORE submission", async () => {
+  it("rejects a record whose composition violates the vendored v3 closure BEFORE submission", async () => {
     const store = new FakeStore("inserted");
     const context = makeContext();
     // A malformed hash value survives construction shape checks but violates
-    // the canonical-hash schema $ref'd by the vendored v2 schema.
+    // the canonical-hash schema $ref'd by the vendored v3 closure.
     (context.composition.manifestHash as { value: string }).value = "not-a-sha256";
     await expect(
       submitScoredSignalEvidence(makeScored(), store, context, SILENT)
     ).rejects.toMatchObject({ category: "validation", httpStatus: 500 });
+    expect(store.submissions).toHaveLength(0);
+  });
+
+  it("maps a D-EV3-5(3) proof violation to a first-class construction failure (no submit)", async () => {
+    const store = new FakeStore("inserted");
+    const invocations = makeInvocations();
+    invocations.proofs = [...invocations.proofs, invocations.proofs[0]];
+    await expect(
+      submitScoredSignalEvidence(makeScored(), store, makeContext({ invocations }), SILENT)
+    ).rejects.toMatchObject({ category: "construction", httpStatus: 500 });
     expect(store.submissions).toHaveLength(0);
   });
 

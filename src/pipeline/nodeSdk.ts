@@ -19,6 +19,7 @@
  *    fabricated success data).
  */
 import type { CanonicalUss } from "../types/canonicalUss.js";
+import type { ProviderInvocationProofV1 } from "../providers/invocationProof.js";
 
 export type { CanonicalUss };
 
@@ -55,6 +56,15 @@ export interface NodeRunContext {
    * node in the provider-adapter layer.
    */
   providerInstanceRef?: { providerInstanceId: string; recordVersion: string };
+  /**
+   * OPTIONAL invocation-proof deposit sink (EV3-GOV D-EV3-5(2)): the executor
+   * wires a per-node collector here so a provider-backed node can deposit the
+   * afi.provider-invocation-proof.v1 the runtime captured inside THIS live
+   * pass. Proofs travel with execution state to District Two; no node, join,
+   * or scoring path ever reads them back (carried, never consumed —
+   * D-EV3-2).
+   */
+  depositInvocationProof?: (proof: ProviderInvocationProofV1) => void;
 }
 
 /** One recorded degradation — never silent, never fabricated data. */

@@ -203,7 +203,7 @@ describe("FLPR-3: the registered reference manifest selects all five lanes expli
       readFileSync(
         path.resolve(
           REPO_ROOT,
-          "test/pipeline/fixtures/afi-config/registries/pipelines/froggy-trend-pullback--v1.2.0.json"
+          "test/pipeline/fixtures/afi-config/registries/pipelines/froggy-trend-pullback--v1.3.0.json"
         ),
         "utf-8"
       )

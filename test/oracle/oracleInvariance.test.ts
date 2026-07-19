@@ -1,13 +1,15 @@
 /**
  * ORACLE-EQUIVALENCE — branch-order / repeat-run invariance.
  *
- * Runs the SAME committed fixture through the live path 5 times and asserts
- * the canonical surfaces are IDENTICAL on every run: afi.hash.v1 inputHash +
- * outputHash, the exact scorer input (FroggyTrendPullbackInput), and the
- * byte-normalized governed evidence record. This pins that nothing about DAG
- * branch scheduling, PRNG state, or module-level caching leaks into the
- * canonical record — the equivalence bar the manifest-driven executor must
- * clear run-over-run, not just once.
+ * Runs the SAME committed fixture through the live path 5 times (all five
+ * lanes on the shared RECORDED transports — v1.3.0 lanes are critical,
+ * D-EV3-5(1)) and asserts the canonical surfaces are IDENTICAL on every run:
+ * afi.hash.v1 inputHash + outputHash, the exact scorer input
+ * (FroggyTrendPullbackInput), the byte-normalized governed evidence record,
+ * and the EV3 record-level commitments (recordHash / replayHash). This pins
+ * that nothing about DAG branch scheduling, PRNG state, or module-level
+ * caching leaks into the canonical record — the equivalence bar the
+ * manifest-driven executor must clear run-over-run, not just once.
  */
 
 import { describe, it, expect, beforeAll, afterAll, jest } from "@jest/globals";
@@ -19,6 +21,38 @@ jest.mock("ccxt", () => {
     __esModule: true,
     default: { blofin: OracleUnusedExchange, coinbase: OracleUnusedExchange },
   };
+});
+
+// RECORDED remote-lane transports (shared stubs): under froggy v1.3.0 every
+// lane is CRITICAL (EV3-GOV D-EV3-5(1)) — an invariance run must be a full
+// five-lane scored run, so the remote lanes ride the same recorded fixed
+// transports as the enriched golden suite.
+jest.mock("../../src/providers/adapters/sentimentCftcCotAdapter.js", () => {
+  const actual = jest.requireActual(
+    "../../src/providers/adapters/sentimentCftcCotAdapter.js"
+  ) as typeof import("../../src/providers/adapters/sentimentCftcCotAdapter.js");
+  const stubs = jest.requireActual(
+    "./support/recordedLaneStubs.js"
+  ) as typeof import("./support/recordedLaneStubs.js");
+  return { ...actual, sentimentCftcCotAdapter: stubs.recordedSentimentCftcCotAdapter() };
+});
+jest.mock("../../src/providers/adapters/newsSecEdgarAdapter.js", () => {
+  const actual = jest.requireActual(
+    "../../src/providers/adapters/newsSecEdgarAdapter.js"
+  ) as typeof import("../../src/providers/adapters/newsSecEdgarAdapter.js");
+  const stubs = jest.requireActual(
+    "./support/recordedLaneStubs.js"
+  ) as typeof import("./support/recordedLaneStubs.js");
+  return { ...actual, newsSecEdgarAdapter: stubs.recordedNewsSecEdgarAdapter() };
+});
+jest.mock("../../src/providers/adapters/aimlTinyBrainsAdapter.js", () => {
+  const actual = jest.requireActual(
+    "../../src/providers/adapters/aimlTinyBrainsAdapter.js"
+  ) as typeof import("../../src/providers/adapters/aimlTinyBrainsAdapter.js");
+  const stubs = jest.requireActual(
+    "./support/recordedLaneStubs.js"
+  ) as typeof import("./support/recordedLaneStubs.js");
+  return { ...actual, aimlTinyBrainsAdapter: stubs.recordedAimlTinyBrainsAdapter() };
 });
 
 import app from "../../src/server.js";
@@ -70,6 +104,8 @@ describe.each([
       outputHash: string;
       scorerInput: string;
       record: string;
+      recordHash: string;
+      replayHash: string;
       outcome: string;
     }> = [];
 
@@ -91,6 +127,10 @@ describe.each([
           buildFroggyTrendPullbackInputFromEnriched(enrichedView as never)
         ),
         record: stableStringify(normalizeVolatile(record)),
+        // EV3-GOV D-EV3-4(7): identical canonical inputs → identical
+        // record-level commitments run-over-run (the replay separation).
+        recordHash: stableStringify(record.recordHash),
+        replayHash: stableStringify(record.replayHash),
         outcome: res.body.persistence.outcome,
       });
     }
@@ -102,6 +142,8 @@ describe.each([
       expect([i, c.outputHash]).toEqual([i, first.outputHash]);
       expect([i, c.scorerInput]).toEqual([i, first.scorerInput]);
       expect([i, c.record]).toEqual([i, first.record]);
+      expect([i, c.recordHash]).toEqual([i, first.recordHash]);
+      expect([i, c.replayHash]).toEqual([i, first.replayHash]);
     }
   }, 30_000); // 5 sequential full runs incl. per-lane declared retry backoff
 });

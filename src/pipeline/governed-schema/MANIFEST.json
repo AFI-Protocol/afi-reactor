@@ -1,11 +1,11 @@
 {
   "$comment": "Provenance of the vendored governed FACTORY-CONTRACT closure consumed by src/pipeline/ (canonical hashing + registry/composition schemas + the governed hashing KAT vectors + the enrichment category-result contracts). Each vendored file is a byte-identical copy of afi-config@afiConfigCommit at afiConfigPath (the afi-infra governed-schema vendoring discipline). Enforced by test/pipeline/vendoredSchemaProvenance.test.ts. Do not hand-edit; regenerate only from an owner-approved afi-config commit.",
   "afiConfigRepo": "https://github.com/AFI-Protocol/afi-config",
-  "afiConfigCommit": "85d5d40d867dca4b08d20288d25d6b1f91ddff8d",
+  "afiConfigCommit": "9497afc24bf380b21701bee453c13ebdf8881a26",
   "sources": {
     "src/pipeline/governed-schema/pipeline.schema.json": {
       "afiConfigPath": "schemas/pipeline/v1/pipeline.schema.json",
-      "sha256": "0d0c1e74f201f518ed37ce938a932df41e1ea1343c1c8814c809ca117a9f7a2a"
+      "sha256": "c4cbf4e8922789f5ec180983e2b9735a91981809348e96b2c539f5886051ccdf"
     },
     "src/pipeline/governed-schema/provider.schema.json": {
       "afiConfigPath": "schemas/provider/v1/provider.schema.json",
@@ -49,11 +49,7 @@
     },
     "src/pipeline/governed-schema/composition-ref.schema.json": {
       "afiConfigPath": "schemas/composition-ref/v1/composition-ref.schema.json",
-      "sha256": "2622d3df832df6b6cbe7aa226e6a0fb9e31512b7b9a975a242d76e237f9e4da5"
-    },
-    "src/pipeline/governed-schema/scored-signal-evidence.v2.schema.json": {
-      "afiConfigPath": "schemas/scored-signal-evidence/v2/scored-signal-evidence.schema.json",
-      "sha256": "a748163a0c3a19b3b58cd1aa4f30406a04e308354cc564fc57b119682b6eeebd"
+      "sha256": "c9c1febeddb4f9fbebb07ebf072320779af8ac8012fc1b6801e4ea085f21ab69"
     },
     "src/pipeline/governed-schema/canonical-hash.schema.json": {
       "afiConfigPath": "schemas/provenance/v1/canonical-hash.schema.json",
@@ -74,6 +70,18 @@
     "src/pipeline/governed-schema/enrichment-aiml.schema.json": {
       "afiConfigPath": "schemas/enrichment/aiml/v1/enrichment-aiml.schema.json",
       "sha256": "fdb8f2719bf51087e47c0d52ebfde81dd6ce668ccf56e81f8a40cea948b3b946"
+    },
+    "src/pipeline/governed-schema/scored-signal-evidence.v3.schema.json": {
+      "afiConfigPath": "schemas/scored-signal-evidence/v3/scored-signal-evidence.schema.json",
+      "sha256": "8ea69e3a52731c67f6ace53dbcdc70c83e6ec9f4f1c1f8b00bfce04e2ab240cf"
+    },
+    "src/pipeline/governed-schema/provider-invocation-proof.schema.json": {
+      "afiConfigPath": "schemas/provider-invocation-proof/v1/provider-invocation-proof.schema.json",
+      "sha256": "97bbdbd1d6f9360b5e7dce448fed7170f48bcaea56682360ece9b62a7af5681b"
+    },
+    "src/pipeline/governed-schema/aiml-invocation-proof.schema.json": {
+      "afiConfigPath": "schemas/aiml-invocation-proof/v1/aiml-invocation-proof.schema.json",
+      "sha256": "227bea36909189cc821f9307c90b5bea74959c5586127e8e962d0f44af91df7a"
     }
   }
 }

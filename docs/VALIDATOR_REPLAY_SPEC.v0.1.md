@@ -35,7 +35,7 @@ record:
 - **Canonical provenance** — the District-2 provenance law
   (`src/evidence/provenance/`) stamps `afi.hash.v1` over a canonical projection
   (sha256-only, domain-tagged preimages, volatile-timestamp exclusion) into the
-  governed `afi.scored-signal-evidence.v2` record.
+  governed `afi.scored-signal-evidence.v3` record.
 
 ## Reproducibility Invariants
 

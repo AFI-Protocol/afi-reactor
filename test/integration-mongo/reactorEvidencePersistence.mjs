@@ -6,7 +6,7 @@
  * evidence store — NO fakes, NO Jest module mapping. Proves:
  *
  *   1. POST /api/webhooks/tradingview constructs, validates, and PERSISTS a
- *      governed afi.scored-signal-evidence.v2 record (persistence.outcome
+ *      governed afi.scored-signal-evidence.v3 record (persistence.outcome
  *      = "inserted").
  *   2. POST /api/ingest/cpj does the same — with a DECIMAL parse.confidence
  *      (0.87), proving the afi.hash.v1 fixed-point projection of
@@ -33,6 +33,7 @@ import path from "node:path";
 import request from "supertest";
 import { MongoClient } from "mongodb";
 import { MongoScoredSignalEvidenceStore } from "afi-infra";
+import { startTinyBrainsStub } from "./support/tinyBrainsStub.mjs";
 
 const URI = process.env.AFI_EVIDENCE_MONGODB_URI;
 if (!URI) {
@@ -50,10 +51,19 @@ process.env.NODE_ENV = "test"; // prevent the compiled server from listening
 await import("../support/registerDeterministicPriceFeed.mjs");
 process.env.AFI_PRICE_FEED_SOURCE = process.env.AFI_PRICE_FEED_SOURCE ?? "demo";
 
+// Under pipeline v1.3.0 every lane is CRITICAL (EV3-GOV D-EV3-5(1)): a scored
+// 200 requires a live aiMl lane, i.e. a Tiny Brains service. Start the
+// governed self-verifying stub BEFORE the compiled server is imported and
+// default TINY_BRAINS_URL to it; an operator-provided TINY_BRAINS_URL (a real
+// deployment) is respected untouched. The sentiment (CFTC) and news (EDGAR)
+// lanes intentionally use their real keyless public sources here.
+const tinyBrains = process.env.TINY_BRAINS_URL?.trim() ? null : await startTinyBrainsStub();
+if (tinyBrains) process.env.TINY_BRAINS_URL = tinyBrains.url;
+
 const EVIDENCE_COLLECTION = process.env.AFI_EVIDENCE_COLLECTION ?? "scored_signal_evidence";
 const HISTORY_COLLECTION =
   process.env.AFI_EVIDENCE_HISTORY_COLLECTION ?? "scored_signal_evidence_history";
-const EVIDENCE_SCHEMA = "afi.scored-signal-evidence.v2";
+const EVIDENCE_SCHEMA = "afi.scored-signal-evidence.v3";
 const LEGACY_COLLECTION = "reactor_scored_signals_v1";
 
 const COMPILED_SERVER = pathToFileURL(
@@ -172,8 +182,9 @@ async function main() {
     );
     assert.equal(
       tvReplay.composition.manifestHash.value,
-      "095b55775cd32147bb29137278185d1c6a95512dfec827f4c98a3eb569b39883",
-      "replay composition pins the OFFICIAL froggy manifestHash"
+      "df3372dadaca1595d0e6d2f6bad9464ccc9abb7106e9f5b7111df148a145bc4f",
+      "replay composition pins the OFFICIAL froggy manifestHash (pipeline v1.3.0 — " +
+        "the governed registry pin; also frozen in every committed enriched golden)"
     );
     ok("tradingview: read-back by signalId + identifier continuity + replay bundle (with composition)");
 
@@ -353,14 +364,17 @@ const emergency = setTimeout(() => {
 main()
   .then(async (shutdownReactor) => {
     // Release the COMPILED app's own bound evidence-store connection + dedupe
-    // cache. With every handle closed the event loop drains and the process
-    // exits naturally — proving SIGTERM-compatible cleanup.
+    // cache, then the Tiny Brains stub. With every handle closed the event
+    // loop drains and the process exits naturally — proving SIGTERM-compatible
+    // cleanup.
     await shutdownReactor().catch(() => {});
+    await tinyBrains?.close().catch(() => {});
     clearTimeout(emergency);
     console.log("Clean shutdown: all handles released; process exits naturally.");
   })
-  .catch((err) => {
+  .catch(async (err) => {
     console.error("\nFAIL — real-MongoDB persistence proof failed:\n", err);
+    await tinyBrains?.close().catch(() => {});
     clearTimeout(emergency);
     process.exit(1);
   });

@@ -41,7 +41,7 @@ distinctness, not bytes).
 
 | Field (golden path) | Goldens | Old → new | Why |
 |---|---|---|---|
-| `/evidenceRecord/schema` | all 24 | `afi.scored-signal-evidence.v1` → `afi.scored-signal-evidence.v2` | FCP-GOV D-FCP-7: the new decision + new schema version (never a silent mutation) |
+| `/evidenceRecord/schema` | all 24 | the v1 evidence schema id → the v2 evidence schema id | FCP-GOV D-FCP-7: the new decision + new schema version (never a silent mutation) |
 | `/evidenceRecord/composition` | all 24 | absent → the complete `afi.composition-ref.v1` object | v2's one addition: pipelineId `froggy-trend-pullback`, pipelineVersion `v1.0.0`, the pinned manifestHash `b8d9b734…`, analystConfigHash `269ae355…`, pluginSetHash `6d54c8b7…`, scorer plugin identity, per-run `executionSummaryHash` (tag `afi.d2.execution-summary`), per-run `enrichmentHash` (tag `afi.d2.enrichment-bundle`, timestamp-free bundle projection) |
 
 ## Class 3 — response envelope additions
@@ -141,7 +141,69 @@ field (`direction`/`uwrScore`/`uwrAxes`/`riskBucket`/`conviction`), the
 `enrichmentHash` and `pluginSetHash` (the aiMl payload shape and plugin set
 are unchanged — `afi.enrichment.aiml.v1` and `afi-analysis-aiml@2.0.0` are
 untouched), `executionSummaryHash`, `inputHash`, and `outputHash`. aiMl
-remains score-inert (D-FLPR-5); Evidence V2 shape is frozen and unchanged.
+remains score-inert (D-FLPR-5); the frozen v2 evidence shape was unchanged.
+
+Anything else diffing would have been a defect to fix in code, never
+absorbed into a golden.
+
+---
+
+# EV3-GOV RECONCILIATION — Mission C: Evidence V3 + provider invocation provenance
+
+The Evidence V3 program (EV3-GOV: `afi.scored-signal-evidence.v3` as the sole
+current evidence contract, five per-lane invocation proofs, recordHash /
+replayHash, froggy-trend-pullback **v1.3.0** all-lanes-critical) regenerated
+the ENRICHED goldens ONCE via `npm run oracle:regen` (D-EV3-8(1)).
+
+## Golden inventory change
+
+- `enriched/*.{builtin,registry}.json` (12) — regenerated (diff classes below).
+- `fail-soft/*` (12) + `oracleGoldensFailSoft.test.ts` — **DELETED**: the
+  "external providers OFF, network down, still scores" environment those
+  goldens froze is structurally impossible under v1.3.0 — every category lane
+  is CRITICAL (D-EV3-5(1)); a failed lane now yields NO scored evaluation and
+  NO evidence record. The behavior is pinned by the replacement suites:
+  `oracleFailFast.test.ts` (fail-fast abort: honest 500, zero submissions,
+  bounded diagnostics) and `oracleReplayDeterminism.test.ts` (§15.4: the same
+  evaluation twice → byte-identical records/replayHash; a Date-only
+  wall-clock perturbation moves scoredAt but NOT the record bytes,
+  recordHash, or replayHash). The invariance + error-table suites (and the
+  enriched suite) now install the ONE shared recorded-transport set
+  (`support/recordedLaneStubs.ts`) so every scored 200 is a full five-lane
+  run.
+
+## Intentional diff classes (regen audit — scripted field-level comparison)
+
+Method: every regenerated golden was compared against its pre-regen (main)
+bytes with a recursive JSON path differ; every changed path was classified
+against the allowed classes; **zero unclassified diffs remained**, and the
+byte-identity of every scoring surface was asserted explicitly per file.
+
+Exactly SEVEN diff classes, each in ALL 12 goldens, and nothing else:
+
+| Field (golden path) | Old → new | Why |
+|---|---|---|
+| `/evidenceRecord/schema` | v2 id → `afi.scored-signal-evidence.v3` | D-EV3-1: the new decision + new schema version |
+| `/evidenceRecord/composition/pipelineVersion` | `v1.2.0` → `v1.3.0` | D-EV3-5(1): the governed all-lanes-critical successor manifest |
+| `/evidenceRecord/composition/manifestHash/value` | `095b5577…` → `df3372da…` | manifestHash hashes the re-versioned manifest bytes |
+| `/evidenceRecord/composition/analystConfigHash/value` | `395fd7f9…` → `e34471de…` | analyst config re-pinned its `pipelineRef` onto v1.3.0 |
+| `/evidenceRecord/providerInvocations` | absent → the five ordered proofs | D-EV3-2: v3 addition (aiMl, news, pattern, sentiment, technical) |
+| `/evidenceRecord/recordHash` | absent → `afi.d2.evidence-record` commitment | D-EV3-4(6): v3 addition |
+| `/evidenceRecord/replayHash` | absent → `afi.d2.evidence-replay` commitment | D-EV3-4(6): v3 addition |
+
+## Explicitly byte-EQUAL (asserted per golden by the regen audit script)
+
+`inputHash`, `outputHash`, `scorerInput` (the exact
+FroggyTrendPullbackInput), `analystScore` (incl. every `uwrAxes` value),
+`uwrResolvedSource`, `decayParams`, `canonicalUss`, the FULL `httpResponse`
+envelope, and inside the evidence record: `scoredSignal`,
+`provenanceRecord`, `uwrProfile`, the identifier surface
+(signalId/analystId/strategyId/strategyVersion/lifecycleState/finalized/
+canonicalizationVersion), and the composition's `pipelineId`,
+`scorerPluginId`, `scorerPluginVersion`, `pluginSetHash`,
+`executionSummaryHash`, and `enrichmentHash` — across ALL 12 goldens. No
+scored value moved; `manifestHash`/`analystConfigHash` moved only through
+the governed D-EV3-5(1) manifest amendment.
 
 Anything else diffing would have been a defect to fix in code, never
 absorbed into a golden.

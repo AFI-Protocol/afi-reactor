@@ -7,7 +7,7 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.analyst-config",
-    "value": "395fd7f9f3b924b033bf56e2f73f92d3567cdc2ba7e1c58de45e895afd89a6d7"
+    "value": "e34471dec8dd3b8fcf0e5576765e469aec1a89f77af6b693ef3c06fc4200bbad"
   },
   "configRef": "afi-config/registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.config.json",
   "providerBindingPolicy": {
@@ -22,5 +22,5 @@
   },
   "status": "active",
   "registeredAt": "2026-07-18",
-  "registrationRef": "AFI-Protocol/afi-config PR (branch mission/tiny-brains-internal-orchestration-v0.1): owner-authorized composition-pin re-record onto pipeline v1.2.0; aiMl instance 1.1.0 selects the governed model per provider-byok-foundations-v0.1 D-PBF-3, five-lane-provider-runtime-v0.1 D-FLPR-4, factory-configurable-pipelines-v1 D-FCP-5"
+  "registrationRef": "AFI-Protocol/afi-config PR (branch mission/evidence-v3-provider-provenance-v0.1): owner-authorized composition-pin re-record onto pipeline v1.3.0 (all-five fail-fast category lanes) per evidence-v3-provider-provenance-v0.1 D-EV3-5(1), five-lane-provider-runtime-v0.1 D-FLPR-5(5), factory-configurable-pipelines-v1 D-FCP-5"
 }

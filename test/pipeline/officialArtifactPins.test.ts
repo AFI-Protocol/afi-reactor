@@ -1,7 +1,7 @@
 /**
  * The canonical composition pins (FLPR-GOV five-lane runtime): the reactor's
  * verification-side hasher MUST reproduce the registered official
- * froggy-trend-pullback v1.2.0 composition hashes byte-exactly —
+ * froggy-trend-pullback v1.3.0 composition hashes byte-exactly —
  * manifestHash, analystConfigHash and pluginSetHash — over the authored
  * fixture registry copies of the official artifacts (one-truth agreement
  * with the afi-config seeding test's pinned values).
@@ -30,8 +30,8 @@ import type { AnalysisPluginManifest } from "../../src/pipeline/manifestTypes.js
 import { FIXTURE_CONFIG_ROOT } from "./support/testHarness.js";
 
 const PINS = {
-  manifestHash: "095b55775cd32147bb29137278185d1c6a95512dfec827f4c98a3eb569b39883",
-  analystConfigHash: "395fd7f9f3b924b033bf56e2f73f92d3567cdc2ba7e1c58de45e895afd89a6d7",
+  manifestHash: "df3372dadaca1595d0e6d2f6bad9464ccc9abb7106e9f5b7111df148a145bc4f",
+  analystConfigHash: "e34471dec8dd3b8fcf0e5576765e469aec1a89f77af6b693ef3c06fc4200bbad",
   pluginSetHash: "5384e1c08ce4bd7f533acc15487df81d7d37b6615d109d611bde968a81f2f386",
 };
 
@@ -42,7 +42,7 @@ function readJson(path: string): unknown {
 describe("official froggy-trend-pullback pins (authoring/verification hash agreement)", () => {
   it("manifestHash of the official pipeline manifest matches the pinned value", () => {
     const pipeline = readJson(
-      join(FIXTURE_CONFIG_ROOT, "registries/pipelines/froggy-trend-pullback--v1.2.0.json")
+      join(FIXTURE_CONFIG_ROOT, "registries/pipelines/froggy-trend-pullback--v1.3.0.json")
     ) as object;
     const hash = computeManifestHash(pipeline);
     expect(hash.value).toBe(PINS.manifestHash);

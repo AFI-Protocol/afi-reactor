@@ -32,6 +32,7 @@ export function createHttpNewsAdapter(deps: HttpNewsAdapterDeps = PRODUCTION_DEP
   return {
     adapterId: "afi-adapter-news-http",
     adapterVersion: "1.0.0",
+    transportKind: "http",
     category: "news",
     providerCompatibility: ["afi-provider-news-http"],
     requiresCredential: true,

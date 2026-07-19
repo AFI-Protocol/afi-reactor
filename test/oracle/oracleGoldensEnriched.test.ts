@@ -31,83 +31,39 @@ jest.mock("ccxt", () => {
 });
 
 // RECORDED transports — fixed, committed-in-code stubs injected at the exact
-// adapter singleton seams the provider runtime registers.
+// adapter singleton seams the provider runtime registers. The recorded bytes
+// live in ONE shared module (support/recordedLaneStubs.ts) reused by every
+// oracle suite that drives a scored 200 (goldens here; invariance; replay;
+// the error-table 200-rows) — under v1.3.0 every lane is critical
+// (EV3-GOV D-EV3-5(1)), so a scored run REQUIRES all five lanes live.
 jest.mock("../../src/providers/adapters/sentimentCftcCotAdapter.js", () => {
   const actual = jest.requireActual(
     "../../src/providers/adapters/sentimentCftcCotAdapter.js"
   ) as typeof import("../../src/providers/adapters/sentimentCftcCotAdapter.js");
-  const row = {
-    market_and_exchange_names: "BITCOIN - CHICAGO MERCANTILE EXCHANGE",
-    report_date_as_yyyy_mm_dd: "2026-01-13T00:00:00.000",
-    lev_money_positions_long: "60000",
-    lev_money_positions_short: "40000",
-    open_interest_all: "100000",
-    change_in_open_interest_all: "5000",
-  };
-  const fetchImpl = (async () =>
-    ({ ok: true, status: 200, statusText: "OK", json: async () => [row] }) as Response) as typeof fetch;
-  return {
-    ...actual,
-    sentimentCftcCotAdapter: actual.createSentimentCftcCotAdapter({ fetchImpl }),
-  };
+  const stubs = jest.requireActual(
+    "./support/recordedLaneStubs.js"
+  ) as typeof import("./support/recordedLaneStubs.js");
+  return { ...actual, sentimentCftcCotAdapter: stubs.recordedSentimentCftcCotAdapter() };
 });
 
 jest.mock("../../src/providers/adapters/newsSecEdgarAdapter.js", () => {
   const actual = jest.requireActual(
     "../../src/providers/adapters/newsSecEdgarAdapter.js"
   ) as typeof import("../../src/providers/adapters/newsSecEdgarAdapter.js");
-  const body = {
-    hits: {
-      hits: [
-        {
-          _source: {
-            adsh: "0001234567-26-000123",
-            ciks: ["0001234567"],
-            display_names: ["Oracle Recorded Filer A (ORFA)"],
-            root_forms: ["8-K"],
-            file_date: "2026-01-15",
-          },
-        },
-        {
-          _source: {
-            adsh: "0001234567-26-000122",
-            ciks: ["0001234567"],
-            display_names: ["Oracle Recorded Filer A (ORFA)"],
-            root_forms: ["10-Q"],
-            file_date: "2026-01-14",
-          },
-        },
-      ],
-    },
-  };
-  const fetchImpl = (async () =>
-    ({ ok: true, status: 200, statusText: "OK", json: async () => body }) as Response) as typeof fetch;
-  return {
-    ...actual,
-    newsSecEdgarAdapter: actual.createNewsSecEdgarAdapter({
-      fetchImpl,
-      now: () => new Date("2026-01-15T12:00:00.000Z"),
-    }),
-  };
+  const stubs = jest.requireActual(
+    "./support/recordedLaneStubs.js"
+  ) as typeof import("./support/recordedLaneStubs.js");
+  return { ...actual, newsSecEdgarAdapter: stubs.recordedNewsSecEdgarAdapter() };
 });
 
 jest.mock("../../src/providers/adapters/aimlTinyBrainsAdapter.js", () => {
   const actual = jest.requireActual(
     "../../src/providers/adapters/aimlTinyBrainsAdapter.js"
   ) as typeof import("../../src/providers/adapters/aimlTinyBrainsAdapter.js");
-  return {
-    ...actual,
-    aimlTinyBrainsAdapter: actual.createAimlTinyBrainsAdapter({
-      callService: (async () => ({
-        convictionScore: 0.85,
-        direction: "long" as const,
-        regime: "bull",
-        riskFlag: false,
-        profileId: "froggy-reference-v1",
-        profileVersion: "1.0.0",
-      })) as never,
-    }),
-  };
+  const stubs = jest.requireActual(
+    "./support/recordedLaneStubs.js"
+  ) as typeof import("./support/recordedLaneStubs.js");
+  return { ...actual, aimlTinyBrainsAdapter: stubs.recordedAimlTinyBrainsAdapter() };
 });
 
 import app from "../../src/server.js";

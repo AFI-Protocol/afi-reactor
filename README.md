@@ -45,7 +45,7 @@ cp .env.example .env
    execution seam.
 5. **Join → Froggy analyst → UWR score** — scores `trend_pullback_v1` from
    afi-core (UWR axes: structure, execution, risk, insight).
-6. **District Two evidence** — the governed `afi.scored-signal-evidence.v2`
+6. **District Two evidence** — the governed `afi.scored-signal-evidence.v3`
    record is persisted through **afi-infra** (the sole evidence writer) into
    MongoDB collection `scored_signal_evidence`.
 
@@ -78,7 +78,7 @@ domain-tagged preimages, volatile-timestamp exclusion, decimal hash projection),
 the ScoredSignal v1 projection builder, and the D2 schema validators — lives
 under [`src/evidence/provenance/`](src/evidence/provenance) and is a REQUIRED
 step of every live scoring run (`src/evidence/` builds and validates the governed
-`afi.scored-signal-evidence.v2` record before submission to the afi-infra store).
+`afi.scored-signal-evidence.v3` record before submission to the afi-infra store).
 Canonical status belongs only to the merged afi-config schemas, validation rules,
 and hash doctrine — never to a specific pipeline topology or strategy.
 

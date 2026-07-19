@@ -16,10 +16,14 @@
  *   2. registry resolution (default, bare-strategyId and full-form requests);
  *   3. the alternate topology actually executes (conditional aiMl probe ran
  *      on the news branch before the merge);
- *   4. the alternate decay resolves from the registration (decay-scalp-v1);
- *   5. a VALID afi.scored-signal-evidence.v2 record persists (in-memory
- *      store) carrying the atlas composition pins + the registry-backed
- *      UWR stamp;
+ *   4. EV3-GOV fail-closed evidence law: the atlas overlay keeps DEGRADE
+ *      lanes and a non-provider-backed aiMl probe, so its runs can NEVER
+ *      carry the five required invocation proofs — the sole Evidence V3
+ *      builder refuses (D-EV3-2/D-EV3-5(3)), the endpoint reports the
+ *      honest first-class failure, and NO record persists (never a
+ *      downgraded or prior-version write);
+ *   5. the froggy composition (now fail-fast v1.3.0) aborts honestly when a
+ *      lane fails (D-EV3-5(1)) — no scored signal, no evidence;
  *   6. unknown / unauthorized identities fail CLOSED (403 discriminators).
  */
 import { jest } from "@jest/globals";
@@ -38,7 +42,6 @@ import path from "node:path";
 import request from "supertest";
 import app from "../../src/server.js";
 import { setEvidenceStore, resetEvidenceStore } from "../../src/evidence/index.js";
-import { validateEvidenceRecordV2 } from "../../src/evidence/evidenceV2Schema.js";
 import {
   __resetRuntimeCompositionForTests,
   __setRuntimeCompositionOverridesForTests,
@@ -150,23 +153,26 @@ function atlasPayload(overrides: Record<string, unknown> = {}): Record<string, u
 }
 
 describe("second registered strategy (atlas-probe/multi_branch_v1@1.0.0) — program §9.5", () => {
-  it("scores through the generic mechanism: alternate topology + conditional aiMl + atlas decay + valid v2 evidence", async () => {
+  it("scores through the generic mechanism — and the Evidence V3 builder REFUSES an unprovable run (fail closed, no record)", async () => {
     const store = new OracleEvidenceStore();
     setEvidenceStore(store);
     aimlProbeSpy.mockClear();
     scorerProbeSpy.mockClear();
 
     const res = await request(app).post(TV).send(atlasPayload());
-    expect(res.status).toBe(200);
-    expect(res.body.persistence.outcome).toBe("inserted");
 
-    // (1) The SECOND identity scored — no froggy anywhere on this run.
-    expect(res.body.analystScore.analystId).toBe("atlas-probe");
-    expect(res.body.analystScore.strategyId).toBe("multi_branch_v1");
-    expect(res.body.analystScore.strategyVersion).toBe("1.0.0");
-    expect(res.body.rawUss.facts.strategy).toBe("multi_branch_v1");
-    expect(res.body.meta.strategy).toBe("multi_branch_v1");
+    // EV3-GOV: the atlas composition cannot produce the five required
+    // invocation proofs (degrade lanes + a non-provider-backed aiMl probe),
+    // so canonical persistence fails closed as a FIRST-CLASS error — never a
+    // masked 200, never a prior-version record (D-EV3-5(3)).
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe("evidence_persistence_construction");
+    expect(res.body.persisted).toBe(false);
+    expect(res.body.signalId).toBe("atlas-proof-0001");
+    expect(store.records.size).toBe(0);
 
+    // (1) The SECOND identity nonetheless SCORED through the generic
+    // mechanism (no froggy conditional anywhere): the atlas probes ran.
     // (3) Alternate topology executed: the conditional aiMl probe ran ON THE
     // NEWS BRANCH (its input was the news node's category-marked output —
     // the conditional edge fired BEFORE the merge), and the atlas scorer sank
@@ -183,49 +189,12 @@ describe("second registered strategy (atlas-probe/multi_branch_v1@1.0.0) — pro
     // fail-soft env: the news category contributed (DEFAULT summary), the
     // aiMl probe's namespace was delivered but is not a merged category.
     expect(mergedView.enrichmentMeta?.categories).toContain("news");
-
-    // (4) Alternate decay resolved from the REGISTRATION (decay-scalp-v1) —
-    // not from any horizon inference.
-    expect(res.body.decayParams).toEqual({
-      halfLifeMinutes: 8,
-      greeksTemplateId: "decay-scalp-v1",
-    });
-
-    // (5) Valid v2 evidence persisted with the atlas composition pins + the
-    // registry-backed UWR stamp (generic mechanism — same pinned profile).
-    expect(store.records.size).toBe(1);
-    const record = store.records.get("atlas-proof-0001");
-    expect(record.schema).toBe("afi.scored-signal-evidence.v2");
-    expect(record.analystId).toBe("atlas-probe");
-    const v2 = validateEvidenceRecordV2(record);
-    expect(v2.errors).toEqual([]);
-    expect(v2.ok).toBe(true);
-    expect(record.composition).toMatchObject({
-      schema: "afi.composition-ref.v1",
-      pipelineId: "atlas-multi-branch",
-      pipelineVersion: "v1.1.0",
-      scorerPluginId: "afi-scorer-atlas-probe",
-      scorerPluginVersion: "1.0.0",
-    });
-    expect(record.composition.manifestHash.value).toBe(ATLAS_MANIFEST_HASH);
-    expect(record.composition.analystConfigHash.value).toBe(ATLAS_CONFIG_HASH);
-    expect(record.composition.executionSummaryHash.domainTag).toBe("afi.d2.execution-summary");
-    expect(record.composition.enrichmentHash.domainTag).toBe("afi.d2.enrichment-bundle");
-    expect(record.uwrProfile).toEqual({
-      profileId: "uwr-weighted-lifts-v0.1",
-      status: "testnet-provisional",
-      decisionRef: "afi-governance/decisions/uwr-profile-pin-v0.1.md",
-      source: "builtin-value-identity",
-    });
-    // the composition pins differ from froggy's (a REAL second composition)
-    expect(record.composition.manifestHash.value).not.toBe(
-      "095b55775cd32147bb29137278185d1c6a95512dfec827f4c98a3eb569b39883"
-    );
   });
 
-  it("resolves the full-form request 'atlas-probe/multi_branch_v1@1.0.0' and the binding default identically", async () => {
+  it("resolves the full-form request 'atlas-probe/multi_branch_v1@1.0.0' and the binding default identically (evidence refusal is identity-independent)", async () => {
     const store = new OracleEvidenceStore();
     setEvidenceStore(store);
+    scorerProbeSpy.mockClear();
 
     const fullForm = await request(app)
       .post(TV)
@@ -235,11 +204,14 @@ describe("second registered strategy (atlas-probe/multi_branch_v1@1.0.0) — pro
           strategy: "atlas-probe/multi_branch_v1@1.0.0",
         })
       );
-    expect(fullForm.status).toBe(200);
-    expect(fullForm.body.analystScore.analystId).toBe("atlas-probe");
-    expect(fullForm.body.rawUss.facts.strategy).toBe("multi_branch_v1");
+    // Resolution succeeded (an unauthorized/unknown identity would 403) and
+    // the atlas scorer RAN; the Evidence V3 builder then refused (fail
+    // closed) — the same generic path for the full-form request…
+    expect(fullForm.status).toBe(500);
+    expect(fullForm.body.error).toBe("evidence_persistence_construction");
+    expect(scorerProbeSpy).toHaveBeenCalledTimes(1);
 
-    // free text → the binding's defaultStrategy (atlas) — same composition
+    // …and for free text → the binding's defaultStrategy (atlas).
     const defaulted = await request(app)
       .post(TV)
       .send(
@@ -248,11 +220,13 @@ describe("second registered strategy (atlas-probe/multi_branch_v1@1.0.0) — pro
           strategy: "whatever the provider typed",
         })
       );
-    expect(defaulted.status).toBe(200);
-    expect(defaulted.body.analystScore.analystId).toBe("atlas-probe");
+    expect(defaulted.status).toBe(500);
+    expect(defaulted.body.error).toBe("evidence_persistence_construction");
+    expect(scorerProbeSpy).toHaveBeenCalledTimes(2);
+    expect(store.records.size).toBe(0);
   });
 
-  it("both registered strategies coexist: the froggy binding still resolves froggy through the SAME mechanism", async () => {
+  it("both registered strategies coexist: the froggy binding still resolves froggy — whose v1.3.0 manifest now ABORTS fail-fast on a failed lane (D-EV3-5(1))", async () => {
     const store = new OracleEvidenceStore();
     setEvidenceStore(store);
     const res = await request(app)
@@ -264,13 +238,14 @@ describe("second registered strategy (atlas-probe/multi_branch_v1@1.0.0) — pro
           strategy: "trend_pullback_v1",
         })
       );
-    expect(res.status).toBe(200);
-    expect(res.body.analystScore.analystId).toBe("froggy");
-    const record = store.records.get("atlas-proof-froggy-0001");
-    expect(record.composition.pipelineId).toBe("froggy-trend-pullback");
-    expect(record.composition.manifestHash.value).toBe(
-      "095b55775cd32147bb29137278185d1c6a95512dfec827f4c98a3eb569b39883"
-    );
+    // Resolution reached the froggy composition (not a 403); with the
+    // network disabled a remote lane FAILS, and under the fail-fast v1.3.0
+    // manifest the evaluation ABORTS: no scored signal, no evidence record —
+    // bounded operational diagnostics only.
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe("internal_error");
+    expect(res.body.message).toMatch(/failed|aborted/);
+    expect(store.records.size).toBe(0);
   });
 
   it("UNKNOWN identity fails closed: unregistered provider → 403 unknown_provider_binding", async () => {

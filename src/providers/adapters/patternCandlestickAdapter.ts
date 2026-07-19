@@ -55,6 +55,7 @@ export function createPatternCandlestickAdapter(
   return {
     adapterId: "afi-adapter-pattern-candlestick",
     adapterVersion: "1.0.0",
+    transportKind: "in-process",
     category: "pattern",
     providerCompatibility: ["afi-provider-pattern-candlestick"],
     requiresCredential: false,

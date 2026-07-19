@@ -50,12 +50,16 @@ export interface D2ValidationResult {
   errors: D2ValidationError[];
 }
 
-/** The nine merged D2 M1 provenance artifact kinds. */
+/**
+ * The eight merged D2 provenance artifact kinds (EV3-GOV D-EV3-8(2): the
+ * dormant enrichment provenance draft was subsumed by the provider invocation
+ * proof and DELETED — nine kinds became eight; DSC-GOV D-DSC-3(3) superseded
+ * prospectively).
+ */
 export type D2ArtifactKind =
   | "canonical-hash"
   | "evidence-ref"
   | "source-disclosure-profile"
-  | "enrichment-provenance"
   | "analyst-input-envelope"
   | "scored-signal"
   | "provenance-record"
@@ -66,7 +70,6 @@ export const D2_ARTIFACT_KINDS: readonly D2ArtifactKind[] = [
   "canonical-hash",
   "evidence-ref",
   "source-disclosure-profile",
-  "enrichment-provenance",
   "analyst-input-envelope",
   "scored-signal",
   "provenance-record",
@@ -78,7 +81,6 @@ const SCHEMA_FILES: Record<D2ArtifactKind, string> = {
   "canonical-hash": "canonical-hash.schema.json",
   "evidence-ref": "evidence-ref.schema.json",
   "source-disclosure-profile": "source-disclosure-profile.schema.json",
-  "enrichment-provenance": "enrichment-provenance.schema.json",
   "analyst-input-envelope": "analyst-input-envelope.schema.json",
   "scored-signal": "scored-signal.schema.json",
   "provenance-record": "provenance-record.schema.json",
@@ -216,8 +218,6 @@ export const validateEvidenceRefV1 = (value: unknown): D2ValidationResult =>
 export const validateSourceDisclosureProfileV1 = (
   value: unknown
 ): D2ValidationResult => validateD2Artifact("source-disclosure-profile", value);
-export const validateEnrichmentProvenanceV1 = (value: unknown): D2ValidationResult =>
-  validateD2Artifact("enrichment-provenance", value);
 export const validateAnalystInputEnvelopeV1 = (value: unknown): D2ValidationResult =>
   validateD2Artifact("analyst-input-envelope", value);
 export const validateScoredSignalV1 = (value: unknown): D2ValidationResult =>

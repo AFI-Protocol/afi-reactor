@@ -62,6 +62,7 @@ import {
   type NodeResult,
 } from "./nodeSdk.js";
 import { pluginKey, type PluginRegistry } from "./pluginRegistry.js";
+import type { ProviderInvocationProofV1 } from "../providers/invocationProof.js";
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -293,6 +294,15 @@ export interface GraphExecutionResult {
   executionSummaryHash: CanonicalHashRef;
   /** Operational per-node records (metrics/logging only — never hashed). */
   nodes: NodeRuntimeRecord[];
+  /**
+   * The per-lane provider invocation proofs captured inside THIS pass
+   * (EV3-GOV D-EV3-5(2)): deposited by provider-backed nodes through the
+   * per-node ctx sink, kept only for nodes that SETTLED executed/degraded
+   * (a timed-out attempt's stray deposit never survives), ordered by nodeId.
+   * Carried to District Two with the run — never consumed by any node, join,
+   * or scoring path (D-EV3-2).
+   */
+  invocationProofs: ProviderInvocationProofV1[];
 }
 
 type SettledStatus = "executed" | "degraded" | "skipped" | "failed-optional";
@@ -437,6 +447,11 @@ export class GraphExecutor {
       context: request.context ?? {},
     };
     const summaryEntries: ExecutionSummaryEntry[] = [];
+    // Run-scoped invocation-proof collector (EV3-GOV D-EV3-5(2)): keyed by
+    // nodeId, last write wins — a retried node's final successful attempt is
+    // the one proof that survives; stray deposits from raced-out attempts are
+    // filtered by settled status at result assembly.
+    const invocationProofs = new Map<string, ProviderInvocationProofV1>();
     const semaphore = new Semaphore(this.concurrency);
     const scorerId = manifest.nodes.find((n) => n.category === "scorer")!.id;
 
@@ -557,7 +572,7 @@ export class GraphExecutor {
         runnable.map(async ({ id, input }) => {
           await semaphore.acquire();
           try {
-            return await this.runNode(states.get(id)!, input, request, root);
+            return await this.runNode(states.get(id)!, input, request, root, invocationProofs);
           } finally {
             semaphore.release();
           }
@@ -601,10 +616,21 @@ export class GraphExecutor {
     }
 
     const summary = buildExecutionSummary(summaryEntries);
+    // Keep only proofs whose node actually SETTLED with a used output — a
+    // deposit from a timed-out/raced attempt of a node that later failed
+    // never rides the run.
+    const settledProofs = [...invocationProofs.entries()]
+      .filter(([nodeId]) => {
+        const status = states.get(nodeId)?.status;
+        return status === "executed" || status === "degraded";
+      })
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([, proof]) => proof);
     return {
       result: scorerState.output,
       summary,
       executionSummaryHash: computeExecutionSummaryHash(summary),
+      invocationProofs: settledProofs,
       nodes: [...states.values()].map((s) => ({
         nodeId: s.node.id,
         pluginId: s.node.pluginId,
@@ -633,7 +659,8 @@ export class GraphExecutor {
     state: NodeState,
     input: unknown,
     request: ExecuteRequest,
-    root: AbortController
+    root: AbortController,
+    invocationProofs: Map<string, ProviderInvocationProofV1>
   ): Promise<"executed" | "degraded" | "failed-optional"> {
     const node = state.node;
     state.deliveredInput = input;
@@ -682,6 +709,9 @@ export class GraphExecutor {
             // Non-secret provider-instance reference (PBF-GOV D-PBF-4); present
             // only on provider-backed nodes, resolved BELOW the node.
             providerInstanceRef: node.providerInstanceRef,
+            // Invocation-proof deposit sink (EV3-GOV D-EV3-5(2)): run-scoped,
+            // keyed by nodeId; only provider-backed nodes ever call it.
+            depositInvocationProof: (proof) => invocationProofs.set(node.id, proof),
           }),
           racer.promise,
         ]);

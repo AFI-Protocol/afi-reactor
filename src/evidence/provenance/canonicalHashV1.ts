@@ -79,13 +79,20 @@ export const EVIDENCE_TIMESTAMP_KEYS = [
   "evaluatedAt",
 ] as const;
 
-/** Off-chain D2 domain tags used by this reference implementation. */
+/**
+ * Off-chain D2 domain tags used by this reference implementation.
+ *
+ * NOTE (EV3-GOV D-EV3-4(1)): the formerly dormant `laneOutput`
+ * (`afi.d2.lane-output`) reservation was RE-HOMED to the composition-law
+ * provider-provenance tag table (src/evidence/provenance/
+ * invocationProofHashes.ts), where it commits to the full category result
+ * consumed by the join. It is no longer an evidence-law tag.
+ */
 export const D2_DOMAIN_TAGS = {
   signalInput: "afi.d2.signal-input",
   enrichmentBundle: "afi.d2.enrichment-bundle",
   scoredOutput: "afi.d2.scored-output",
   evidence: "afi.d2.evidence",
-  laneOutput: "afi.d2.lane-output",
   strategyLocalView: "afi.d2.strategy-local-view",
   provenanceRecord: "afi.d2.provenance-record",
 } as const;

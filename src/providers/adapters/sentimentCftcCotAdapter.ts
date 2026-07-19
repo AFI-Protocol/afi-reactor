@@ -75,6 +75,7 @@ export function createSentimentCftcCotAdapter(
   return {
     adapterId: "afi-adapter-sentiment-cftc-cot",
     adapterVersion: "1.0.0",
+    transportKind: "http",
     category: "sentiment",
     providerCompatibility: ["afi-provider-sentiment-cftc-cot"],
     requiresCredential: false,

@@ -15,6 +15,10 @@
 import type { CanonicalUss } from "../types/canonicalUss.js";
 import type { NodeLogger } from "../pipeline/nodeSdk.js";
 import type { NodeCategory } from "../pipeline/manifestTypes.js";
+import type {
+  AdapterTransportKind,
+  TinyBrainsInvocationBlock,
+} from "./invocationProof.js";
 
 /** The five open analysis lanes a provider may supply (never merge/scorer). */
 export type AnalysisCategory = Extract<
@@ -42,6 +46,33 @@ export type ProviderCredentialBundle = ApiKeyHeaderCredential;
 export interface CategoryResult {
   category: string;
   [field: string]: unknown;
+}
+
+/**
+ * OPTIONAL adapter run envelope (EV3-GOV D-EV3-3/D-EV3-5(2)): an adapter may
+ * return its category result wrapped with a verified non-secret service
+ * invocation side-channel (today only the aiMl Tiny Brains adapter uses it).
+ * The side-channel NEVER enters the CategoryResult — the governed
+ * afi.enrichment.<category>.v1 payloads are unchanged; it travels only to
+ * the provider runtime's invocation-proof capture.
+ */
+export interface AdapterRunEnvelope {
+  result: CategoryResult;
+  /** Verified Tiny Brains invocation block (aiMl only; client-verified fail-closed). */
+  serviceInvocation?: TinyBrainsInvocationBlock;
+}
+
+/** What ProviderAdapter.run may resolve with. */
+export type ProviderAdapterRunResult = CategoryResult | AdapterRunEnvelope;
+
+/** Envelope discriminator: an envelope has `result` and NO `category` marker. */
+export function isAdapterRunEnvelope(value: ProviderAdapterRunResult): value is AdapterRunEnvelope {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    "result" in value &&
+    !("category" in value)
+  );
 }
 
 /**
@@ -89,8 +120,14 @@ export interface ProviderAdapter {
   readonly providerCompatibility: readonly string[];
   /** Whether invoking this adapter requires a credential bundle. */
   readonly requiresCredential: boolean;
-  /** Execute the provider and return exactly one category result. */
-  run(ctx: ProviderAdapterContext): Promise<CategoryResult>;
+  /**
+   * How this adapter reaches its capability: 'in-process' (local compute, no
+   * I/O boundary) or 'http' (remote service/API). Static registry metadata —
+   * recorded in the invocation proof (EV3-GOV D-EV3-2(4)); never a URL.
+   */
+  readonly transportKind: AdapterTransportKind;
+  /** Execute the provider and return exactly one category result (optionally enveloped). */
+  run(ctx: ProviderAdapterContext): Promise<ProviderAdapterRunResult>;
 }
 
 /** A versioned, non-secret reference a pipeline node carries to a provider instance. */

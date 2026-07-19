@@ -314,12 +314,14 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
     });
 
     // Canonical evidence persistence is a REQUIRED step of the scoring run
-    // (MONGO-GOV D-MONGO-3): submit the governed v2 record (with its
-    // composition provenance) through the afi-infra interface. A persistence
-    // failure is a first-class, honestly-reported failure — never a masked 200.
+    // (MONGO-GOV D-MONGO-3): submit the governed v3 record (with its
+    // composition provenance + the five captured invocation proofs,
+    // EV3-GOV) through the afi-infra interface. A persistence failure is a
+    // first-class, honestly-reported failure — never a masked 200.
     const persistence = await submitScoredSignalEvidence(run.scored, getEvidenceStore(), {
       composition: run.composition,
       registration: run.registration,
+      invocations: run.invocations,
     });
 
     return res.status(200).json({ ...run.scored, persistence });
@@ -509,10 +511,12 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
     });
 
     // Canonical evidence persistence (REQUIRED; failure is first-class) —
-    // the governed v2 record with its composition provenance.
+    // the governed v3 record with its composition provenance + the five
+    // captured invocation proofs (EV3-GOV).
     const persistence = await submitScoredSignalEvidence(pipelineResult, getEvidenceStore(), {
       composition: run.composition,
       registration: run.registration,
+      invocations: run.invocations,
     });
 
     // Return result

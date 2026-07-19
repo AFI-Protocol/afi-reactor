@@ -1,6 +1,7 @@
 /**
- * MONGO-REACTOR-SUBMIT (Slot 3) — submit a scored signal's canonical evidence
- * record through the afi-infra canonical evidence-store interface.
+ * MONGO-REACTOR-SUBMIT (Slot 3, evolved to v3 by EV3-GOV) — submit a scored
+ * signal's canonical evidence record through the afi-infra canonical
+ * evidence-store interface.
  *
  * The Reactor is a SUBMITTER, never a writer (MONGO-GOV D-MONGO-3): it never
  * touches MongoDB directly. Canonical persistence is a REQUIRED step of the
@@ -13,7 +14,8 @@
  * provenance record) and identifier continuity are PROVEN before submission,
  * using the Reactor's own governed validators (the same afi-config D2 schemas the
  * store's evidence schema $refs). The afi-infra store re-validates the FULL
- * `afi.scored-signal-evidence.v1` record authoritatively on submit.
+ * `afi.scored-signal-evidence.v3` record authoritatively on submit (EV3-GOV
+ * D-EV3-7: recomputation-verified admission).
  */
 
 import type { ReactorScoredSignalV1 } from "../types/ReactorScoredSignalV1.js";
@@ -21,7 +23,7 @@ import {
   validateProvenanceRecordV1,
   validateScoredSignalV1,
 } from "./provenance/schemaValidation.js";
-import { validateEvidenceRecordV2 } from "./evidenceV2Schema.js";
+import { validateEvidenceRecordV3 } from "./evidenceV3Schema.js";
 import {
   buildReactorEvidenceRecord,
   EVIDENCE_SCHEMA,
@@ -96,7 +98,7 @@ const GOVERNED_STAMP_SOURCES = ["builtin-value-identity", "registry-consumed"] a
  *  against their governed schemas. */
 function evidenceWrapperViolations(r: ReactorEvidenceRecord): string[] {
   const v: string[] = [];
-  if (r.schema !== EVIDENCE_SCHEMA) v.push("schema is not afi.scored-signal-evidence.v2");
+  if (r.schema !== EVIDENCE_SCHEMA) v.push("schema is not afi.scored-signal-evidence.v3");
   if (r.lifecycleState !== REACTOR_LIFECYCLE_STATE) v.push("lifecycleState is not SCORED");
   if (r.finalized !== false) v.push("finalized must be false for a SCORED record");
   if (!r.analystId) v.push("analystId missing");
@@ -138,12 +140,13 @@ function continuityViolations(r: ReactorEvidenceRecord): string[] {
 }
 
 /**
- * Build → prove (vendored v2 schema + sub-artifact schemas + continuity) →
+ * Build → prove (vendored v3 closure + sub-artifact schemas + continuity) →
  * submit. Returns the outcome on success (insert or idempotent duplicate);
  * throws ReactorEvidencePersistenceError on any failure. Logs carry only the
- * signalId and outcome/category — never the full record, rawUss, or any
- * payload. The composition context is REQUIRED (v2's all-or-nothing
- * composition provenance) — construction fails closed without it.
+ * signalId and outcome/category — never the full record, rawUss, any
+ * payload, or any proof content. The composition context is REQUIRED
+ * (all-or-nothing composition provenance + the captured invocation facts,
+ * EV3-GOV) — construction fails closed without it.
  */
 export async function submitScoredSignalEvidence(
   scored: ReactorScoredSignalV1,
@@ -166,20 +169,20 @@ export async function submitScoredSignalEvidence(
   }
 
   // 2. PROVE governed-schema validity BEFORE submission: the FULL record
-  //    against the VENDORED afi.scored-signal-evidence.v2 schema (which
-  //    $refs the composition-ref + D2 sub-artifact schemas), plus the
-  //    projection + provenance against their afi-config D2 schemas and the
-  //    wrapper structurally (belt-and-braces; afi-infra re-validates
-  //    authoritatively on submit).
+  //    against the VENDORED afi.scored-signal-evidence.v3 closure (which
+  //    $refs the invocation-proof + composition-ref + D2 sub-artifact
+  //    schemas), plus the projection + provenance against their afi-config
+  //    D2 schemas and the wrapper structurally (belt-and-braces; afi-infra
+  //    re-validates authoritatively on submit).
   const wrapper = evidenceWrapperViolations(record);
-  const v2 = validateEvidenceRecordV2(record);
+  const v3 = validateEvidenceRecordV3(record);
   const ss = validateScoredSignalV1(record.scoredSignal);
   const pr = validateProvenanceRecordV1(record.provenanceRecord);
-  if (wrapper.length > 0 || !v2.ok || !ss.ok || !pr.ok) {
+  if (wrapper.length > 0 || !v3.ok || !ss.ok || !pr.ok) {
     logger.error?.("[evidence] governed-schema validation failed", {
       signalId,
       wrapper: wrapper.length,
-      evidenceV2: v2.ok ? 0 : v2.errors.length,
+      evidenceV3: v3.ok ? 0 : v3.errors.length,
       scoredSignal: ss.ok ? 0 : ss.errors.length,
       provenanceRecord: pr.ok ? 0 : pr.errors.length,
     });

@@ -4,17 +4,38 @@
  * Reuses the repo's replica-set IT convention (see
  * test/integration-mongo/reactorEvidencePersistence.mjs): exercises the
  * COMPILED Reactor (dist/src/server.js) against a real MongoDB through the
- * real, packaged afi-infra canonical evidence store — no fakes, no jest
- * module mapping — and proves the live store persists EXACTLY the bytes the
- * committed oracle goldens froze:
+ * real, packaged afi-infra canonical evidence store — no jest module
+ * mapping — and proves the live store persists EXACTLY the bytes the
+ * committed ENRICHED oracle goldens froze:
  *
- *   1. every fail-soft builtin-mode fixture persists into
+ *   1. every enriched builtin-mode fixture persists into
  *      `scored_signal_evidence` (record present, readable back);
  *   2. signalId is unique (exactly one document per fixture signalId);
  *   3. the byte-normalized stored record equals the committed golden's
  *      `evidenceRecord` (recursively key-sorted serialization, volatile
  *      clock keys → '<CLOCK>');
  *   4. a registry-mode run matches its registry golden the same way.
+ *
+ * Under pipeline v1.3.0 every lane is CRITICAL (EV3-GOV D-EV3-5(1)), so this
+ * proof reproduces the exact RECORDED world the goldens were frozen under
+ * (the ONE byte-source: test/oracle/support/recordedLaneData.ts):
+ *
+ *   - sentiment (CFTC COT) + news (SEC EDGAR + its declared evaluation
+ *     clock): recorded transports injected at the compiled adapter
+ *     SINGLETONS — the same seam the jest oracle suites replace via
+ *     jest.mock, reached here by mutating the exported singleton objects the
+ *     compiled adapter registry holds by reference;
+ *   - aiMl (Tiny Brains): the recorded prediction served over a REAL HTTP
+ *     transport by the ephemeral stub (tinyBrainsStub.mjs, recorded mode),
+ *     driven through the compiled trusted client's full fail-closed
+ *     verification chain (an operator-provided TINY_BRAINS_URL is respected,
+ *     though a live service cannot reproduce the recorded goldens and will
+ *     fail the byte-equality honestly);
+ *   - technical (deterministic demo feed via the guarded seam) and the
+ *     first-party candlestick pattern lane run their REAL local kernels.
+ *
+ * All other outbound network stays disabled (fetch guard) — only the Tiny
+ * Brains service URL is reachable.
  *
  * Requires AFI_EVIDENCE_MONGODB_URI (a real MongoDB). Fails loudly if unset.
  * Goldens are regenerated ONLY via `npm run oracle:regen`.
@@ -27,6 +48,7 @@ import { pathToFileURL } from "node:url";
 import request from "supertest";
 import { MongoClient } from "mongodb";
 import { MongoScoredSignalEvidenceStore } from "afi-infra";
+import { startTinyBrainsStub } from "../integration-mongo/support/tinyBrainsStub.mjs";
 
 const URI = process.env.AFI_EVIDENCE_MONGODB_URI;
 if (!URI) {
@@ -42,15 +64,14 @@ process.env.NODE_ENV = "test"; // prevent the compiled server from listening
 
 // Deterministic oracle environment: the deterministic feed (injected through
 // the guarded test seam — the runtime registers no synthetic feed) plus every
-// external provider OFF — the exact environment the fail-soft goldens were
-// frozen under.
+// external provider key/flag OFF — the exact environment the enriched goldens
+// were frozen under (their remote lanes see RECORDED transports, below).
 await import("../support/registerDeterministicPriceFeed.mjs");
 process.env.AFI_PRICE_FEED_SOURCE = "demo";
 for (const k of [
   "COINALYZE_API_KEY",
   "NEWSDATA_API_KEY",
   "NEWS_WINDOW_HOURS",
-  "TINY_BRAINS_URL",
   "WEBHOOK_SHARED_SECRET",
   "AFI_INGEST_DEDUPE",
   "AFI_DEFAULT_PROVIDER_ID",
@@ -58,10 +79,6 @@ for (const k of [
 ]) {
   delete process.env[k];
 }
-// Network OFF for enrichment fetches (the remote reference lanes degrade
-// honestly) — identical to the jest suites' disabled-network determinism.
-globalThis.fetch = () =>
-  Promise.reject(new Error("oracle: external network disabled (deterministic proof)"));
 
 const EVIDENCE_COLLECTION = process.env.AFI_EVIDENCE_COLLECTION ?? "scored_signal_evidence";
 const ROOT = process.cwd();
@@ -70,8 +87,69 @@ const COMPILED_UWR = pathToFileURL(path.resolve(ROOT, "dist/src/config/uwrRuntim
 const COMPILED_COMPOSITION = pathToFileURL(
   path.resolve(ROOT, "dist/src/config/runtimeComposition.js")
 ).href;
-const GOLDENS = path.resolve(ROOT, "test/oracle/goldens/fail-soft");
+const GOLDENS = path.resolve(ROOT, "test/oracle/goldens/enriched");
 const FIXTURES = path.resolve(ROOT, "test/oracle/fixtures");
+
+// ---- the recorded world (v1.3.0: every lane critical) --------------------
+// The ONE copy of the recorded remote-lane bytes (shared with the jest oracle
+// suites), loaded via Node's native type stripping.
+const recorded = await import(
+  pathToFileURL(path.resolve(ROOT, "test/oracle/support/recordedLaneData.ts")).href
+);
+
+// aiMl lane: the recorded Tiny Brains prediction over a REAL HTTP transport.
+// Only default to the ephemeral stub when the operator provided no service.
+const tinyBrains = process.env.TINY_BRAINS_URL?.trim()
+  ? null
+  : await startTinyBrainsStub({ recorded: true });
+if (tinyBrains) process.env.TINY_BRAINS_URL = tinyBrains.url;
+const AIML_SERVICE_BASE = process.env.TINY_BRAINS_URL.trim();
+
+// Network OFF for everything EXCEPT the Tiny Brains service URL — identical
+// to the jest suites' disabled-network determinism (their aiMl transport is
+// injected below the client; here the compiled client runs its full
+// fail-closed verification chain over real HTTP).
+const realFetch = globalThis.fetch;
+globalThis.fetch = (input, init) => {
+  const url =
+    typeof input === "string" ? input : input instanceof URL ? input.href : (input?.url ?? "");
+  if (url === AIML_SERVICE_BASE || url.startsWith(`${AIML_SERVICE_BASE}/`)) {
+    return realFetch(input, init);
+  }
+  return Promise.reject(new Error("oracle: external network disabled (deterministic proof)"));
+};
+
+// sentiment (CFTC COT) + news (SEC EDGAR + its declared evaluation clock):
+// recorded transports injected at the compiled adapter SINGLETONS — the exact
+// seam the jest oracle suites replace via jest.mock. The compiled adapter
+// registry holds these exported objects BY REFERENCE, so rebinding their
+// behavior in place (before the first scored request) swaps the transport
+// while every identity fact (adapterId/version/category) stays untouched.
+const cftcMod = await import(
+  pathToFileURL(path.resolve(ROOT, "dist/src/providers/adapters/sentimentCftcCotAdapter.js")).href
+);
+const edgarMod = await import(
+  pathToFileURL(path.resolve(ROOT, "dist/src/providers/adapters/newsSecEdgarAdapter.js")).href
+);
+const okJson = (value) => async () => ({
+  ok: true,
+  status: 200,
+  statusText: "OK",
+  json: async () => value,
+});
+Object.assign(
+  cftcMod.sentimentCftcCotAdapter,
+  cftcMod.createSentimentCftcCotAdapter({
+    fetchImpl: okJson([recorded.RECORDED_CFTC_COT_ROW]),
+  })
+);
+Object.assign(
+  edgarMod.newsSecEdgarAdapter,
+  edgarMod.createNewsSecEdgarAdapter({
+    fetchImpl: okJson(recorded.RECORDED_EDGAR_FULL_TEXT_BODY),
+    now: () => new Date(recorded.RECORDED_EDGAR_CLOCK_ISO),
+  })
+);
 
 // ---- byte-normalization mirrors test/oracle/support/oracleHarness.ts ----
 const VOLATILE_KEYS = new Set([
@@ -168,7 +246,7 @@ async function main() {
   });
 
   try {
-    // Builtin (default) mode — all six fail-soft fixtures.
+    // Builtin (default) mode — all six enriched fixtures.
     delete process.env[UWR_PROFILE_SOURCE_ENV];
     __resetUwrRuntimeConfigForTests();
     for (const c of CASES) {
@@ -210,11 +288,13 @@ const emergency = setTimeout(() => {
 main()
   .then(async (shutdownReactor) => {
     await shutdownReactor().catch(() => {});
+    await tinyBrains?.close().catch(() => {});
     clearTimeout(emergency);
     console.log("Clean shutdown: all handles released; process exits naturally.");
   })
-  .catch((err) => {
+  .catch(async (err) => {
     console.error("\nFAIL — real-MongoDB oracle-equivalence proof failed:\n", err);
+    await tinyBrains?.close().catch(() => {});
     clearTimeout(emergency);
     process.exit(1);
   });
