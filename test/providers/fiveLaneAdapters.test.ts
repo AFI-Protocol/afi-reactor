@@ -775,6 +775,38 @@ describe("FLPR-GOV — aiMl tiny-brains adapter (first-party)", () => {
     expect(good.invocation.record).toBe("tiny-brains.aiml-invocation.v1");
     expect(good.invocation.experts.length).toBeGreaterThan(0);
   });
+
+  it("client: a profileVersion payload/block disagreement and an unknown block member are rejected (D-EV3-3 strict parse)", async () => {
+    const { callAimlService } = await import("../../src/providers/clients/aimlServiceClient.js");
+    const input = {
+      signalId: "sig-1", symbol: "BTC/USDT", timeframe: "1h", traceId: "sig-1",
+      profile: "froggy-reference-v1",
+      candles: seriesCandles().map((c) => ({ timestamp: c.timestamp, close: c.close })),
+    };
+    const respond = (body: unknown): typeof fetch =>
+      (async () => ({ ok: true, status: 200, statusText: "OK", json: async () => body }) as Response) as typeof fetch;
+    const payload = { convictionScore: 0.8, direction: "long", profileId: "froggy-reference-v1", profileVersion: "1.0.0" };
+    // The block's profileVersion MUST agree with the payload echo (fail closed).
+    const versionSkew = { ...payload, invocation: { ...fakeInvocationBlock(payload), profileVersion: "2.0.0" } };
+    await expect(
+      callAimlService(input, { baseUrl: "http://tiny", fetchImpl: respond(versionSkew) })
+    ).rejects.toThrow(/profileVersion disagrees/);
+    // Strict parse: an unknown member (e.g. a volatile timing fact) is rejected —
+    // timing facts have nowhere to live (D-EV3-3 structural exclusion).
+    const timingLeak = { ...payload, invocation: { ...fakeInvocationBlock(payload), startedAt: "2026-07-19T00:00:00Z" } };
+    await expect(
+      callAimlService(input, { baseUrl: "http://tiny", fetchImpl: respond(timingLeak) })
+    ).rejects.toThrow(/unknown member 'startedAt'/);
+    // Strict parse recurses into experts: an unknown expert member is rejected.
+    const base = fakeInvocationBlock(payload);
+    const expertLeak = {
+      ...payload,
+      invocation: { ...base, experts: [{ ...base.experts[0], durationMs: 12 }, base.experts[1]] },
+    };
+    await expect(
+      callAimlService(input, { baseUrl: "http://tiny", fetchImpl: respond(expertLeak) })
+    ).rejects.toThrow(/unknown member 'durationMs'/);
+  });
 });
 
 // --------------------------------------------------------------------------
