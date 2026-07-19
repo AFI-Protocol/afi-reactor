@@ -13,7 +13,6 @@
  * store (the Reactor is a submitter; it never touches MongoDB).
  */
 
-import type { ReactorScoredSignalV1 } from "../../src/types/ReactorScoredSignalV1.js";
 import {
   validateProvenanceRecordV1,
   validateScoredSignalV1,
@@ -23,9 +22,6 @@ import {
   buildReactorEvidenceRecord,
   EvidenceProofViolationError,
   ReactorEvidenceConstructionError,
-  type EvidenceCompositionContext,
-  type EvidenceInvocationCapture,
-  type LaneBindingExpectation,
   type ReactorEvidenceRecord,
 } from "../../src/evidence/reactorEvidenceRecord.js";
 import {
@@ -35,214 +31,15 @@ import {
   type EvidenceSubmitResult,
 } from "../../src/evidence/submitScoredSignalEvidence.js";
 import {
-  categoryResultHash,
   evidenceRecordHash,
   evidenceReplayHash,
-  invocationInputHash,
-  providerInstanceRecordFingerprint,
-  providerRecordFingerprint,
-  providerResultHash,
-  buildInvocationInputProjection,
 } from "../../src/evidence/provenance/invocationProofHashes.js";
-import {
-  PROOF_CATEGORY_ORDER,
-  RESULT_SCHEMA_BY_CATEGORY,
-  type ProviderInvocationProofV1,
-} from "../../src/providers/invocationProof.js";
-import type { AnalysisCategory } from "../../src/providers/types.js";
 import { canonicalHashOf, DOMAIN_TAGS } from "../../src/pipeline/hashing.js";
-import type { CompositionRefV1 } from "../../src/pipeline/manifestTypes.js";
+// The shared five-lane Evidence V3 fixture world (EV3-GOV §15): scored
+// signal, lane results, bindings, self-consistent proofs, composition context.
+import { makeScored, makeInvocations, makeContext } from "./support/evidenceV3World.js";
 
 const SILENT = { info: () => {}, error: () => {} };
-
-const DECAY = { halfLifeMinutes: 240, greeksTemplateId: "decay-swing-v1" };
-
-function makeScored(overrides: Record<string, unknown> = {}): ReactorScoredSignalV1 {
-  const signalId = (overrides.signalId as string) ?? "sig-reactor-unit-1";
-  const analystScore = {
-    analystId: "froggy",
-    strategyId: "trend_pullback_v1",
-    strategyVersion: "1.0.0",
-    direction: "long",
-    riskBucket: "medium",
-    conviction: 0.72,
-    uwrScore: 0.81,
-    uwrAxes: { structure: 0.8, execution: 0.7, risk: 0.85, insight: 0.9 },
-    ...((overrides.analystScore as Record<string, unknown>) ?? {}),
-  };
-  return {
-    signalId,
-    rawUss: {
-      schema: "afi.usignal.v1.1",
-      provenance: { signalId, providerId: "prov-test", source: "test" },
-      facts: { symbol: "BTCUSDT", timeframe: "1h", direction: "long", strategy: "trend_pullback_v1" },
-    },
-    analystScore,
-    // RC-6 source PROPAGATED from the composition path (default: builtin).
-    // `in` (not ??) so a test can force an explicitly-absent source.
-    uwrResolvedSource:
-      "uwrResolvedSource" in overrides ? overrides.uwrResolvedSource : "builtin",
-    scoredAt: "2026-01-15T12:00:00Z",
-    decayParams: "decayParams" in overrides ? overrides.decayParams : { ...DECAY },
-    meta: { symbol: "BTCUSDT", timeframe: "1h", strategy: "trend_pullback_v1", direction: "long", source: "test" },
-  } as unknown as ReactorScoredSignalV1;
-}
-
-// --------------------------------------------------------------------------
-// Five-lane invocation fixture world (schema-valid ids; keyless reference).
-// --------------------------------------------------------------------------
-const HEX64 = "cd".repeat(32);
-
-const LANE_RESULTS: Record<AnalysisCategory, Record<string, unknown>> = {
-  technical: { category: "technical", candles: [{ timestamp: 1, close: 100.5 }], priceSource: "demo" },
-  pattern: { category: "pattern", series: { seriesId: "s", length: 1, indexBasis: "position" }, motifs: [] },
-  sentiment: { category: "sentiment", axes: [{ axis: "positioning", score: 0.5 }] },
-  news: { category: "news", news: { hasShockEvent: false, headlines: [] } },
-  aiMl: { category: "aiMl", forecast: { direction: "long", conviction: 0.85 } },
-};
-
-function makeBinding(category: AnalysisCategory): LaneBindingExpectation {
-  const slug = category.toLowerCase();
-  const binding: LaneBindingExpectation = {
-    category,
-    nodeId: slug,
-    providerInstanceId: `pi-${slug}-unit`,
-    instanceRecordVersion: "1.0.0",
-    providerId: `provider-${slug}-unit`,
-    providerRecordVersion: "1.0.0",
-    adapterId: `adapter-${slug}-unit`,
-    adapterVersion: "1.0.0",
-  };
-  if (category === "aiMl") binding.model = "froggy-reference-v1";
-  return binding;
-}
-
-function makeProof(
-  category: AnalysisCategory,
-  binding: LaneBindingExpectation,
-  laneResult: { category: string }
-): ProviderInvocationProofV1 {
-  const providerRecord = { providerId: binding.providerId, recordVersion: binding.providerRecordVersion };
-  const instanceRecord = {
-    providerInstanceId: binding.providerInstanceId,
-    recordVersion: binding.instanceRecordVersion,
-    model: binding.model,
-  };
-  const proof: ProviderInvocationProofV1 = {
-    schema: "afi.provider-invocation-proof.v1",
-    category,
-    resultSchema: RESULT_SCHEMA_BY_CATEGORY[category],
-    provider: {
-      providerId: binding.providerId,
-      recordVersion: binding.providerRecordVersion,
-      recordFingerprint: providerRecordFingerprint(providerRecord),
-      executionClass: category === "technical" || category === "pattern" ? "local" : "remote",
-      deterministic: category === "technical" || category === "pattern",
-    },
-    providerInstance: {
-      providerInstanceId: binding.providerInstanceId,
-      recordVersion: binding.instanceRecordVersion,
-      recordFingerprint: providerInstanceRecordFingerprint(instanceRecord),
-      ...(binding.model !== undefined ? { model: binding.model } : {}),
-    },
-    adapter: {
-      adapterId: binding.adapterId,
-      adapterVersion: binding.adapterVersion,
-      transportKind: category === "technical" || category === "pattern" ? "in-process" : "http",
-    },
-    credential: { mode: "keyless" },
-    invocationInputHash: invocationInputHash(
-      buildInvocationInputProjection({
-        category,
-        adapterId: binding.adapterId,
-        adapterVersion: binding.adapterVersion,
-        model: binding.model,
-        params: {},
-        signal: { schema: "afi.usignal.v1.1" },
-      })
-    ),
-    providerResultHash: providerResultHash(laneResult),
-    categoryResultHash: categoryResultHash(laneResult),
-    status: "succeeded",
-  };
-  if (category === "technical") {
-    proof.priceSource = (laneResult as { priceSource?: string }).priceSource;
-  }
-  if (category === "aiMl") {
-    proof.aimlInvocation = {
-      schema: "afi.aiml-invocation-proof.v1",
-      profileId: "froggy-reference-v1",
-      profileVersion: "1.0.0",
-      resolverId: "froggy-agreement",
-      resolverVersion: "1.0.0",
-      codeConfigFingerprint: HEX64,
-      hashLaw: "tiny-brains.hash.v1",
-      inputHash: HEX64,
-      outputHash: HEX64,
-      status: "succeeded",
-      experts: [
-        {
-          expertId: "chronos-bolt-forecaster",
-          expertVersion: "1.0.0",
-          posture: "probabilistic",
-          status: "succeeded",
-          outputHash: HEX64,
-        },
-        {
-          expertId: "trend-baseline",
-          expertVersion: "1.0.0",
-          posture: "deterministic",
-          status: "succeeded",
-          outputHash: HEX64,
-        },
-      ],
-    };
-  }
-  return proof;
-}
-
-function makeInvocations(): EvidenceInvocationCapture {
-  const laneBindings = PROOF_CATEGORY_ORDER.map((c) => makeBinding(c));
-  const proofs = PROOF_CATEGORY_ORDER.map((c) =>
-    makeProof(c, laneBindings.find((b) => b.category === c)!, LANE_RESULTS[c] as { category: string })
-  );
-  return {
-    proofs,
-    laneResults: { ...LANE_RESULTS },
-    laneBindings,
-    decay: { ...DECAY },
-  };
-}
-
-/** A complete, schema-valid composition context (real CanonicalHash refs). */
-function makeContext(
-  overrides: Partial<EvidenceCompositionContext> = {}
-): EvidenceCompositionContext {
-  const composition: CompositionRefV1 = {
-    schema: "afi.composition-ref.v1",
-    pipelineId: "froggy-trend-pullback",
-    pipelineVersion: "v1.3.0",
-    manifestHash: canonicalHashOf({ fixture: "manifest" }, DOMAIN_TAGS.compositionManifest),
-    analystConfigHash: canonicalHashOf({ fixture: "config" }, DOMAIN_TAGS.analystConfig),
-    scorerPluginId: "afi-scorer-froggy-trend-pullback",
-    scorerPluginVersion: "1.0.0",
-    pluginSetHash: canonicalHashOf({ fixture: "plugins" }, DOMAIN_TAGS.pluginSet),
-    executionSummaryHash: canonicalHashOf({ fixture: "summary" }, DOMAIN_TAGS.executionSummary),
-    enrichmentHash: canonicalHashOf({ fixture: "enrichment" }, DOMAIN_TAGS.enrichmentBundle),
-  };
-  return {
-    composition: (overrides.composition as CompositionRefV1) ?? composition,
-    registration:
-      overrides.registration ??
-      ({
-        analystId: "froggy",
-        strategyId: "trend_pullback_v1",
-        strategyVersion: "1.0.0",
-        uwrProfileRef: { profileId: "uwr-weighted-lifts-v0.1" },
-      } as EvidenceCompositionContext["registration"]),
-    invocations: overrides.invocations ?? makeInvocations(),
-  };
-}
 
 /** Fake afi-infra evidence store. Records submissions; drives outcomes/errors. */
 class FakeStore implements EvidenceStorePort {
