@@ -27,7 +27,7 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
     // superseded v2 evidence member (D-EV3-1/D-EV3-8), byte-identical at the
     // afi-config Evidence V3 branch head. NOTE: this pin is re-recorded to
     // the squash-merge commit before this repo merges.
-    expect(manifest.afiConfigCommit).toBe("e5f17161f957c00913b8763919380e92b0b95c39");
+    expect(manifest.afiConfigCommit).toBe("9497afc24bf380b21701bee453c13ebdf8881a26");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {

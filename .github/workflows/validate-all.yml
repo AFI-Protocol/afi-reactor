@@ -36,9 +36,6 @@ jobs:
         with:
           repository: AFI-Protocol/afi-config
           path: afi-config
-          # Interim pin: the EV3-GOV afi-config head this branch is built
-          # against; restored to the default branch once afi-config merges.
-          ref: e5f17161f957c00913b8763919380e92b0b95c39
 
       # afi-infra (the canonical evidence store the Reactor submits through) is
       # consumed as a REPRODUCIBLE git-pinned package dependency
