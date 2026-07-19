@@ -27,9 +27,12 @@
 import { createHash } from "node:crypto";
 import http from "node:http";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const ROOT = process.cwd();
+// Resolve the afi-reactor repo root from THIS module's location (three levels
+// above test/integration-mongo/support/), never from process.cwd() — the stub
+// is also imported cross-repo by the afi-gateway boundary proof.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 /** Deterministic hex-64 digests: sha256 over fixed label strings. */
 const fixedHex64 = (label) => createHash("sha256").update(label, "utf-8").digest("hex");
