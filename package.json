@@ -36,7 +36,7 @@
     "@types/mongodb": "^4.0.6",
     "afi-config": "file:../afi-config",
     "afi-core": "file:../afi-core",
-    "afi-infra": "git+https://github.com/AFI-Protocol/afi-infra.git#c1d3e862d0ee1d68719cdd44c39962099c08d933",
+    "afi-infra": "git+https://github.com/AFI-Protocol/afi-infra.git#f352fc24ffab562a49c38d1257cc7b080b899e58",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "ccxt": "^4.5.63",
