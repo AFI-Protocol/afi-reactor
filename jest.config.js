@@ -62,13 +62,16 @@ export default {
     // return, no dead ML-provider registry, single executor, no 'social'
     // category, relocated D2 import hygiene, golden byte-stability).
     "**/test/guardrails/districtSurfaceConsolidation.test.ts",
+    // Mission R0: active runtime source describes current architecture only
+    // (no stale Evidence V1/V2 wording, no 'social' category term).
+    "**/test/guardrails/no-stale-current-terminology.test.ts",
     // SLOT-FCP-REACTOR stage A: executor core, hashing KATs, vendored-closure
     // drift guard, registry boot validation, graph proofs, node units.
     "**/test/pipeline/**/*.test.ts",
     "**/test/evidence/**/*.test.ts",
     // PBF-GOV Wave 1: the bounded provider-adapter layer + BYOK proofs
     // (technical keyless, news BYOK, redaction, tenant isolation, adapter
-    // security, output validation, scoring equivalence, Evidence V2 freeze).
+    // security, output validation, scoring equivalence, Evidence V3 guard).
     "**/test/providers/**/*.test.ts",
     // ORACLE-EQUIVALENCE: the behavioral-oracle harness is part of the DEFAULT
     // run (non-skippable); only the real-Mongo half lives in the gated

@@ -82,14 +82,10 @@ step of every live scoring run (`src/evidence/` builds and validates the governe
 Canonical status belongs only to the merged afi-config schemas, validation rules,
 and hash doctrine — never to a specific pipeline topology or strategy.
 
-The historical District-1 pipehead POC (a fenced, offline five-lane reference
-path) was retired under DSC-GOV
-(`afi-governance/decisions/district-surface-consolidation-v0.1.md`); its useful
-invariants were transferred to the live runtime and `test/evidence/provenance/`,
-and git history preserves the former implementation. Pipehead-style stage
-discipline survives as an architectural principle implemented by the current
-pipeline (one lane → one validated category result → merge → one scorer seam →
-the D2 evidence boundary).
+The runtime enforces bounded stage discipline: one lane → one validated category
+result → a deterministic merge → one scorer seam → the District-2 evidence
+boundary. This is an architectural principle of the current pipeline, not a
+property of any one topology or strategy.
 
 ## 🧭 Repo Boundaries
 

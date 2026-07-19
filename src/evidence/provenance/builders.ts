@@ -1,10 +1,9 @@
 /**
  * District-2 provenance builders — the live projection/hash law consumed by
  * the canonical evidence construction (`src/evidence/reactorEvidenceRecord.ts`
- * and `src/evidence/submitScoredSignalEvidence.ts`). Relocated from the
- * retired District-1-era reference tree under DSC-GOV D-DSC-3 (organizational
- * relocation only — no semantic change; Evidence V2, canonical hashing, and
- * hash projection are byte-stable).
+ * and `src/evidence/submitScoredSignalEvidence.ts`). Homed at
+ * `src/evidence/provenance/` by DSC-GOV D-DSC-3; the canonical hashing and hash
+ * projection law is byte-stable.
  *
  * Canonical status belongs only to the merged afi-config schemas, validation
  * rules, and hash doctrine — never to any pipeline topology or strategy.

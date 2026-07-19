@@ -541,12 +541,11 @@ describe("PBF-GOV — provider-backed node enforces its declared category", () =
 // ---------------------------------------------------------------------------
 // EV3-GOV — the Evidence V3 guard (D-EV3-1 / D-EV3-2 / D-EV3-5).
 //
-// Supersedes the PBF-GOV "Evidence V2 freeze" guard that stood here: the
-// freeze dissolved into the V3 contract it protected the ground for
-// (D-EV3-1), and D-EV3-8 requires the superseded freeze guards to be
-// REPLACED by V3-shaped guards, never deleted silently.
+// Proves the vendored evidence schema is the sole current v3 contract (D-EV3-1),
+// closed with exactly the three v3 additions. A V3-shaped guard stands here per
+// D-EV3-8 (evidence guards are replaced by V3 guards, never deleted silently).
 // ---------------------------------------------------------------------------
-describe("EV3-GOV — Evidence V3 guard (D-EV3-1/D-EV3-2/D-EV3-5; supersedes the V2 freeze guard per D-EV3-8)", () => {
+describe("EV3-GOV — Evidence V3 guard (D-EV3-1/D-EV3-2/D-EV3-5; a V3-shaped guard per D-EV3-8)", () => {
   it("the vendored evidence schema is v3 — the SOLE current contract, closed, with exactly the three v3 additions", () => {
     const schema = JSON.parse(
       readFileSync(

@@ -49,7 +49,7 @@ export const SCORE_DECIMAL_KEYS = [
 /**
  * Known enrichment-surface numeric keys carried by this reference
  * implementation's lane payloads / strategy-local enriched view (indicator
- * values, pattern confidence, social score, AI/ML conviction, lane
+ * values, pattern confidence, sentiment score, AI/ML conviction, lane
  * confidence). Strategy-local field names — an implementation profile, not
  * protocol canon.
  */
