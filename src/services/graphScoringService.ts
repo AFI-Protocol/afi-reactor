@@ -1,11 +1,11 @@
 /**
  * Graph scoring service — the LIVE scoring path of the configurable-pipelines
- * program (W3 spec sections 4-7; superseded and replaced the hardcoded
- * scoring service, removed under D-FCP-9).
+ * program (W3 spec sections 4-7).
  *
  * ingest → (strategy already resolved by src/config/strategyResolution.ts)
  * → GraphExecutor over the REGISTERED pipeline manifest → ReactorScoredSignalV1
- * + the afi.composition-ref.v1 provenance stamp for the evidence v2 record.
+ * + the afi.composition-ref.v1 provenance stamp carried on the canonical
+ * scored-signal evidence record.
  *
  * Everything identity-shaped comes from the boot-validated registry
  * composition: NO hardcoded pipeline, NO hardcoded strategy triple, NO

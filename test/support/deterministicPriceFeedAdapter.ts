@@ -11,7 +11,7 @@
  * Generates synthetic OHLCV / ticker data as a DETERMINISTIC function of the
  * governed request inputs (symbol + timeframe): NO wall-clock (Date.now) and NO
  * Math.random. The same request therefore yields byte-identical candles, so the
- * downstream scored signal — and the canonical afi.scored-signal-evidence.v1
+ * downstream scored signal — and the canonical afi.scored-signal-evidence.v3
  * record built from it — is reproducible and endpoint submissions are idempotent
  * (a request-time-random feed made the record nondeterministic → spurious 409s).
  *
