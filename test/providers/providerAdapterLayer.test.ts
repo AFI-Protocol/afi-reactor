@@ -373,6 +373,7 @@ describe("PBF-GOV — adapter security", () => {
       category: "technical",
       providerCompatibility: ["afi-provider-technical-local"],
       requiresCredential: false,
+      transportKind: "in-process",
       async run() {
         return { category: "technical" }; // missing required candles + priceSource
       },

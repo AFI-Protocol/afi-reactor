@@ -1,7 +1,7 @@
 {
   "schema": "afi.pipeline.v1",
   "pipelineId": "froggy-trend-pullback",
-  "pipelineVersion": "v1.2.0",
+  "pipelineVersion": "v1.3.0",
   "description": "Official froggy trend-pullback composition on the five-lane provider runtime (FLPR-GOV): five vendor-neutral provider-instance-backed category lanes (technical entry fanning out to pattern/sentiment/news, with the aiMl lane joining the four sibling lane outputs), one deterministic five-category namespace-by-node merge, and the single froggy trend-pullback scorer sink. Every lane node selects its provider through an explicit providerInstanceRef; the committed refs form the all-five keyless/self-hosted reference profile. The aiMl lane pins provider-instance record 1.1.0, whose governed model field selects the Tiny Brains orchestration profile (froggy-reference-v1).",
   "entry": "technical",
   "nodes": [
@@ -13,8 +13,6 @@
       "config": {
         "candleLimit": 100
       },
-      "critical": false,
-      "failurePolicy": "degrade",
       "providerInstanceRef": {
         "providerInstanceId": "afi-instance-reference-technical-local",
         "recordVersion": "1.0.0"
@@ -25,8 +23,6 @@
       "category": "pattern",
       "pluginId": "afi-analysis-pattern",
       "pluginVersion": "2.0.0",
-      "critical": false,
-      "failurePolicy": "degrade",
       "providerInstanceRef": {
         "providerInstanceId": "afi-instance-reference-pattern-candlestick",
         "recordVersion": "1.0.0"
@@ -37,8 +33,6 @@
       "category": "sentiment",
       "pluginId": "afi-analysis-sentiment",
       "pluginVersion": "2.0.0",
-      "critical": false,
-      "failurePolicy": "degrade",
       "providerInstanceRef": {
         "providerInstanceId": "afi-instance-reference-sentiment-cftc-cot",
         "recordVersion": "1.0.0"
@@ -49,8 +43,6 @@
       "category": "news",
       "pluginId": "afi-analysis-news",
       "pluginVersion": "2.0.0",
-      "critical": false,
-      "failurePolicy": "degrade",
       "providerInstanceRef": {
         "providerInstanceId": "afi-instance-reference-news-sec-edgar",
         "recordVersion": "1.0.0"
@@ -61,8 +53,6 @@
       "category": "aiMl",
       "pluginId": "afi-analysis-aiml",
       "pluginVersion": "2.0.0",
-      "critical": false,
-      "failurePolicy": "degrade",
       "providerInstanceRef": {
         "providerInstanceId": "afi-instance-reference-aiml-tiny-brains",
         "recordVersion": "1.1.0"

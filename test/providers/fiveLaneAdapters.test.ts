@@ -61,6 +61,11 @@ import { createPluginRegistry } from "../../src/pipeline/pluginRegistry.js";
 import { ok, SILENT_NODE_LOGGER, type AnalysisNodePlugin } from "../../src/pipeline/nodeSdk.js";
 import { demoPriceFeedAdapter } from "../support/deterministicPriceFeedAdapter.js";
 import { testSignal } from "../pipeline/support/testHarness.js";
+import {
+  PREDICT_FROGGY_FLOAT_KEYS,
+  tinyBrainsHashPayload,
+} from "../../src/providers/clients/tinyBrainsHashV1.js";
+import type { TinyBrainsInvocationBlock } from "../../src/providers/invocationProof.js";
 import { buildFroggyTrendPullbackInputFromEnriched } from "afi-core/analysts/froggy.enrichment_adapter.js";
 import type { FroggyEnrichedView } from "afi-core/analysts/froggy.enrichment_adapter.js";
 import type { AfiCandle } from "../../src/types/AfiCandle.js";
@@ -68,6 +73,39 @@ import type { PipelineManifest } from "../../src/pipeline/manifestTypes.js";
 
 const SECRET_COINALYZE = "zzAFI-COINALYZE-SECRET-91ac";
 const SECRET_NEWSDATA = "zzAFI-NEWSDATA-SECRET-77fe";
+
+// A self-consistent D-EV3-3 invocation block for a fake prediction payload:
+// outputHash is the REAL tiny-brains.hash.v1 recomputation over the payload,
+// so the hardened client accepts it end-to-end.
+const FAKE_HEX64 = "ab".repeat(32);
+function fakeInvocationBlock(payload: Record<string, unknown>): TinyBrainsInvocationBlock {
+  return {
+    record: "tiny-brains.aiml-invocation.v1",
+    profileId: String(payload.profileId ?? "froggy-reference-v1"),
+    profileVersion: String(payload.profileVersion ?? "1.0.0"),
+    resolverId: "froggy-agreement",
+    resolverVersion: "1.0.0",
+    codeConfigFingerprint: FAKE_HEX64,
+    hashLaw: "tiny-brains.hash.v1",
+    inputHash: FAKE_HEX64,
+    outputHash: tinyBrainsHashPayload(payload, { floatKeys: PREDICT_FROGGY_FLOAT_KEYS }),
+    status: "succeeded",
+    experts: [
+      { expertId: "chronos-bolt-forecaster", expertVersion: "1.0.0", posture: "probabilistic", status: "succeeded", outputHash: FAKE_HEX64 },
+      { expertId: "trend-baseline", expertVersion: "1.0.0", posture: "deterministic", status: "succeeded", outputHash: FAKE_HEX64 },
+    ],
+  };
+}
+
+/** Fake service prediction incl. the verified invocation block the adapter requires. */
+function fakePrediction(payload: Record<string, unknown>): Record<string, unknown> {
+  const full = {
+    profileId: "froggy-reference-v1",
+    profileVersion: "1.0.0",
+    ...payload,
+  };
+  return { ...full, invocation: fakeInvocationBlock(full) };
+}
 
 // --------------------------------------------------------------------------
 // Records (mirror the governed registry shapes; test-local fixtures).
@@ -586,7 +624,7 @@ describe("FLPR-GOV — aiMl tiny-brains adapter (first-party)", () => {
       createAimlTinyBrainsAdapter({
         callService: (async (input: unknown) => {
           seen.push(input);
-          return { convictionScore: 0.85, direction: "long", regime: "bull", riskFlag: false, profileId: "froggy-reference-v1", profileVersion: "1.0.0" };
+          return fakePrediction({ convictionScore: 0.85, direction: "long", regime: "bull", riskFlag: false });
         }) as never,
       }),
     ]);
@@ -627,7 +665,7 @@ describe("FLPR-GOV — aiMl tiny-brains adapter (first-party)", () => {
         createAimlTinyBrainsAdapter({
           callService: (async (input: unknown) => {
             seen.push(input);
-            return { convictionScore: 0.6, direction: "neutral" };
+            return fakePrediction({ convictionScore: 0.6, direction: "neutral", profileId: "hypothetical-v2" });
           }) as never,
         }),
       ]),
@@ -714,11 +752,28 @@ describe("FLPR-GOV — aiMl tiny-brains adapter (first-party)", () => {
     await expect(
       callAimlService(input, { baseUrl: "http://tiny", fetchImpl: respond({ convictionScore: 0.8, direction: "sideways" }) })
     ).rejects.toThrow(/malformed/);
+    // EV3-GOV D-EV3-3: a success WITHOUT the invocation block is rejected.
+    await expect(
+      callAimlService(input, {
+        baseUrl: "http://tiny",
+        fetchImpl: respond({ convictionScore: 0.8, direction: "long", profileId: "froggy-reference-v1", profileVersion: "1.0.0" }),
+      })
+    ).rejects.toThrow(/invocation block/);
+    // A tampered outputHash fails the tiny-brains.hash.v1 recomputation.
+    const tamperedPayload = { convictionScore: 0.8, direction: "long", profileId: "froggy-reference-v1", profileVersion: "1.0.0" };
+    const tampered = { ...tamperedPayload, invocation: { ...fakeInvocationBlock(tamperedPayload), outputHash: FAKE_HEX64 } };
+    await expect(
+      callAimlService(input, { baseUrl: "http://tiny", fetchImpl: respond(tampered) })
+    ).rejects.toThrow(/does not recompute/);
+    // The verified good path returns the prediction + the verified block.
+    const goodPayload = { convictionScore: 0.8, direction: "long", profileId: "froggy-reference-v1", profileVersion: "1.0.0" };
     const good = await callAimlService(input, {
       baseUrl: "http://tiny",
-      fetchImpl: respond({ convictionScore: 0.8, direction: "long", profileId: "froggy-reference-v1", profileVersion: "1.0.0" }),
+      fetchImpl: respond({ ...goodPayload, invocation: fakeInvocationBlock(goodPayload) }),
     });
     expect(good.direction).toBe("long");
+    expect(good.invocation.record).toBe("tiny-brains.aiml-invocation.v1");
+    expect(good.invocation.experts.length).toBeGreaterThan(0);
   });
 });
 
@@ -812,7 +867,7 @@ describe("FLPR-GOV — five-lane graph execution", () => {
       createSentimentCftcCotAdapter({ fetchImpl: cannedFetch([], [COT_ROW]) }),
       createNewsSecEdgarAdapter({ fetchImpl: cannedFetch([], EDGAR_BODY), now: () => new Date("2026-07-18T12:00:00.000Z") }),
       createAimlTinyBrainsAdapter({
-        callService: (async () => ({ convictionScore: 0.85, direction: "long", regime: "bull" })) as never,
+        callService: (async () => fakePrediction({ convictionScore: 0.85, direction: "long", regime: "bull" })) as never,
       }),
     ]);
   }

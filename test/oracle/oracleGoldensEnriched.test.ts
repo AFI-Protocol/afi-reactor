@@ -95,17 +95,53 @@ jest.mock("../../src/providers/adapters/aimlTinyBrainsAdapter.js", () => {
   const actual = jest.requireActual(
     "../../src/providers/adapters/aimlTinyBrainsAdapter.js"
   ) as typeof import("../../src/providers/adapters/aimlTinyBrainsAdapter.js");
+  // The RECORDED prediction now carries the D-EV3-3 invocation block the
+  // hardened path requires; its outputHash is the REAL tiny-brains.hash.v1
+  // recomputation over the recorded payload (self-verifying fixture).
+  const { tinyBrainsHashPayload, PREDICT_FROGGY_FLOAT_KEYS } = jest.requireActual(
+    "../../src/providers/clients/tinyBrainsHashV1.js"
+  ) as typeof import("../../src/providers/clients/tinyBrainsHashV1.js");
+  const payload = {
+    convictionScore: 0.85,
+    direction: "long" as const,
+    regime: "bull",
+    riskFlag: false,
+    profileId: "froggy-reference-v1",
+    profileVersion: "1.0.0",
+  };
+  const hex64 = "ab".repeat(32);
+  const invocation = {
+    record: "tiny-brains.aiml-invocation.v1" as const,
+    profileId: payload.profileId,
+    profileVersion: payload.profileVersion,
+    resolverId: "froggy-agreement",
+    resolverVersion: "1.0.0",
+    codeConfigFingerprint: hex64,
+    hashLaw: "tiny-brains.hash.v1" as const,
+    inputHash: hex64,
+    outputHash: tinyBrainsHashPayload(payload, { floatKeys: PREDICT_FROGGY_FLOAT_KEYS }),
+    status: "succeeded" as const,
+    experts: [
+      {
+        expertId: "chronos-bolt-forecaster",
+        expertVersion: "1.0.0",
+        posture: "probabilistic" as const,
+        status: "succeeded" as const,
+        outputHash: hex64,
+      },
+      {
+        expertId: "trend-baseline",
+        expertVersion: "1.0.0",
+        posture: "deterministic" as const,
+        status: "succeeded" as const,
+        outputHash: hex64,
+      },
+    ],
+  };
   return {
     ...actual,
     aimlTinyBrainsAdapter: actual.createAimlTinyBrainsAdapter({
-      callService: (async () => ({
-        convictionScore: 0.85,
-        direction: "long" as const,
-        regime: "bull",
-        riskFlag: false,
-        profileId: "froggy-reference-v1",
-        profileVersion: "1.0.0",
-      })) as never,
+      callService: (async () => ({ ...payload, invocation })) as never,
     }),
   };
 });

@@ -45,14 +45,14 @@ export function getEvidenceStore(): EvidenceStorePort {
     cachedStore = store;
     // Anti-corruption bridge (the Reactor's single afi-infra submit boundary):
     // the Reactor's port carries its own STRICT governed-record mirror
-    // (ReactorEvidenceRecord, keyed on the Reactor's District-2 provenance
-    // types); afi-infra's store takes the equivalent `ScoredSignalEvidenceRecordV2`.
-    // The two are the SAME governed afi.scored-signal-evidence.v2 record at
-    // runtime and differ only by the open `[k: string]: unknown` index signature
-    // afi-infra's ergonomic mirror types declare — a compile-time-only nominal
-    // gap. The store re-validates the FULL record against the authoritative
-    // governed afi-config JSON Schema on submit, so the runtime contract is
-    // enforced by afi-infra, not this cast.
+    // (ReactorEvidenceRecord — the afi.scored-signal-evidence.v3 record,
+    // EV3-GOV D-EV3-1); afi-infra's store takes its own ergonomic mirror
+    // type (an open `[k: string]: unknown` index signature — a
+    // compile-time-only nominal gap this cast bridges). The store
+    // re-validates the FULL record against the authoritative governed
+    // afi-config JSON Schema on submit and (D-EV3-7) verifies
+    // recordHash/replayHash by recomputation before insert, so the runtime
+    // contract is enforced by afi-infra, not this cast.
     cached = {
       submit: (record) => store.submit(record as unknown as ScoredSignalEvidenceRecordV2),
     };
