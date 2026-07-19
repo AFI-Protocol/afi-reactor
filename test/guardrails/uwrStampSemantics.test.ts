@@ -175,7 +175,7 @@ describe("PR-UWR-STAMP-SEMANTICS: builtin (default) mode stamps builtin-value-id
     expect(stamp!.status).toBe(UWR_PROFILE_STATUS);
     expect(stamp!.decisionRef).toBe(UWR_PROFILE_DECISION_REF);
     // (Scoring-value preservation for the golden input is enforced by the
-    // byte-stable D2 M2 goldens in test/pipeheads; cross-source value
+    // byte-stable D2 M2 goldens in test/evidence/provenance/fixtures; cross-source value
     // identity for THIS fixture is asserted in the registry-mode test.)
   });
 });

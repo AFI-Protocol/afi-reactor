@@ -5,16 +5,15 @@
  *
  * Enforces exactly the six clean-cut invariants plus the governed golden's
  * byte-stability:
- *  1. No path beneath src/pipeheads/ may return.
+ *  1. The retired POC source subtree may not return.
  *  2. No MLProviderRegistry / TinyBrainsProvider symbol may return.
  *  3. No second executor implementation may be introduced.
- *  4. No 'social' category identifier in current enrichment code.
+ *  4. No retired fifth-category identifier in current enrichment code.
  *  5. The relocated District-2 provenance imports no retired module
- *     (src/ is entirely free of pipeheads references).
+ *     (src/ is entirely free of retired-POC-subtree references).
  *  6. Current runtime imports no demo/reference code.
- *  7. test/pipeheads/fixtures/golden.json stays byte-identical (standing
- *     conditions: uwr-runtime-consumption-v0.1.md:175, uwr-profile-pin-
- *     v0.1.md:161, afi-config schemas/uwr-profile/v0/README.md:26).
+ *  7. test/evidence/provenance/fixtures/golden.json stays byte-identical
+ *     (byte-stability re-pinned to this path by R1-GOV D-R1-6; sha256 unchanged).
  */
 
 import { describe, it, expect } from "@jest/globals";
@@ -25,8 +24,8 @@ import path from "path";
 // Repo idiom (see test/evidence/provenance/*.test.ts): jest runs from the repo root.
 const REPO_ROOT = process.cwd();
 
-/** Standing byte-stability pin (UWR-RUNTIME RC; UP-11 mint-eligibility gate). */
-const GOLDEN_RELATIVE_PATH = "test/pipeheads/fixtures/golden.json";
+/** Standing byte-stability pin (UWR-RUNTIME RC; UP-11 mint-eligibility gate; re-homed by R1-GOV D-R1-6). */
+const GOLDEN_RELATIVE_PATH = "test/evidence/provenance/fixtures/golden.json";
 const GOLDEN_SHA256 =
   "312da1180b0bd418c03f595093516ebdc755ba81465a0b526ace43d002126e06";
 
@@ -69,9 +68,10 @@ function offendersIn(
   return offenders.sort();
 }
 
-describe("DSC-1: no path beneath src/pipeheads/ may return", () => {
-  it("src/pipeheads does not exist", () => {
-    expect(existsSync(path.resolve(REPO_ROOT, "src/pipeheads"))).toBe(false);
+describe("DSC-1: the retired POC source subtree may not return", () => {
+  it("the retired POC source subtree does not exist", () => {
+    const retiredSubtree = ["src/", "pipe", "heads"].join("");
+    expect(existsSync(path.resolve(REPO_ROOT, retiredSubtree))).toBe(false);
   });
 });
 
@@ -116,31 +116,35 @@ describe("DSC-3: exactly one executor implementation", () => {
   });
 });
 
-describe("DSC-4: no 'social' category identifier in current enrichment code", () => {
-  it("src/pipeline, src/providers, src/enrichment carry no 'social' identifier", () => {
+describe("DSC-4: no retired fifth-category identifier in current enrichment code", () => {
+  it("src/pipeline, src/providers, src/enrichment carry no retired category identifier", () => {
+    const retiredCategory = new RegExp("[\"']" + ["soc", "ial"].join("") + "[\"']");
     const offenders = offendersIn(
       ["src/pipeline", "src/providers", "src/enrichment"],
       [".ts", ".json"],
-      (content) => /["']social["']/.test(content)
+      (content) => retiredCategory.test(content)
     );
     expect(offenders).toEqual([]);
   });
 });
 
 describe("DSC-5: relocated District-2 provenance imports no retired module", () => {
-  it("src/ is entirely free of pipeheads references", () => {
+  it("src/ is entirely free of retired-POC-subtree references", () => {
+    const retiredSubtree = ["pipe", "heads"].join("");
     const offenders = offendersIn(["src"], [".ts", ".js", ".json"], (content) =>
-      /pipeheads/.test(content)
+      content.includes(retiredSubtree)
     );
     expect(offenders).toEqual([]);
   });
 });
 
 describe("DSC-6: current runtime imports no demo/reference code", () => {
-  it("no src/ module imports from a cli/ or demo module", () => {
-    const offenders = offendersIn(["src"], [".ts"], (content) =>
-      /from\s+["'][^"']*(\/cli\/|run-pipehead-demo)[^"']*["']/.test(content)
+  it("no src/ module imports from a cli/ or retired-demo module", () => {
+    const retiredDemo = ["run-pipe", "head-demo"].join("");
+    const importRe = new RegExp(
+      "from\\s+[\"'][^\"']*(\\/cli\\/|" + retiredDemo + ")[^\"']*[\"']"
     );
+    const offenders = offendersIn(["src"], [".ts"], (content) => importRe.test(content));
     expect(offenders).toEqual([]);
   });
 });

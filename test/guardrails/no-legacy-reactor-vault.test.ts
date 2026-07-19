@@ -6,7 +6,7 @@
  * insertSignalDocument), its pipeline stage/handler, its AFI_MONGO_* config, and
  * the LEGACY_REACTOR_VAULT_WRITE_DISABLED dead-code gate. The ONLY reactor
  * persistence path is now the packaged afi-infra canonical evidence store
- * (afi.scored-signal-evidence.v1). This guardrail proves the collection and its
+ * (afi.scored-signal-evidence.v3). This guardrail proves the collection and its
  * writer no longer exist anywhere under src/ — no dual-write, no dead fallback,
  * no revival by a stray import.
  */
