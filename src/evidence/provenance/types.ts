@@ -81,34 +81,6 @@ export interface SourceDisclosureProfileV1 {
   notes?: string;
 }
 
-export type EnrichmentLaneStatus =
-  | "complete"
-  | "provisional"
-  | "partial"
-  | "failed"
-  | "skipped";
-
-/**
- * EnrichmentProvenance v1 — per-lane enrichment provenance
- * (enrichment-provenance.schema.json). Generic lane concept; no
- * strategy-specific fields are canonized.
- */
-export interface EnrichmentProvenanceV1 {
-  laneId: string;
-  engineId: string;
-  laneVersion: string;
-  replayabilityLevel: ReplayabilityLevel;
-  engineVersion?: string;
-  provisional?: boolean;
-  status?: EnrichmentLaneStatus;
-  asOf?: string;
-  fetchedAt?: string;
-  evidenceRefs?: string[];
-  sourceDisclosureRefs?: string[];
-  laneOutputHash?: CanonicalHashV1;
-  notes?: string;
-}
-
 export const ANALYST_INPUT_ENVELOPE_SCHEMA = "afi.analyst-input-envelope.v1" as const;
 
 /**
@@ -130,7 +102,6 @@ export interface AnalystInputEnvelopeV1 {
   strategyLocalViewHash?: CanonicalHashV1;
   sourceDisclosureProfiles?: SourceDisclosureProfileV1[];
   evidenceRefs?: EvidenceRefV1[];
-  enrichmentProvenance?: EnrichmentProvenanceV1[];
   replayProfileRef?: string;
 }
 

@@ -7,7 +7,7 @@
   "x-afiStatus": "governed-contract",
   "x-afiPartOf": "AFI Factory — Analyst-Configurable Pipelines V1 (FACTORY-CONTRACT)",
   "x-afiDoctrineRefs": [
-    "afi-governance/decisions/factory-configurable-pipelines-v1 — authorizes the canonical V1 contract family (pipeline, pipeline-template, analysis-plugin, analyst-strategy-config/registration, provider-strategy-binding, composition-ref, scored-signal-evidence.v2) and the retirement of the superseded ungoverned drafts",
+    "afi-governance/decisions/factory-configurable-pipelines-v1 — authorizes the canonical V1 contract family (pipeline, pipeline-template, analysis-plugin, analyst-strategy-config/registration, provider-strategy-binding, composition-ref, and the scored-signal evidence contract family — current version afi.scored-signal-evidence.v3 per EV3-GOV) and the retirement of the superseded ungoverned drafts",
     "reports/afi-configurable-dag-live-runtime-reconciliation.md §5/§9 N7 — canonical topology contract minted FRESH as afi.pipeline.v1 (never a mutation of the retired draft); ONE topology mechanism chosen (nodes/edges); node categories aligned to the code-canonical five analysis categories + merge + scorer",
     "afi-governance/decisions/lifecycle-v0.1.md (LIFE-GOV) D-LIFE-1/D-LIFE-4 — one scoring seam: only the scorer stage effects VALIDATED→SCORED; no enrichment node performs lifecycle transitions (realized structurally: exactly one non-bypassable scorer sink)",
     "afi-governance/decisions/persistence-v0.1.md (MONGO-GOV) D-MONGO-9 — deterministic replay/verify: joins must be deterministic by construction (join.merge conflictRule mandatory), conditions are data (predicate trees), never code",

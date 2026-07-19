@@ -1,17 +1,20 @@
 /**
- * Governed afi.scored-signal-evidence.v2 validation (W3 spec section 7) —
- * the Reactor's OWN proof that a record is v2-valid BEFORE it is submitted
+ * Governed afi.scored-signal-evidence.v3 validation (EV3-GOV D-EV3-1) — the
+ * Reactor's OWN proof that a record is v3-valid BEFORE it is submitted
  * through the afi-infra store (which re-validates authoritatively).
  *
- * The v2 record schema and its composition-ref dependency are compiled from
- * the VENDORED byte-pinned closure (src/pipeline/governed-schema/ — drift-
- * guarded by test/pipeline/vendoredSchemaProvenance.test.ts). Their $refs
- * into the D2 provenance family (scored-signal / provenance-record /
- * canonical-hash, …) resolve against the merged afi-config provenance
- * schemas loaded exactly like src/evidence/provenance/schemaValidation.ts
- * loads them (node_modules/afi-config, the ussValidator convention) — the
- * vendored canonical-hash.schema.json is the byte-pinned copy of the same
- * governed document, so both sources describe identical bytes.
+ * The v3 record schema and its proof/composition dependencies are compiled
+ * from the VENDORED byte-pinned closure (src/pipeline/governed-schema/ —
+ * drift-guarded by test/pipeline/vendoredSchemaProvenance.test.ts):
+ * scored-signal-evidence.v3 + provider-invocation-proof.v1 +
+ * aiml-invocation-proof.v1 + composition-ref + canonical-hash. Their $refs
+ * into the D2 provenance family (scored-signal / provenance-record, …)
+ * resolve against the merged afi-config provenance schemas loaded exactly
+ * like src/evidence/provenance/schemaValidation.ts loads them
+ * (node_modules/afi-config, the ussValidator convention).
+ *
+ * v3 is the SOLE current evidence contract: there is no v2 validator, no
+ * dual mode, and no fallback alias (D-EV3-1/D-EV3-8).
  *
  * Initialization failures degrade to a structured { ok:false } result (the
  * submit path then refuses to persist) — never an uncaught module-load throw.
@@ -33,13 +36,13 @@ const AjvClass = ((AjvImport as unknown as { default?: unknown }).default ??
 const addFormats = ((ajvFormatsModule as { default?: unknown }).default ??
   ajvFormatsModule) as (ajv: AjvLike) => unknown;
 
-export interface EvidenceV2ValidationResult {
+export interface EvidenceV3ValidationResult {
   ok: boolean;
   errors: Array<{ field: string; message: string }>;
 }
 
-export const EVIDENCE_V2_SCHEMA_ID =
-  "https://afi-protocol.org/schemas/scored-signal-evidence/v2/scored-signal-evidence.schema.json";
+export const EVIDENCE_V3_SCHEMA_ID =
+  "https://afi-protocol.org/schemas/scored-signal-evidence/v3/scored-signal-evidence.schema.json";
 
 const X_AFI_VOCABULARY = [
   "x-afiStatus",
@@ -50,17 +53,25 @@ const X_AFI_VOCABULARY = [
   "x-afiConstraints",
 ];
 
-/** The nine merged D2 provenance schema files (ref-resolution closure). */
+/** The eight merged D2 provenance schema files (ref-resolution closure;
+ *  EV3-GOV D-EV3-8(2): enrichment-provenance is deleted). */
 const PROVENANCE_SCHEMA_FILES = [
   "canonical-hash.schema.json",
   "evidence-ref.schema.json",
   "source-disclosure-profile.schema.json",
-  "enrichment-provenance.schema.json",
   "analyst-input-envelope.schema.json",
   "scored-signal.schema.json",
   "provenance-record.schema.json",
   "replay-profile.schema.json",
   "trade-plan.schema.json",
+];
+
+/** Vendored FACTORY/EV3-CONTRACT members of the v3 closure (byte-pinned copies). */
+const VENDORED_SCHEMA_FILES = [
+  "composition-ref.schema.json",
+  "aiml-invocation-proof.schema.json",
+  "provider-invocation-proof.schema.json",
+  "scored-signal-evidence.v3.schema.json",
 ];
 
 let validator: ValidateFunction | undefined;
@@ -85,27 +96,21 @@ try {
   for (const file of PROVENANCE_SCHEMA_FILES) {
     ajv.addSchema(JSON.parse(readFileSync(join(provenanceRoot, file), "utf-8")));
   }
-  // Vendored FACTORY-CONTRACT members of the v2 closure (byte-pinned copies).
-  ajv.addSchema(
-    JSON.parse(readFileSync(join(vendoredRoot, "composition-ref.schema.json"), "utf-8"))
-  );
-  ajv.addSchema(
-    JSON.parse(
-      readFileSync(join(vendoredRoot, "scored-signal-evidence.v2.schema.json"), "utf-8")
-    )
-  );
+  for (const file of VENDORED_SCHEMA_FILES) {
+    ajv.addSchema(JSON.parse(readFileSync(join(vendoredRoot, file), "utf-8")));
+  }
 
-  validator = ajv.compile({ $ref: EVIDENCE_V2_SCHEMA_ID });
+  validator = ajv.compile({ $ref: EVIDENCE_V3_SCHEMA_ID });
 } catch (error) {
   initializationError = error instanceof Error ? error.message : String(error);
   console.error(
-    "❌ Failed to initialize the afi.scored-signal-evidence.v2 validator:",
+    "❌ Failed to initialize the afi.scored-signal-evidence.v3 validator:",
     initializationError
   );
 }
 
-/** Validate a candidate evidence record against the vendored v2 schema. */
-export function validateEvidenceRecordV2(value: unknown): EvidenceV2ValidationResult {
+/** Validate a candidate evidence record against the vendored v3 closure. */
+export function validateEvidenceRecordV3(value: unknown): EvidenceV3ValidationResult {
   if (!validator) {
     return {
       ok: false,
@@ -113,7 +118,7 @@ export function validateEvidenceRecordV2(value: unknown): EvidenceV2ValidationRe
         {
           field: "validator",
           message:
-            "afi.scored-signal-evidence.v2 validator not initialized" +
+            "afi.scored-signal-evidence.v3 validator not initialized" +
             (initializationError ? ` (${initializationError})` : "") +
             " — check the afi-config dependency and the vendored schema closure",
         },
