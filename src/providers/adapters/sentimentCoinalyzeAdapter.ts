@@ -71,6 +71,7 @@ export function createSentimentCoinalyzeAdapter(
   return {
     adapterId: "afi-adapter-sentiment-coinalyze",
     adapterVersion: "1.0.0",
+    transportKind: "http",
     category: "sentiment",
     providerCompatibility: ["afi-provider-sentiment-coinalyze"],
     requiresCredential: true,

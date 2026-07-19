@@ -53,6 +53,7 @@ export function createTechnicalLocalAdapter(deps?: TechnicalLocalAdapterDeps): P
   return {
     adapterId: "afi-adapter-technical-local",
     adapterVersion: "1.0.0",
+    transportKind: "in-process",
     category: "technical",
     providerCompatibility: ["afi-provider-technical-local"],
     requiresCredential: false,

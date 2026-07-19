@@ -92,6 +92,7 @@ export function createNewsSecEdgarAdapter(deps: NewsSecEdgarAdapterDeps = {}): P
   return {
     adapterId: "afi-adapter-news-sec-edgar",
     adapterVersion: "1.0.0",
+    transportKind: "http",
     category: "news",
     providerCompatibility: ["afi-provider-news-sec-edgar"],
     requiresCredential: false,
