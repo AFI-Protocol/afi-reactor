@@ -36,7 +36,7 @@ import {
 } from "../../../src/evidence/provenance/canonicalHashV1.js";
 import type { InternalScoringResult } from "../../../src/evidence/analysis/internalScoringResult.js";
 
-const GOLDEN_PATH = join(process.cwd(), "test/pipeheads/fixtures/golden.json");
+const GOLDEN_PATH = join(process.cwd(), "test/evidence/provenance/fixtures/golden.json");
 const USS_FIXTURE_PATH = join(
   process.cwd(),
   "test/evidence/provenance/fixtures/signal.uss.json"

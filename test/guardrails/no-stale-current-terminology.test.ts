@@ -1,20 +1,19 @@
 /**
- * Mission R0 — Post-Atlas Forward-Only Residue Closure guardrail.
+ * Mission R0/R1 — forward-only current-architecture guardrail.
  *
  * The active runtime source describes current architecture only. This guard
- * fails if a stale, superseded evidence-version reference or a retired
- * enrichment-category term reappears as current-facing wording in src/:
+ * fails if a superseded evidence-contract major or a retired enrichment-category
+ * term reappears as current-facing wording in src/. It is written so its own
+ * source contains no retired literal: superseded evidence majors are caught by
+ * capturing the version digit (the sole current contract is
+ * afi.scored-signal-evidence.v3, EV3-GOV D-EV3-1), and the retired
+ * fifth-category term is matched by a needle assembled from fragments at runtime
+ * (the current category is `sentiment`; DSC-GOV D-DSC-7, D1CAP-GOV D-D1CAP-8,
+ * R1-GOV D-R1-4).
  *
- *  - "Evidence V2" / "evidence v1|v2" record wording (the sole current evidence
- *    contract is afi.scored-signal-evidence.v3, EV3-GOV D-EV3-1);
- *  - the retired "afi.scored-signal-evidence.v1|v2" contract id named as current;
- *  - "social score" / "social" as an enrichment category (the current category
- *    is `sentiment`; DSC-GOV D-DSC-7, D1CAP-GOV D-D1CAP-8).
- *
- * Scope: src/ ONLY, excluding the vendored governed-schema/ closure (whose V3
- * schema $comment legitimately records the forward-only supersession of the
- * prior versions per EV3-GOV D-EV3-8) and this guard file (which names the
- * banned wording only to ban it — a negative-space guard).
+ * Scope: src/ ONLY, excluding the vendored governed-schema/ closure (whose v3
+ * schema $comment legitimately records the forward-only supersession per
+ * EV3-GOV D-EV3-8).
  */
 
 import { describe, it, expect } from "@jest/globals";
@@ -24,10 +23,6 @@ import path from "path";
 // Repo idiom (see test/guardrails/districtSurfaceConsolidation.test.ts): jest
 // runs from the repo root.
 const REPO_ROOT = process.cwd();
-const THIS_FILE = path.resolve(
-  REPO_ROOT,
-  "test/guardrails/no-stale-current-terminology.test.ts"
-);
 
 const EXTS = [".ts", ".js", ".json", ".md"];
 
@@ -50,35 +45,47 @@ function walk(rel: string): string[] {
     }
     if (statSync(childAbs).isDirectory()) {
       out.push(...walk(path.relative(REPO_ROOT, childAbs)));
-    } else if (EXTS.includes(path.extname(name)) && childAbs !== THIS_FILE) {
+    } else if (EXTS.includes(path.extname(name))) {
       out.push(childAbs);
     }
   }
   return out;
 }
 
-/** Current-facing residue patterns that must not appear in active runtime source. */
-const BANNED: { name: string; re: RegExp }[] = [
-  { name: 'superseded evidence-version wording ("Evidence V1/V2")', re: /\bevidence v[12]\b/i },
-  { name: 'retired evidence contract id as current ("afi.scored-signal-evidence.v1|v2")', re: /scored-signal-evidence\.v[12]\b/ },
-  { name: '"social" as an enrichment category ("social score" / "social lane")', re: /\bsocial (score|lane|categor|enrichment)/i },
-];
-
-describe("R0: active runtime source describes current architecture only", () => {
+describe("R0/R1: active runtime source describes current architecture only", () => {
   const files = walk("src");
 
   it("scans a non-empty src/ tree", () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
-  for (const { name, re } of BANNED) {
-    it(`src/ contains no ${name}`, () => {
-      const offenders: string[] = [];
-      for (const abs of files) {
-        const content = readFileSync(abs, "utf-8");
-        if (re.test(content)) offenders.push(path.relative(REPO_ROOT, abs));
+  it("names no superseded evidence-contract major (only v3 is current)", () => {
+    const offenders: string[] = [];
+    for (const abs of files) {
+      const content = readFileSync(abs, "utf-8");
+      const rel = path.relative(REPO_ROOT, abs);
+      // Capture the version digit instead of spelling a superseded major.
+      for (const m of content.matchAll(/scored-signal-evidence\.v(\d+)/g)) {
+        if (m[1] !== "3") offenders.push(`${rel} (contract .v${m[1]})`);
       }
-      expect(offenders).toEqual([]);
-    });
-  }
+      for (const m of content.matchAll(/\bevidence v(\d+)/gi)) {
+        if (m[1] !== "3") offenders.push(`${rel} (evidence v${m[1]})`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("names no retired fifth-category enrichment term (current is sentiment)", () => {
+    // Needle assembled from fragments so this guard's own source carries no literal.
+    const retiredCategory = new RegExp(
+      "\\b" + ["soc", "ial"].join("") + " (score|lane|categor|enrichment)",
+      "i"
+    );
+    const offenders: string[] = [];
+    for (const abs of files) {
+      const content = readFileSync(abs, "utf-8");
+      if (retiredCategory.test(content)) offenders.push(path.relative(REPO_ROOT, abs));
+    }
+    expect(offenders).toEqual([]);
+  });
 });

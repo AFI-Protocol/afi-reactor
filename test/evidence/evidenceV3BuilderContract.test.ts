@@ -114,7 +114,7 @@ describe("EV3-GOV 15.1 — invocation capture and the five-proof law", () => {
 
   it("reason 'proof-unknown-category': a proof names a category outside the governed namespace", () => {
     const context = makeContext();
-    (proofOf(context, "news") as unknown as Record<string, unknown>).category = "social";
+    (proofOf(context, "news") as unknown as Record<string, unknown>).category = "notacategory";
     expectReason(context, "proof-unknown-category");
   });
 
