@@ -39,7 +39,7 @@ function testBuiltinRegistry() {
 }
 const CONFIG_REL = "registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.config.json";
 const REGISTRATION_REL = "registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.json";
-const PIPELINE_REL = "registries/pipelines/froggy-trend-pullback--v1.1.0.json";
+const PIPELINE_REL = "registries/pipelines/froggy-trend-pullback--v1.2.0.json";
 
 /** Copies the fixture registries into a scratch root and applies mutations. */
 function scratchRoot(mutate?: (root: string) => void): string {
@@ -87,10 +87,10 @@ describe("validateRuntimeConfig — positive resolution over the fixture registr
     expect([...validated.strategies.keys()]).toEqual([FROGGY_KEY]);
     const froggy = validated.strategies.get(FROGGY_KEY)!;
     expect(froggy.manifestHash.value).toBe(
-      "87bcb7ed752820994a5b4bdb72bd55d51c39a2c58daa36fe8d0df4778778ae57"
+      "095b55775cd32147bb29137278185d1c6a95512dfec827f4c98a3eb569b39883"
     );
     expect(froggy.analystConfigHash.value).toBe(
-      "2274978afdffb798440ce08268dd4c0f06af2df94433d25d6f907335c9a3bc03"
+      "395fd7f9f3b924b033bf56e2f73f92d3567cdc2ba7e1c58de45e895afd89a6d7"
     );
     expect(froggy.pluginSetHash.value).toBe(
       "5384e1c08ce4bd7f533acc15487df81d7d37b6615d109d611bde968a81f2f386"
@@ -287,7 +287,7 @@ describe("FLPR-GOV D-FLPR-4 — selection-point status-chain refusals (boot law)
           "afi-adapter-sentiment-coinalyze@1.0.0",
           "afi-adapter-news-http@1.0.0",
           "afi-adapter-news-sec-edgar@1.0.0",
-          "afi-adapter-aiml-tiny-brains@1.0.0",
+          "afi-adapter-aiml-tiny-brains@1.1.0",
         ],
     });
   }

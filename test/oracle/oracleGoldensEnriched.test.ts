@@ -103,7 +103,8 @@ jest.mock("../../src/providers/adapters/aimlTinyBrainsAdapter.js", () => {
         direction: "long" as const,
         regime: "bull",
         riskFlag: false,
-        notes: "oracle recorded prediction (fixed; dropped at the adapter edge)",
+        profileId: "froggy-reference-v1",
+        profileVersion: "1.0.0",
       })) as never,
     }),
   };

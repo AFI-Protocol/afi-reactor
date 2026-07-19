@@ -1,12 +1,13 @@
 {
   "schema": "afi.provider.v1",
   "providerId": "afi-provider-aiml-tiny-brains",
-  "recordVersion": "1.0.0",
-  "displayName": "AFI Tiny Brains aiMl forecast service (self-hosted)",
+  "recordVersion": "1.1.0",
+  "displayName": "AFI Tiny Brains aiMl orchestration service (self-hosted)",
   "supportedCategories": ["aiMl"],
   "executionClass": "remote",
   "deterministic": false,
   "adapterId": "afi-adapter-aiml-tiny-brains",
   "requiresCredential": false,
+  "supportedModels": ["froggy-reference-v1"],
   "status": "active"
 }

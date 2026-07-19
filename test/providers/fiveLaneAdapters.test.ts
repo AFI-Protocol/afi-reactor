@@ -103,7 +103,7 @@ const PROVIDERS: ProviderRecord[] = [
   provider({ providerId: "afi-provider-sentiment-coinalyze", adapterId: "afi-adapter-sentiment-coinalyze", supportedCategories: ["sentiment"], requiresCredential: true, credentialKind: "apiKeyHeader" }),
   provider({ providerId: "afi-provider-news-sec-edgar", adapterId: "afi-adapter-news-sec-edgar", supportedCategories: ["news"] }),
   provider({ providerId: "afi-provider-news-http", adapterId: "afi-adapter-news-http", supportedCategories: ["news"], requiresCredential: true, credentialKind: "apiKeyHeader" }),
-  provider({ providerId: "afi-provider-aiml-tiny-brains", adapterId: "afi-adapter-aiml-tiny-brains", supportedCategories: ["aiMl"] }),
+  provider({ providerId: "afi-provider-aiml-tiny-brains", adapterId: "afi-adapter-aiml-tiny-brains", supportedCategories: ["aiMl"], supportedModels: ["froggy-reference-v1"] }),
 ];
 
 const CREDENTIAL_REFS: CredentialRefRecord[] = [
@@ -119,7 +119,11 @@ const INSTANCES: ProviderInstanceRecord[] = [
   instance({ providerInstanceId: "pi-sentiment-coinalyze", category: "sentiment", providerId: "afi-provider-sentiment-coinalyze", adapterId: "afi-adapter-sentiment-coinalyze", credentialRef: "credential-coinalyze-reference" }),
   instance({ providerInstanceId: "pi-news-edgar", category: "news", providerId: "afi-provider-news-sec-edgar", adapterId: "afi-adapter-news-sec-edgar", invocation: { windowHours: 24 } }),
   instance({ providerInstanceId: "pi-news-newsdata", category: "news", providerId: "afi-provider-news-http", adapterId: "afi-adapter-news-http", credentialRef: "credential-newsdata-reference" }),
-  instance({ providerInstanceId: "pi-aiml-tiny-brains", category: "aiMl", providerId: "afi-provider-aiml-tiny-brains", adapterId: "afi-adapter-aiml-tiny-brains" }),
+  instance({ providerInstanceId: "pi-aiml-tiny-brains", category: "aiMl", providerId: "afi-provider-aiml-tiny-brains", adapterId: "afi-adapter-aiml-tiny-brains", adapterVersion: "1.1.0", model: "froggy-reference-v1" }),
+  // Governed-selection negatives: an instance naming NO profile, and one
+  // naming a profile the provider does not support.
+  instance({ providerInstanceId: "pi-aiml-no-model", category: "aiMl", providerId: "afi-provider-aiml-tiny-brains", adapterId: "afi-adapter-aiml-tiny-brains", adapterVersion: "1.1.0" }),
+  instance({ providerInstanceId: "pi-aiml-unknown-model", category: "aiMl", providerId: "afi-provider-aiml-tiny-brains", adapterId: "afi-adapter-aiml-tiny-brains", adapterVersion: "1.1.0", model: "mystery-profile-v9" }),
 ];
 
 function buildRuntime(adapters: ProviderAdapter[], resolver?: InMemorySecretResolver) {
@@ -536,11 +540,20 @@ describe("FLPR-GOV — news SEC EDGAR adapter (keyless)", () => {
 // aiMl — tiny-brains adapter (first-party, joined lane)
 // --------------------------------------------------------------------------
 describe("FLPR-GOV — aiMl tiny-brains adapter (first-party)", () => {
+  /** 64 deterministic candles (>= the canonical request's 32-candle floor). */
+  function seriesCandles(): AfiCandle[] {
+    const candles: AfiCandle[] = [];
+    for (let i = 0; i < 64; i++) {
+      const base = 100 * Math.exp(0.002 * i) + Math.sin(i / 4) * 0.8;
+      candles.push({ timestamp: 1700000000000 + i * 3600_000, open: base - 0.2, high: base + 1.0, low: base - 1.0, close: base, volume: 1000 + i });
+    }
+    return candles;
+  }
   const TECHNICAL_RESULT = {
     category: "technical",
-    candles: engulfingCandles(),
+    candles: seriesCandles(),
     priceSource: "demo",
-    technical: computeTechnicalEnrichment(engulfingCandles()),
+    technical: computeTechnicalEnrichment(seriesCandles()),
   };
   const PATTERN_RESULT = {
     category: "pattern",
@@ -567,29 +580,103 @@ describe("FLPR-GOV — aiMl tiny-brains adapter (first-party)", () => {
     parents: { technical: TECHNICAL_RESULT, pattern: PATTERN_RESULT, sentiment: SENTIMENT_RESULT, news: NEWS_RESULT },
   };
 
-  it("projects the sibling lanes through the SHARED laneView helpers and maps the prediction to the governed forecast (notes dropped)", async () => {
+  it("posts ONE canonical request: the instance's governed profile + the REAL close series from the technical parent (no lane projections, no expert knowledge)", async () => {
     const seen: unknown[] = [];
     const rt = buildRuntime([
       createAimlTinyBrainsAdapter({
         callService: (async (input: unknown) => {
           seen.push(input);
-          return { convictionScore: 0.85, direction: "long", regime: "bull", riskFlag: false, notes: "free prose must not ride" };
+          return { convictionScore: 0.85, direction: "long", regime: "bull", riskFlag: false, profileId: "froggy-reference-v1", profileVersion: "1.0.0" };
         }) as never,
       }),
     ]);
     const result = await rt.invoke({ providerInstanceId: "pi-aiml-tiny-brains", recordVersion: "1.0.0" }, ctx({ input: JOINED_INPUT }));
     const sent = seen[0] as Record<string, unknown>;
-    expect(sent.technical).toEqual(viewTechnical(TECHNICAL_RESULT.technical));
-    expect(sent.pattern).toEqual(viewPattern(PATTERN_RESULT as never));
-    expect(sent.sentiment).toEqual(viewSentiment(SENTIMENT_RESULT.axes));
-    expect(sent.newsFeatures).toEqual(NEWS_RESULT.newsFeatures);
+    // Profile identity comes verbatim from the governed ProviderInstance `model`.
+    expect(sent.profile).toBe("froggy-reference-v1");
+    // The real close series rides; sibling-lane projections do NOT.
+    const sentCandles = sent.candles as Array<{ timestamp: number; close: number }>;
+    expect(sentCandles).toHaveLength(64);
+    expect(sentCandles.map((c) => c.close)).toEqual(TECHNICAL_RESULT.candles.map((c) => c.close));
+    expect(sentCandles.map((c) => c.timestamp)).toEqual(TECHNICAL_RESULT.candles.map((c) => c.timestamp));
+    expect(sent.technical).toBeUndefined();
+    expect(sent.pattern).toBeUndefined();
+    expect(sent.sentiment).toBeUndefined();
+    expect(sent.newsFeatures).toBeUndefined();
+    // Exactly one governed category result; internal expert/profile identity
+    // never escapes onto the lane result.
     expect(result).toEqual({
       category: "aiMl",
       forecast: { direction: "long", conviction: 0.85 },
       regime: { label: "bull" },
       riskFlag: false,
     });
-    expect(JSON.stringify(result)).not.toContain("free prose");
+    expect(JSON.stringify(result)).not.toContain("froggy-reference-v1");
+  });
+
+  it("switching the supported profile is an INSTANCE record concern: the category node/adapter code forwards whatever the governed record names", async () => {
+    const seen: unknown[] = [];
+    const altProviders = PROVIDERS.map((p) =>
+      p.providerId === "afi-provider-aiml-tiny-brains" ? { ...p, supportedModels: ["froggy-reference-v1", "hypothetical-v2"] } : p
+    );
+    const altInstances = INSTANCES.map((i) =>
+      i.providerInstanceId === "pi-aiml-tiny-brains" ? { ...i, model: "hypothetical-v2" } : i
+    );
+    const rt = new ProviderRuntime({
+      adapters: createAdapterRegistry([
+        createAimlTinyBrainsAdapter({
+          callService: (async (input: unknown) => {
+            seen.push(input);
+            return { convictionScore: 0.6, direction: "neutral" };
+          }) as never,
+        }),
+      ]),
+      records: createProviderRecordStore({ providers: altProviders, credentialRefs: CREDENTIAL_REFS, providerInstances: altInstances }),
+      resolver: new InMemorySecretResolver([]),
+      outputValidator: createCategoryOutputValidator(),
+    });
+    await rt.invoke({ providerInstanceId: "pi-aiml-tiny-brains", recordVersion: "1.0.0" }, ctx({ input: JOINED_INPUT }));
+    expect((seen[0] as Record<string, unknown>).profile).toBe("hypothetical-v2");
+  });
+
+  it("an instance naming NO profile fails CLOSED as a configuration error (no default, no adapter-side profile)", async () => {
+    const rt = buildRuntime([
+      createAimlTinyBrainsAdapter({ callService: (async () => ({ convictionScore: 0.5, direction: "neutral" })) as never }),
+    ]);
+    await expect(
+      rt.invoke({ providerInstanceId: "pi-aiml-no-model", recordVersion: "1.0.0" }, ctx({ input: JOINED_INPUT }))
+    ).rejects.toThrow(/orchestration profile/);
+  });
+
+  it("an instance naming an UNSUPPORTED profile fails CLOSED at the model-authority gate (before any service call)", async () => {
+    const calls: unknown[] = [];
+    const rt = buildRuntime([
+      createAimlTinyBrainsAdapter({
+        callService: (async (input: unknown) => {
+          calls.push(input);
+          return { convictionScore: 0.5, direction: "neutral" };
+        }) as never,
+      }),
+    ]);
+    await expect(
+      rt.invoke({ providerInstanceId: "pi-aiml-unknown-model", recordVersion: "1.0.0" }, ctx({ input: JOINED_INPUT }))
+    ).rejects.toThrow(/does not support model 'mystery-profile-v9'/);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("a missing/short technical candle series fails CLOSED (upstream-data absence, recorded by the lane's failure policy)", async () => {
+    const rt = buildRuntime([
+      createAimlTinyBrainsAdapter({ callService: (async () => ({ convictionScore: 0.5, direction: "neutral" })) as never }),
+    ]);
+    const shortInput = {
+      parents: { technical: { ...TECHNICAL_RESULT, candles: TECHNICAL_RESULT.candles.slice(0, 8) }, pattern: PATTERN_RESULT },
+    };
+    await expect(
+      rt.invoke({ providerInstanceId: "pi-aiml-tiny-brains", recordVersion: "1.0.0" }, ctx({ input: shortInput }))
+    ).rejects.toThrow(/candles/);
+    await expect(
+      rt.invoke({ providerInstanceId: "pi-aiml-tiny-brains", recordVersion: "1.0.0" }, ctx({ input: { parents: { pattern: PATTERN_RESULT } } }))
+    ).rejects.toThrow(/candles/);
   });
 
   it("fails CLOSED on service absence/error (no fabricated neutral)", async () => {
@@ -603,6 +690,35 @@ describe("FLPR-GOV — aiMl tiny-brains adapter (first-party)", () => {
     await expect(rt.invoke({ providerInstanceId: "pi-aiml-tiny-brains", recordVersion: "1.0.0" }, ctx({ input: JOINED_INPUT }))).rejects.toThrow(
       /TINY_BRAINS_URL/
     );
+  });
+
+  it("client: profile-echo mismatch and malformed predictions are rejected (never accepted silently)", async () => {
+    const { callAimlService } = await import("../../src/providers/clients/aimlServiceClient.js");
+    const input = {
+      signalId: "sig-1", symbol: "BTC/USDT", timeframe: "1h", traceId: "sig-1",
+      profile: "froggy-reference-v1",
+      candles: seriesCandles().map((c) => ({ timestamp: c.timestamp, close: c.close })),
+    };
+    const respond = (body: unknown): typeof fetch =>
+      (async () => ({ ok: true, status: 200, statusText: "OK", json: async () => body }) as Response) as typeof fetch;
+    await expect(
+      callAimlService(input, { baseUrl: "http://tiny", fetchImpl: respond({ convictionScore: 0.8, direction: "long", profileId: "some-other-profile" }) })
+    ).rejects.toThrow(/did not confirm the selected orchestration profile/);
+    // A stale/mis-routed service that OMITS profileId is rejected (no silent downgrade).
+    await expect(
+      callAimlService(input, { baseUrl: "http://tiny", fetchImpl: respond({ convictionScore: 0.8, direction: "long" }) })
+    ).rejects.toThrow(/did not confirm the selected orchestration profile/);
+    await expect(
+      callAimlService(input, { baseUrl: "http://tiny", fetchImpl: respond({ convictionScore: 1.7, direction: "long" }) })
+    ).rejects.toThrow(/malformed/);
+    await expect(
+      callAimlService(input, { baseUrl: "http://tiny", fetchImpl: respond({ convictionScore: 0.8, direction: "sideways" }) })
+    ).rejects.toThrow(/malformed/);
+    const good = await callAimlService(input, {
+      baseUrl: "http://tiny",
+      fetchImpl: respond({ convictionScore: 0.8, direction: "long", profileId: "froggy-reference-v1", profileVersion: "1.0.0" }),
+    });
+    expect(good.direction).toBe("long");
   });
 });
 
