@@ -201,6 +201,26 @@ export function parseTinyBrainsInvocationBlock(value: unknown): TinyBrainsInvoca
   };
 }
 
+/**
+ * Cloud Run service-to-service auth (opt-in). When the aiMl service is deployed
+ * IAM-protected (no unauthenticated access), the caller must present a
+ * Google-signed OIDC identity token whose audience is the target service URL.
+ * Enabled only when TINY_BRAINS_ID_TOKEN_AUDIENCE is set; otherwise the call is
+ * unauthenticated exactly as before (local/test/unauthenticated deployments).
+ * The token is a transport credential — it never enters the request body, the
+ * scoring, or the tiny-brains.hash.v1 output hash.
+ */
+async function fetchAimlIdToken(audience: string): Promise<string> {
+  const metaUrl =
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=" +
+    encodeURIComponent(audience);
+  const r = await fetch(metaUrl, { headers: { "Metadata-Flavor": "Google" } });
+  if (!r.ok) {
+    throw new Error(`aiMl service auth: identity-token fetch failed (${r.status})`);
+  }
+  return (await r.text()).trim();
+}
+
 export async function callAimlService(
   input: AimlServiceInput,
   options: AimlServiceClientOptions = {}
@@ -211,12 +231,17 @@ export async function callAimlService(
   }
   const fetchImpl = options.fetchImpl ?? fetch;
   const url = `${baseUrl}/predict/froggy`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "X-AFI-Client": "afi-reactor-aiml-v1",
+  };
+  const idTokenAudience = process.env.TINY_BRAINS_ID_TOKEN_AUDIENCE?.trim();
+  if (idTokenAudience) {
+    headers.Authorization = `Bearer ${await fetchAimlIdToken(idTokenAudience)}`;
+  }
   const response = await fetchImpl(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-AFI-Client": "afi-reactor-aiml-v1",
-    },
+    headers,
     body: JSON.stringify(input),
     signal: effectiveSignal(options.abort, options.timeoutMs),
   });
