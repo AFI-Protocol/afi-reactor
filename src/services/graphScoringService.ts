@@ -63,6 +63,23 @@ export interface ScoredCompositionRun {
    * Evidence V3 builder — never consumed by any scoring path (D-EV3-2).
    */
   invocations: EvidenceInvocationCapture;
+  /**
+   * Operational per-node timing from the one live graph pass — metrics ONLY.
+   * NEVER hashed and NEVER part of the Evidence V3 record (governance bans
+   * wall-clock timing from canonical evidence; the executor already marks
+   * GraphExecutionResult.nodes as operational/never-hashed). Surfaced purely so
+   * latency-instrumented ingress routes can report per-lane latency.
+   */
+  laneTimings: LaneTiming[];
+}
+
+/** Operational per-lane timing (never hashed; not in the evidence record). */
+export interface LaneTiming {
+  nodeId: string;
+  category: string;
+  status: string;
+  durationMs: number;
+  wave: number;
 }
 
 /** The five governed analysis lanes (D-FCP-1 namespace, casing exact). */
@@ -296,5 +313,12 @@ export async function scoreRegisteredStrategyFromCanonicalUss(
         greeksTemplateId: decayParams.greeksTemplateId,
       },
     },
+    laneTimings: execution.nodes.map((r) => ({
+      nodeId: r.nodeId,
+      category: manifest.nodes.find((n) => n.id === r.nodeId)?.category ?? "unknown",
+      status: r.status,
+      durationMs: r.durationMs,
+      wave: r.wave,
+    })),
   };
 }

@@ -36,6 +36,12 @@ import {
   mapTradingViewToUssV11,
   type TradingViewAlertPayload,
 } from "./uss/tradingViewMapper.js";
+import {
+  mapMarkitTickToUssV11,
+  MARKITTICK_DEFAULT_PROVIDER_ID,
+  ORIGIN_MODE_PREFLIGHT,
+  type MarkitTickAlertPayload,
+} from "./uss/markitTickMapper.js";
 import { validateCpjV01 } from "./cpj/cpjValidator.js";
 import { mapCpjToUssV11 } from "./uss/cpjMapper.js";
 import {
@@ -327,6 +333,190 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
     return res.status(200).json({ ...run.scored, persistence });
   } catch (err: any) {
     return respondWithFailure(res, err, "Error processing TradingView webhook");
+  }
+});
+
+/**
+ * Map executor lane status → the mission's per-lane status vocabulary.
+ * NOTE: a REQUIRED (critical, fail-closed) lane that times out or fails aborts
+ * the whole synchronous run BEFORE settling, so it never appears here — it
+ * surfaces as a request-level failure (respondWithFailure), not a lane status.
+ */
+function mapLaneStatus(status: string): string {
+  switch (status) {
+    case "executed":
+      return "resolved";
+    case "degraded":
+      return "degraded";
+    case "skipped":
+      return "skipped";
+    case "failed-optional":
+      return "failed_optional";
+    default:
+      return status;
+  }
+}
+
+/**
+ * MarkitTick TradingView webhook endpoint — low-latency origin prep v0.1.
+ *
+ * POST /api/webhooks/tradingview/markittick
+ *
+ * Accepts the raw MarkitTick "Adaptive RSI Supertrend" alert shape:
+ *   { "ticker": "BINANCE:BTCUSDT", "tf": "5", "event": "bull_cross",
+ *     "arsi": "61.25", "merged": "58.90", "secret"?: "...", "providerId"?: "..." }
+ * v0.1 supports ONLY bull_cross → LONG and bear_cross → SHORT.
+ *
+ * Same score + persist pipeline as the other ingress routes (a REAL synchronous
+ * scored signal), plus a fully-instrumented `latency` block (total / ingest /
+ * mapper / scorer / persistence + per-lane latency & status + selectedProfileId)
+ * and a `source` block (source=tradingview, indicatorId, originMode). Latency is
+ * emitted on the HTTP response ONLY — never in the canonical evidence record.
+ *
+ * Persistence is included + measured by default; set AFI_MARKITTICK_PERSIST=false
+ * to exclude it by config (e.g. a pure latency benchmark) — reported honestly as
+ * outcome "skipped-by-config".
+ *
+ * originMode is "captured-preflight" until a real TradingView webhook fires
+ * after the account's plan upgrade (set AFI_MARKITTICK_ORIGIN_MODE to override).
+ */
+app.post("/api/webhooks/tradingview/markittick", async (req: Request, res: Response) => {
+  const t0 = Date.now();
+  try {
+    const rawPayload = req.body as MarkitTickAlertPayload;
+    if (!rawPayload || typeof rawPayload !== "object") {
+      return res.status(400).json({ error: "invalid_payload", message: "Invalid JSON payload" });
+    }
+
+    // Optional shared secret (same convention as the TV/CPJ routes).
+    const expectedSecret = process.env.WEBHOOK_SHARED_SECRET;
+    if (expectedSecret && rawPayload.secret !== expectedSecret) {
+      console.warn(`⚠️ MarkitTick webhook authentication failed: invalid secret`);
+      return res.status(401).json({ error: "unauthorized", message: "Unauthorized: invalid secret" });
+    }
+
+    // MarkitTick alerts carry no provider identity — inject the staging provider
+    // (or an env override) so provider-binding resolution reaches the binding.
+    const providerId =
+      (typeof rawPayload.providerId === "string" && rawPayload.providerId) ||
+      process.env.AFI_MARKITTICK_PROVIDER_ID ||
+      MARKITTICK_DEFAULT_PROVIDER_ID;
+    const originMode = process.env.AFI_MARKITTICK_ORIGIN_MODE || ORIGIN_MODE_PREFLIGHT;
+
+    console.log(`📨 MarkitTick webhook received:`, {
+      ticker: rawPayload.ticker,
+      tf: rawPayload.tf,
+      event: rawPayload.event,
+      providerId,
+    });
+
+    // Strategy resolution: MarkitTick names no strategy → the provider binding's
+    // defaultStrategy governs (unknown/inactive provider → honest 403).
+    const resolution = resolveStrategyForProvider(
+      { providerId, providerType: "webhook", requestedStrategy: null },
+      getRuntimeComposition().runtime
+    );
+    const ingestLatencyMs = Date.now() - t0;
+
+    // Normalize MarkitTick → canonical USS v1.1 (adapter + source metadata),
+    // then validate. (mapperLatencyMs covers normalize + USS validation.)
+    const mapStart = Date.now();
+    const mapped = mapMarkitTickToUssV11({ ...rawPayload, providerId }, resolution.triple, {
+      originMode,
+    });
+    if (!mapped.ok) {
+      const status = mapped.error!.code === "missing_field" ? 400 : 422;
+      return res.status(status).json({
+        error: mapped.error!.code,
+        message: mapped.error!.message,
+        ...(mapped.error!.detail ? { detail: mapped.error!.detail } : {}),
+      });
+    }
+    const canonicalUss = mapped.uss!;
+    const ussValidation = validateUsignalV11(canonicalUss);
+    if (!ussValidation.ok) {
+      return res.status(400).json({
+        error: "invalid_uss",
+        message: "Mapped MarkitTick USS does not conform to USS v1.1",
+        details: ussValidation.errors,
+      });
+    }
+    const mapperLatencyMs = Date.now() - mapStart;
+
+    // Score synchronously through the resolved composition (lanes run in
+    // parallel dependency waves inside the GraphExecutor).
+    const scoreStart = Date.now();
+    const run = await scoreRegisteredStrategyFromCanonicalUss(canonicalUss, resolution.strategy);
+    const scorerLatencyMs = Date.now() - scoreStart;
+
+    // Evidence V3 persistence — included + measured by default; excludable by
+    // config (AFI_MARKITTICK_PERSIST=false) with an honest reported outcome.
+    const persistEnabled =
+      (process.env.AFI_MARKITTICK_PERSIST ?? "true").toLowerCase() !== "false";
+    let persistence: unknown;
+    let persistenceLatencyMs = 0;
+    if (persistEnabled) {
+      const persistStart = Date.now();
+      persistence = await submitScoredSignalEvidence(run.scored, getEvidenceStore(), {
+        composition: run.composition,
+        registration: run.registration,
+        invocations: run.invocations,
+      });
+      persistenceLatencyMs = Date.now() - persistStart;
+    } else {
+      persistence = {
+        outcome: "skipped-by-config",
+        reason: "AFI_MARKITTICK_PERSIST=false (persistence excluded by config for this run)",
+      };
+    }
+
+    const totalLatencyMs = Date.now() - t0;
+    const selectedProfileId = `${run.registration.analystId}/${run.registration.strategyId}@${run.registration.strategyVersion}`;
+
+    console.log(`✅ MarkitTick scored:`, {
+      signalId: run.scored.signalId,
+      uwrScore: run.scored.analystScore.uwrScore,
+      totalLatencyMs,
+    });
+
+    return res.status(200).json({
+      ...run.scored,
+      persistence,
+      // `origin` (not `source`) — ReactorScoredSignalV1 already reserves a
+      // top-level optional `source` (UwrProfileStampSource); this block is the
+      // MarkitTick signal-origin metadata and must not shadow it.
+      origin: {
+        source: "tradingview",
+        indicatorId: mapped.meta!.indicatorId,
+        event: mapped.meta!.event,
+        direction: mapped.meta!.direction,
+        symbol: mapped.meta!.symbol,
+        timeframe: mapped.meta!.timeframe,
+        ...(mapped.meta!.arsi !== undefined ? { arsi: mapped.meta!.arsi } : {}),
+        ...(mapped.meta!.merged !== undefined ? { merged: mapped.meta!.merged } : {}),
+        providerId,
+        originMode,
+      },
+      latency: {
+        selectedProfileId,
+        clock: "Date.now-ms",
+        totalLatencyMs,
+        ingestLatencyMs,
+        mapperLatencyMs,
+        scorerLatencyMs,
+        persistenceLatencyMs,
+        persistence: persistEnabled ? "included" : "excluded-by-config",
+        lanes: (run.laneTimings ?? []).map((l) => ({
+          lane: l.category,
+          nodeId: l.nodeId,
+          wave: l.wave,
+          latencyMs: l.durationMs,
+          status: mapLaneStatus(l.status),
+        })),
+      },
+    });
+  } catch (err: any) {
+    return respondWithFailure(res, err, "Error processing MarkitTick TradingView webhook");
   }
 });
 
