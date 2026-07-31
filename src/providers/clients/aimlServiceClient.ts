@@ -210,15 +210,101 @@ export function parseTinyBrainsInvocationBlock(value: unknown): TinyBrainsInvoca
  * The token is a transport credential — it never enters the request body, the
  * scoring, or the tiny-brains.hash.v1 output hash.
  */
-async function fetchAimlIdToken(audience: string): Promise<string> {
+type CachedIdToken = { token: string; expiresAtMs: number };
+
+/** Process-lifetime token cache, keyed by audience. Transport credential only. */
+const idTokenCache = new Map<string, CachedIdToken>();
+/** Single-flight: concurrent callers share one in-progress mint. */
+const idTokenInflight = new Map<string, Promise<string>>();
+
+/** Refresh this far before `exp` so a token never expires mid-flight. */
+const ID_TOKEN_REFRESH_SKEW_MS = 5 * 60_000;
+/** Used only when `exp` cannot be read; well inside Google's ~1h lifetime. */
+const ID_TOKEN_FALLBACK_TTL_MS = 45 * 60_000;
+
+/**
+ * Read `exp` out of the JWT payload for TTL purposes ONLY.
+ *
+ * This is NOT a verification step and must never become one: the token is
+ * validated by Cloud Run at the receiving end, never here. A malformed or
+ * unreadable payload simply falls back to a conservative fixed TTL.
+ */
+function decodeIdTokenExpiryMs(token: string): number | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const payload = JSON.parse(
+      Buffer.from(parts[1], "base64url").toString("utf8")
+    ) as { exp?: unknown };
+    if (typeof payload.exp !== "number" || !Number.isFinite(payload.exp)) return null;
+    return payload.exp * 1000;
+  } catch {
+    return null;
+  }
+}
+
+async function mintAimlIdToken(audience: string): Promise<string> {
   const metaUrl =
     "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=" +
     encodeURIComponent(audience);
+  const startedAt = Date.now();
   const r = await fetch(metaUrl, { headers: { "Metadata-Flavor": "Google" } });
   if (!r.ok) {
     throw new Error(`aiMl service auth: identity-token fetch failed (${r.status})`);
   }
-  return (await r.text()).trim();
+  const token = (await r.text()).trim();
+  const expiresAtMs = decodeIdTokenExpiryMs(token) ?? Date.now() + ID_TOKEN_FALLBACK_TTL_MS;
+  idTokenCache.set(audience, { token, expiresAtMs });
+  logAimlTiming("aiml.idtoken.mint", Date.now() - startedAt);
+  return token;
+}
+
+/**
+ * PLATFORM FLOOR (perf/platform-floor-v0.1): the identity token was previously
+ * minted from the GCP metadata server on EVERY scored signal and awaited inline
+ * ahead of the Tiny Brains POST. Google ID tokens live ~1 hour, so at the
+ * governed bar cadence that was roughly 12x more mints than necessary — a cost
+ * charged to every analyst configuration that routes an aiMl lane.
+ *
+ * The token is a transport credential: it never enters the request body, the
+ * scoring, or the tiny-brains.hash.v1 output hash, so caching it cannot affect
+ * any hashed preimage.
+ */
+async function fetchAimlIdToken(
+  audience: string,
+  opts: { forceRefresh?: boolean } = {}
+): Promise<string> {
+  if (opts.forceRefresh) {
+    idTokenCache.delete(audience);
+  } else {
+    const hit = idTokenCache.get(audience);
+    if (hit && Date.now() < hit.expiresAtMs - ID_TOKEN_REFRESH_SKEW_MS) {
+      return hit.token;
+    }
+    const inflight = idTokenInflight.get(audience);
+    if (inflight) return inflight;
+  }
+  const pending = mintAimlIdToken(audience).finally(() => {
+    idTokenInflight.delete(audience);
+  });
+  idTokenInflight.set(audience, pending);
+  return pending;
+}
+
+/** Clear cached identity tokens (tests / composition root). */
+export function resetAimlIdTokenCache(): void {
+  idTokenCache.clear();
+  idTokenInflight.clear();
+}
+
+/**
+ * Operational timing probe. Structured single-line log, never hash material and
+ * never part of the Evidence V3 record (timing is governance-banned from the
+ * record — it may appear in transport logs and the HTTP response only).
+ */
+function logAimlTiming(evt: string, ms: number): void {
+  if (process.env.NODE_ENV === "test") return;
+  console.log(JSON.stringify({ evt, ms }));
 }
 
 export async function callAimlService(
@@ -236,15 +322,35 @@ export async function callAimlService(
     "X-AFI-Client": "afi-reactor-aiml-v1",
   };
   const idTokenAudience = process.env.TINY_BRAINS_ID_TOKEN_AUDIENCE?.trim();
-  if (idTokenAudience) {
-    headers.Authorization = `Bearer ${await fetchAimlIdToken(idTokenAudience)}`;
+  const body = JSON.stringify(input);
+
+  const post = async (forceTokenRefresh: boolean) => {
+    const requestHeaders = { ...headers };
+    if (idTokenAudience) {
+      requestHeaders.Authorization = `Bearer ${await fetchAimlIdToken(idTokenAudience, {
+        forceRefresh: forceTokenRefresh,
+      })}`;
+    }
+    const startedAt = Date.now();
+    try {
+      return await fetchImpl(url, {
+        method: "POST",
+        headers: requestHeaders,
+        body,
+        signal: effectiveSignal(options.abort, options.timeoutMs),
+      });
+    } finally {
+      logAimlTiming("aiml.predict.post", Date.now() - startedAt);
+    }
+  };
+
+  let response = await post(false);
+  // A cached token the receiver rejects (key rotation, audience change) must not
+  // wedge the lane: drop it and mint once more. Restricted to 401/403 because
+  // those return immediately — a retry here cannot compound the timeout budget.
+  if (idTokenAudience && (response.status === 401 || response.status === 403)) {
+    response = await post(true);
   }
-  const response = await fetchImpl(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(input),
-    signal: effectiveSignal(options.abort, options.timeoutMs),
-  });
   if (!response.ok) {
     throw new Error(`aiMl service error: ${response.status} ${response.statusText}`);
   }

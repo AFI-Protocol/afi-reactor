@@ -48,6 +48,9 @@ import {
   getRuntimeComposition,
   initRuntimeComposition,
 } from "./config/runtimeComposition.js";
+// Boot warm-up only (perf/platform-floor-v0.1) — see the warm-up block below.
+import { getPriceFeedAdapter } from "./adapters/exchanges/priceFeedRegistry.js";
+import { warmEvidenceStore } from "./evidence/evidenceStore.js";
 import {
   resolveStrategyForProvider,
   resolveWebhookProviderId,
@@ -781,59 +784,119 @@ if (process.env.NODE_ENV !== "test") {
     throw err;
   }
 
-  const server = app.listen(PORT, async () => {
-    console.log(`🚀 AFI REACTOR - Scoring Pipeline`);
-    console.log(`   Listening on http://localhost:${PORT}`);
-    console.log(`   Endpoints:`);
-    console.log(`     GET  /health`);
-    console.log(`     POST /api/webhooks/tradingview`);
-    console.log(`     POST /api/ingest/cpj (CPJ v0.1 ingestion - Telegram/Discord signals)`);
-    console.log(``);
-    console.log(`   Returns: ReactorScoredSignalV1 (signalId, analystScore, scoredAt, decayParams, lenses, rawUss)`);
-    const priceSource = process.env.AFI_PRICE_FEED_SOURCE;
-    console.log(`   Price Feed: ${priceSource ?? "(unset)"}`);
-    if (!priceSource) {
-      console.warn(
-        `   ⚠️  AFI_PRICE_FEED_SOURCE is UNSET — live scoring will FAIL CLOSED ` +
-          `(no silent synthetic fallback). Set AFI_PRICE_FEED_SOURCE=blofin|coinbase.`
-      );
-    }
-    console.log(``);
-
-    // Start Telegram Bot API collector if enabled
-    const telegramCollector = await startTelegramCollector();
-    if (telegramCollector) {
-      console.log(`✅ Telegram Bot API collector started`);
-    }
-
-    // Start Telegram MTProto collector if enabled
-    const mtprotoClient = createMtprotoClientFromEnv();
-    if (mtprotoClient) {
+  // ⚡ BOOT WARM-UP (perf/platform-floor-v0.1) — FAIL OPEN. Never a boot gate.
+  //
+  // Three initialisations used to fire lazily on the FIRST REQUEST of every
+  // container instance: ccxt's import + BloFin loadMarkets (measured 3.7-4.7s
+  // hosted), and the evidence store's mongodb import + Atlas connect + topology
+  // discovery + collection/index bootstrap + afi-infra's lazy schema compile.
+  // Together they made the first real request ~6.9s against ~2.2s warm. Doing
+  // them here moves that cliff off the request path.
+  //
+  // MUST run BEFORE app.listen. Cloud Run's startup probe is a TCP probe on the
+  // port, so the instance is marked ready the moment the port binds; anything
+  // scheduled after that runs post-readiness, after startup CPU boost has ended
+  // and with CPU throttling on — i.e. starved of exactly the CPU it needs.
+  //
+  // Deliberately DISTINCT from the BOOT REFUSED path above (D-FCP-8): an
+  // invalid registry composition must refuse to serve, but a transient BloFin
+  // or Atlas blip must degrade to one slow first request, never to an outage.
+  // Every step is individually bounded and individually caught.
+  const bootAndListen = async (): Promise<void> => {
+    const warmStep = async (label: string, budgetMs: number, run: () => Promise<unknown>) => {
+      const startedAt = Date.now();
       try {
-        await mtprotoClient.connect();
-        const mtprotoCollector = await startMtprotoCollector(mtprotoClient);
-        if (mtprotoCollector) {
-          console.log(`✅ Telegram MTProto collector started`);
-        }
-      } catch (error: any) {
-        console.error(`❌ Failed to start MTProto collector:`, error.message);
+        await Promise.race([
+          run(),
+          new Promise((_resolve, reject) =>
+            setTimeout(() => reject(new Error(`warm-up budget ${budgetMs}ms exceeded`)), budgetMs)
+          ),
+        ]);
+        console.log(`   ⚡ warm-up ${label}: ok (${Date.now() - startedAt}ms)`);
+      } catch (err) {
+        // Fail OPEN — log and continue booting.
+        console.warn(
+          `   ⚠️  warm-up ${label}: skipped after ${Date.now() - startedAt}ms — ` +
+            `${(err as Error)?.message ?? String(err)} (first request will pay this cost)`
+        );
       }
-    }
-  });
+    };
 
-  // SIGTERM-compatible graceful shutdown (Cloud Run sends SIGTERM).
-  const onSignal = (signal: string) => {
-    console.log(`\n📴 ${signal} received — shutting down AFI Reactor gracefully...`);
-    shutdownReactor(server)
-      .then(() => {
-        console.log("✅ Clean shutdown complete.");
-        process.exit(0);
-      })
-      .catch((err) => {
-        console.error("❌ Shutdown error:", err);
-        process.exit(1);
+    const warmPriceSource = process.env.AFI_PRICE_FEED_SOURCE?.trim();
+    if (warmPriceSource) {
+      await warmStep(`price-feed:${warmPriceSource}`, 20_000, async () => {
+        // Forces the ccxt module import, exchange construction and loadMarkets.
+        // BTC/USDT:USDT is the governed demo pair and is always listed on BloFin.
+        const adapter = getPriceFeedAdapter(warmPriceSource);
+        await adapter.getOHLCV({ symbol: "BTC/USDT:USDT", timeframe: "5m", limit: 2 });
       });
+    }
+
+    if (process.env.AFI_EVIDENCE_MONGODB_URI) {
+      await warmStep("evidence-store", 20_000, () => warmEvidenceStore());
+    }
+
+    const server = app.listen(PORT, async () => {
+      console.log(`🚀 AFI REACTOR - Scoring Pipeline`);
+      console.log(`   Listening on http://localhost:${PORT}`);
+      console.log(`   Endpoints:`);
+      console.log(`     GET  /health`);
+      console.log(`     POST /api/webhooks/tradingview`);
+      console.log(`     POST /api/ingest/cpj (CPJ v0.1 ingestion - Telegram/Discord signals)`);
+      console.log(``);
+      console.log(`   Returns: ReactorScoredSignalV1 (signalId, analystScore, scoredAt, decayParams, lenses, rawUss)`);
+      const priceSource = process.env.AFI_PRICE_FEED_SOURCE;
+      console.log(`   Price Feed: ${priceSource ?? "(unset)"}`);
+      if (!priceSource) {
+        console.warn(
+          `   ⚠️  AFI_PRICE_FEED_SOURCE is UNSET — live scoring will FAIL CLOSED ` +
+            `(no silent synthetic fallback). Set AFI_PRICE_FEED_SOURCE=blofin|coinbase.`
+        );
+      }
+      console.log(``);
+
+      // Start Telegram Bot API collector if enabled
+      const telegramCollector = await startTelegramCollector();
+      if (telegramCollector) {
+        console.log(`✅ Telegram Bot API collector started`);
+      }
+
+      // Start Telegram MTProto collector if enabled
+      const mtprotoClient = createMtprotoClientFromEnv();
+      if (mtprotoClient) {
+        try {
+          await mtprotoClient.connect();
+          const mtprotoCollector = await startMtprotoCollector(mtprotoClient);
+          if (mtprotoCollector) {
+            console.log(`✅ Telegram MTProto collector started`);
+          }
+        } catch (error: any) {
+          console.error(`❌ Failed to start MTProto collector:`, error.message);
+        }
+      }
+    });
+
+    // SIGTERM-compatible graceful shutdown (Cloud Run sends SIGTERM).
+    const onSignal = (signal: string) => {
+      console.log(`\n📴 ${signal} received — shutting down AFI Reactor gracefully...`);
+      shutdownReactor(server)
+        .then(() => {
+          console.log("✅ Clean shutdown complete.");
+          process.exit(0);
+        })
+        .catch((err) => {
+          console.error("❌ Shutdown error:", err);
+          process.exit(1);
+        });
+    };
+    process.once("SIGTERM", () => onSignal("SIGTERM"));
+    process.once("SIGINT", () => onSignal("SIGINT"));
   };
-  process.once("SIGTERM", () => onSignal("SIGTERM"));
-  process.once("SIGINT", () => onSignal("SIGINT"));
+
+  // Unexpected boot failure after registry validation must still be loud:
+  // warm-up steps fail OPEN individually, so anything reaching here is real.
+  void bootAndListen().catch((err) => {
+    console.error("❌ BOOT FAILED:", (err as Error)?.message ?? String(err));
+    process.exit(1);
+  });
 }
