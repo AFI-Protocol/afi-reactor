@@ -65,6 +65,10 @@ export default {
     // Mission R0/R1: active runtime source describes current architecture only
     // (only the current evidence-contract major; exact five-category set).
     "**/test/guardrails/no-stale-current-terminology.test.ts",
+    // TradingView origin hardening: source-IP allowlist for the public
+    // MarkitTick route. The load-bearing case is spoof resistance — a
+    // client-supplied X-Forwarded-For must not impersonate an allowed origin.
+    "**/test/guardrails/sourceIpAllowlist.test.ts",
     // SLOT-FCP-REACTOR stage A: executor core, hashing KATs, vendored-closure
     // drift guard, registry boot validation, graph proofs, node units.
     "**/test/pipeline/**/*.test.ts",
