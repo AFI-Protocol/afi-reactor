@@ -42,6 +42,7 @@ import {
   ORIGIN_MODE_PREFLIGHT,
   type MarkitTickAlertPayload,
 } from "./uss/markitTickMapper.js";
+import { evaluateSourceIp, allowlistFromEnv } from "./utils/sourceIpAllowlist.js";
 import { validateCpjV01 } from "./cpj/cpjValidator.js";
 import { mapCpjToUssV11 } from "./uss/cpjMapper.js";
 import {
@@ -386,6 +387,25 @@ function mapLaneStatus(status: string): string {
 app.post("/api/webhooks/tradingview/markittick", async (req: Request, res: Response) => {
   const t0 = Date.now();
   try {
+    // Source-IP gate FIRST — cheapest rejection, and it must run before the body
+    // is trusted at all. Disabled while the allowlist env var is unset (preflight);
+    // it MUST be enabled before `allUsers` invoker is granted, not after.
+    const ipDecision = evaluateSourceIp(
+      req.headers["x-forwarded-for"],
+      allowlistFromEnv(process.env.AFI_MARKITTICK_ALLOWED_IPS),
+      Number(process.env.AFI_MARKITTICK_XFF_HOPS_FROM_RIGHT ?? 0),
+      req.socket?.remoteAddress
+    );
+    if (!ipDecision.allowed) {
+      // Log the full chain: a wrong hop count and a genuine stranger look
+      // identical from the outside, and only the chain tells them apart.
+      console.warn(
+        `⚠️ MarkitTick webhook rejected (${ipDecision.reason}): ip=${ipDecision.clientIp ?? "unknown"} chain=[${ipDecision.chain.join(" | ")}]`
+      );
+      // Deliberately unspecific: never confirm the allowlist's contents.
+      return res.status(403).json({ error: "forbidden", message: "Forbidden" });
+    }
+
     const rawPayload = req.body as MarkitTickAlertPayload;
     if (!rawPayload || typeof rawPayload !== "object") {
       return res.status(400).json({ error: "invalid_payload", message: "Invalid JSON payload" });
