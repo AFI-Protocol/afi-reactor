@@ -826,9 +826,11 @@ if (process.env.NODE_ENV !== "test") {
     if (warmPriceSource) {
       await warmStep(`price-feed:${warmPriceSource}`, 20_000, async () => {
         // Forces the ccxt module import, exchange construction and loadMarkets.
-        // BTC/USDT:USDT is the governed demo pair and is always listed on BloFin.
+        // NOTE: getOHLCV takes the AFI CANONICAL symbol and applies
+        // toVenueSymbol() itself — passing a venue-formatted symbol here
+        // double-suffixes it ("BTC/USDT:USDT" -> "BTC/USDT:USDT:USDT:USDT").
         const adapter = getPriceFeedAdapter(warmPriceSource);
-        await adapter.getOHLCV({ symbol: "BTC/USDT:USDT", timeframe: "5m", limit: 2 });
+        await adapter.getOHLCV({ symbol: "BTC/USDT", timeframe: "5m", limit: 2 });
       });
     }
 
