@@ -33,8 +33,24 @@ class BloFinPriceFeedAdapter implements PriceFeedAdapter {
   constructor() {
     // Initialize ccxt BloFin exchange
     // Note: ccxt uses lowercase 'blofin' as the exchange ID
+    // PLATFORM FLOOR (perf/platform-floor-v0.1): the limiter stays ON, but its
+    // interval is lowered from ccxt's blofin default of 100ms to 10ms.
+    //
+    // ccxt's throttle is a leaky bucket that NEVER credits idle time
+    // (node_modules/ccxt/js/src/base/functions/throttle.js — leakyBucketLoop
+    // resets lastTimestamp on every re-entry), so `rateLimit` behaves as a fixed
+    // per-call sleep rather than a burst limiter. Measured with zero network
+    // involvement (`await ex.throttle(1)` only): 100ms default → ~100ms sleep on
+    // every call even after seconds of idle; rateLimit:10 → ~10ms. This adapter
+    // feeds the pipeline's ENTRY node, so that sleep blocked all downstream
+    // waves on every scored signal in every analyst configuration.
+    //
+    // 10ms still caps us at ~100 req/s, orders of magnitude above the governed
+    // bar cadence, so the limiter keeps doing its job. Candles are unchanged, so
+    // this is hash-neutral (no effect on ingestHash/recordHash/replayHash).
     this.exchange = new ccxt.blofin({
       enableRateLimit: true, // Respect rate limits
+      rateLimit: 10, // ms between calls (ccxt blofin default is 100)
       // No API keys needed for public endpoints (OHLCV, ticker)
     });
 

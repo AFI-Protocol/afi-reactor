@@ -60,6 +60,29 @@ export function getEvidenceStore(): EvidenceStorePort {
   return cached;
 }
 
+/**
+ * Force the concrete store to finish its LAZY initialisation at boot rather than
+ * on the first scored signal (perf/platform-floor-v0.1).
+ *
+ * afi-infra's store memoizes an initPromise that, on first use, performs a
+ * dynamic `import("mongodb")`, constructs the client, resolves the SRV record,
+ * completes TCP+TLS+SCRAM, discovers the replica-set topology, bootstraps both
+ * collections and their unique indexes, and compiles the v3 schema validator.
+ * That whole sequence used to land on the request path of the first scored
+ * signal after every deploy.
+ *
+ * Deliberately a READ (getBySignalId on a sentinel id that cannot exist), never
+ * a write — it cannot create, mutate, or supersede any evidence record. Returns
+ * quietly when a test store is injected or no concrete store is bound.
+ */
+export async function warmEvidenceStore(): Promise<void> {
+  if (injected) return;
+  getEvidenceStore(); // binds `cachedStore`
+  const store = cachedStore;
+  if (!store) return;
+  await store.getBySignalId("__afi_boot_warmup__");
+}
+
 /** Reset provider state (tests). */
 export function resetEvidenceStore(): void {
   injected = null;
