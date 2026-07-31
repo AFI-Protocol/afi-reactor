@@ -58,7 +58,11 @@ describe("adaptMarkitTickToTradingView — event → direction (v0.1 scope)", ()
     const r = adaptMarkitTickToTradingView(bull());
     expect(r.ok).toBe(true);
     expect(r.direction).toBe("long");
-    expect(r.tvPayload!.symbol).toBe("BTCUSDT");
+    // Normalized to the AFI canonical BASE/QUOTE form. TradingView emits the
+    // concatenated pair; every downstream consumer (incl. BloFin's
+    // parseCanonicalSymbol) requires BASE/QUOTE, so the mapper normalizes here
+    // exactly as the CPJ path already did.
+    expect(r.tvPayload!.symbol).toBe("BTC/USDT");
     expect(r.tvPayload!.timeframe).toBe("5m");
     expect(r.tvPayload!.direction).toBe("long");
     expect(r.tvPayload!.providerId).toBe(MARKITTICK_DEFAULT_PROVIDER_ID);
@@ -102,6 +106,29 @@ describe("adaptMarkitTickToTradingView — event → direction (v0.1 scope)", ()
     expect(r.error!.code).toBe("missing_field");
   });
 
+  // REGRESSION (hosted 500s on every alert): TradingView emits the concatenated
+  // pair, but BloFin's parseCanonicalSymbol requires BASE/QUOTE. The route
+  // passed preflight only because that ran on the demo feed with cached lanes —
+  // against the real price feed the technical lane failed closed every time.
+  it.each([
+    ["BINANCE:BTCUSDT", "BTC/USDT"],
+    ["BINANCE:ETHUSDT", "ETH/USDT"],
+    ["COINBASE:ETHUSD", "ETH/USD"],
+    ["BTC/USDT", "BTC/USDT"],
+    ["BINANCE:1000PEPEUSDT", "1000PEPE/USDT"],
+  ])("normalizes ticker %s to the canonical symbol %s", (ticker, expected) => {
+    const r = adaptMarkitTickToTradingView({ ...bull(), ticker });
+    expect(r.ok).toBe(true);
+    expect(r.tvPayload!.symbol).toBe(expected);
+  });
+
+  it("rejects a ticker that cannot yield a canonical symbol, before it reaches a lane", () => {
+    const r = adaptMarkitTickToTradingView({ ...bull(), ticker: "BINANCE:!!" });
+    expect(r.ok).toBe(false);
+    expect(r.error!.code).toBe("unmappable_symbol");
+    expect(r.tvPayload).toBeUndefined();
+  });
+
   it("honors an explicit providerId and signalId", () => {
     const r = adaptMarkitTickToTradingView({ ...bull(), providerId: "custom_p", signalId: "sig-1" });
     expect(r.tvPayload!.providerId).toBe("custom_p");
@@ -117,7 +144,7 @@ describe("mapMarkitTickToUssV11 — canonical USS + source metadata", () => {
     expect(uss.schema).toBe("afi.usignal.v1.1");
     // facts (additionalProperties:false — only the canonical five keys)
     expect(uss.facts).toMatchObject({
-      symbol: "BTCUSDT",
+      symbol: "BTC/USDT",
       market: "perp",
       timeframe: "5m",
       strategy: "trend_pullback_v1", // the RESOLVED strategyId, never raw payload text
@@ -142,7 +169,7 @@ describe("mapMarkitTickToUssV11 — canonical USS + source metadata", () => {
       event: "bull_cross",
       direction: "long",
       originMode: ORIGIN_MODE_PREFLIGHT,
-      symbol: "BTCUSDT",
+      symbol: "BTC/USDT",
       timeframe: "5m",
       exchange: "BINANCE",
     });

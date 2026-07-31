@@ -23,6 +23,7 @@
  */
 
 import { UssV11Payload } from "./ussValidator.js";
+import { normalizeSymbolStrict } from "./symbolNormalizer.js";
 import {
   mapTradingViewToUssV11,
   type TradingViewAlertPayload,
@@ -68,7 +69,7 @@ const DEFERRED_EVENTS = new Set([
 ]);
 
 export interface MarkitTickReject {
-  code: "missing_field" | "deferred_event" | "unsupported_event";
+  code: "missing_field" | "deferred_event" | "unsupported_event" | "unmappable_symbol";
   message: string;
   detail?: Record<string, unknown>;
 }
@@ -152,7 +153,32 @@ export function adaptMarkitTickToTradingView(
     };
   }
 
-  const { symbol, exchange } = splitTicker(String(payload.ticker));
+  const { symbol: tickerSymbol, exchange } = splitTicker(String(payload.ticker));
+
+  // TradingView emits CONCATENATED pairs ("BTCUSDT"); every downstream consumer
+  // expects the AFI canonical BASE/QUOTE form. The CPJ path has always run its
+  // symbolRaw through normalizeSymbolStrict (cpjMapper.ts) but the TradingView
+  // path never normalized at all, so "BINANCE:BTCUSDT" reached the technical
+  // lane as "BTCUSDT" and BloFin's parseCanonicalSymbol rejected it — the route
+  // 500'd against the real price feed on every alert. It passed preflight only
+  // because that ran on the demo feed with cached lanes.
+  //
+  // Reuses the same tested normalizer as CPJ (handles BTCUSDT -> BTC/USDT,
+  // 1000PEPEUSDT -> 1000PEPE/USDT, hyphen and colon-suffixed forms).
+  const normalized = normalizeSymbolStrict(tickerSymbol, exchange);
+  if (!normalized.success || !normalized.canonical) {
+    return {
+      ok: false,
+      error: {
+        code: "unmappable_symbol",
+        message:
+          `MarkitTick ticker '${payload.ticker}' does not yield a canonical ` +
+          `BASE/QUOTE symbol (got '${tickerSymbol}'): ${normalized.details ?? normalized.error}`,
+        detail: { ticker: String(payload.ticker), symbolRaw: tickerSymbol },
+      },
+    };
+  }
+  const symbol = normalized.canonical;
   const timeframe = normalizeTimeframe(String(payload.tf));
 
   const tvPayload: TradingViewAlertPayload = {
