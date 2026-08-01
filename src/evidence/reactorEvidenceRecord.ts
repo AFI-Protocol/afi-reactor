@@ -222,7 +222,9 @@ export class EvidenceProofViolationError extends ReactorEvidenceConstructionErro
 }
 
 /** Hoist the score surface out of `analystScore` into the InternalScoringResult
- *  carrier shape the projection builder reads (uwrScore/uwrAxes at top level). */
+ *  carrier shape the projection builder reads (uwrScore/uwrAxes at top level),
+ *  carrying the submitted side from `scored.meta.direction` so the record
+ *  projection stays aligned with USS `facts.direction` (DIR-GOV D-DIR-2). */
 function toInternalScoringResult(scored: ReactorScoredSignalV1): InternalScoringResult {
   const analyst = scored.analystScore;
   return {
@@ -231,6 +233,7 @@ function toInternalScoringResult(scored: ReactorScoredSignalV1): InternalScoring
     uwrAxes: analyst.uwrAxes,
     analystScore: analyst,
     scoredAt: scored.scoredAt,
+    direction: scored.meta.direction,
   };
 }
 

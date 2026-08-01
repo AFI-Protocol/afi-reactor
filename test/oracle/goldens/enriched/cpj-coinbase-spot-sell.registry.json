@@ -112,7 +112,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.scored-output",
-        "value": "e19e9b746d0f64adce67ce27459b465ace39d6be49d88e548d65d15b28339eca"
+        "value": "03e31a8e4374c7fc4e4a51c2a8f418902041e2ad64ed1fca62576e7373e36e9d"
       },
       "schema": "afi.provenance-record.v1",
       "schemaVersions": {
@@ -427,20 +427,20 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "8f380e2a5f3f7614e04dc9bd4939a07c0f15608a9c8a8ad633b3561796f1c2ab"
+      "value": "323c0ed410cd4e9c622b2f9b5bf58f0ce87fbcb0ae38a66311caf370be02b650"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "f09a31be0ac6ff09339c2f4acd9803e6a1a6852eab1e8ba4b739e0be77f78886"
+      "value": "1f2a64070a5c5b6026fa1ca966a657c9b8795f8b917b8fba3548fedd56637593"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
       "analystId": "froggy",
       "conviction": 0.5916666666666667,
-      "direction": "neutral",
+      "direction": "short",
       "provenanceRecordRef": "provenance-record:cpj-telegram-oracle-telegram-channel-2-oracle-cpj-msg-0002",
       "providerId": "oracle-telegram-channel-2",
       "riskBucket": "medium",
@@ -710,7 +710,7 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.scored-output",
-    "value": "e19e9b746d0f64adce67ce27459b465ace39d6be49d88e548d65d15b28339eca"
+    "value": "03e31a8e4374c7fc4e4a51c2a8f418902041e2ad64ed1fca62576e7373e36e9d"
   },
   "scorerInput": {
     "atrRegime": "normal",

@@ -113,7 +113,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.scored-output",
-        "value": "cafdbce20a60d141209886829b92b19160758478f7a070bd874681ecd194e2aa"
+        "value": "b1bf028752b11e691c6eb8f785c84af4b86adc92c61526835d8088bd4071a182"
       },
       "schema": "afi.provenance-record.v1",
       "schemaVersions": {
@@ -428,20 +428,20 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "a0a3d93275e6260349f924a725db909249f7626edb3751c1d58a6c1805e5ca00"
+      "value": "1e5bf57aa24aaa91815ce54d1069962d8a23899ac60092a93d10910715a19b8a"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "c8dabc1067ccecc9ea4ff0afe3c19337378485adedf2438117d8261f8827fd62"
+      "value": "9c4600bdb3bff2209c9c1b6b456f91d86f2ab4d2e08c95961a5784e59071e310"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
       "analystId": "froggy",
       "conviction": 0.42500000000000004,
-      "direction": "neutral",
+      "direction": "short",
       "provenanceRecordRef": "provenance-record:oracle-tv-short-0001",
       "providerId": "oracle-provider-tv",
       "riskBucket": "medium",
@@ -660,7 +660,7 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.scored-output",
-    "value": "cafdbce20a60d141209886829b92b19160758478f7a070bd874681ecd194e2aa"
+    "value": "b1bf028752b11e691c6eb8f785c84af4b86adc92c61526835d8088bd4071a182"
   },
   "scorerInput": {
     "atrRegime": "normal",

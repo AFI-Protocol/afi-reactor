@@ -129,7 +129,7 @@ export function buildScoredSignalProjection(
   options: ScoredSignalProjectionOptions
 ): ScoredSignalV1 {
   const analyst = (scored.analystScore ?? {}) as AnalystScoreFields;
-  const direction = analyst.direction;
+  const direction = scored.direction ?? analyst.direction;
   if (direction !== "long" && direction !== "short" && direction !== "neutral") {
     throw new Error(
       `buildScoredSignalProjection: unsupported direction "${String(direction)}"`
