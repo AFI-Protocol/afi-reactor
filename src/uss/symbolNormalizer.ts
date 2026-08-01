@@ -52,6 +52,40 @@ const QUOTE_CURRENCIES = [
 const THOUSAND_STYLE_TOKENS = ["1000PEPE", "1000SHIB", "1000FLOKI", "1000BONK", "1000LUNC"];
 
 /**
+ * TradingView contract-type suffixes, stripped before validation.
+ *
+ * TradingView appends `.P` to perpetual futures tickers — a BloFin BTC/USDT perp
+ * charts as `BTCUSDT.P`, and `{{ticker}}` emits `BLOFIN:BTCUSDT.P`. The suffix is
+ * TradingView's CONTRACT-TYPE notation, not part of the instrument identity: the
+ * canonical AFI form of that instrument is `BTC/USDT`. Stripping it is a rename,
+ * not a reinterpretation.
+ *
+ * Without this, every TradingView perpetual alert fails CONTAINS_FORBIDDEN_CHARS
+ * on the `.` — which rules out the entire perps use case, not an edge case.
+ *
+ * Deliberately an EXPLICIT ALLOWLIST rather than "strip any dotted suffix":
+ * equities legitimately carry dots as part of the identity (BRK.B is a distinct
+ * share class, not a contract type), so a general strip would silently corrupt
+ * them. An unrecognized dotted suffix still fails loudly with a typed error,
+ * which is diagnosable; silent mangling is not. Extend this list as new venues
+ * appear — do not generalize it.
+ *
+ * The untouched `symbolRaw` is preserved on every result, so the originally
+ * emitted ticker survives for provenance.
+ */
+const TRADINGVIEW_CONTRACT_SUFFIXES = [".P"];
+
+/** Strip a known TradingView contract-type suffix, if present. */
+function stripContractSuffix(upper: string): string {
+  for (const suffix of TRADINGVIEW_CONTRACT_SUFFIXES) {
+    if (upper.endsWith(suffix) && upper.length > suffix.length) {
+      return upper.slice(0, -suffix.length);
+    }
+  }
+  return upper;
+}
+
+/**
  * Normalize raw symbol to canonical BASE/QUOTE format with strict validation
  * 
  * Handles:
@@ -60,6 +94,7 @@ const THOUSAND_STYLE_TOKENS = ["1000PEPE", "1000SHIB", "1000FLOKI", "1000BONK", 
  * - Concatenated: BTCUSDT → BTC/USDT
  * - 1000-style: 1000PEPEUSDT → 1000PEPE/USDT
  * - Venue suffixes: BTC/USDT:USDT → BTC/USDT (strips colon suffix)
+ * - TradingView perps: BTCUSDT.P → BTC/USDT (strips contract-type suffix)
  * 
  * @param symbolRaw - Raw symbol from third-party source
  * @param venueHint - Optional venue hint (not currently used, reserved for future)
@@ -69,7 +104,9 @@ export function normalizeSymbolStrict(
   symbolRaw: string,
   venueHint?: string
 ): SymbolNormalizationResult {
-  const upper = symbolRaw.toUpperCase().trim();
+  // Strip TradingView contract-type suffixes (e.g. BTCUSDT.P → BTCUSDT) BEFORE
+  // the forbidden-character check, which rejects the '.' outright.
+  const upper = stripContractSuffix(symbolRaw.toUpperCase().trim());
 
   // Check for forbidden characters (anything not alphanumeric, slash, hyphen, or colon)
   // Note: hyphen must be escaped or at end of character class to avoid range interpretation
