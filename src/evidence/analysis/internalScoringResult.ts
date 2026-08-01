@@ -17,4 +17,14 @@ export interface InternalScoringResult {
   uwrAxes: { structure: number; execution: number; risk: number; insight: number };
   analystScore: unknown; // afi-core AnalystScoreTemplate (verbatim)
   scoredAt: string; // volatile; EXCLUDED from all hashes; never emitted
+  /**
+   * Submitted side, carried verbatim from `scored.meta.direction` (= USS
+   * `facts.direction`). The ScoredSignal projection reads THIS field so the
+   * record satisfies the governed contract "aligned with USS v1.1
+   * facts.direction" (scored-signal.schema.json); when absent, the projection
+   * falls back to `analystScore.direction` (DIR-GOV D-DIR-2(1) binding term —
+   * the analyst's own verdict is a different statement and is never
+   * overwritten, DIR-GOV D-DIR-3).
+   */
+  direction?: "long" | "short" | "neutral";
 }
