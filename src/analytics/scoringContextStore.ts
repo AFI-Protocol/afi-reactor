@@ -91,6 +91,18 @@ export function captureScoringContext(
       uwrResolvedSource?: unknown;
       decayParams?: unknown;
     };
+    // The analytics doc's meta is self-describing about the instrument: the
+    // governed USS fact (facts.market: "perp" | "spot") rides along so
+    // consumers (capture-outcomes) never infer the market from symbol
+    // notation. Analytics-plane projection only — scored.meta itself is
+    // untouched (it feeds the HTTP response, whose bytes goldens pin).
+    const factsMarket = (s.rawUss as { facts?: { market?: unknown } } | undefined)
+      ?.facts?.market;
+    const meta =
+      typeof factsMarket === "string" &&
+      !(scored.meta as Record<string, unknown> | undefined)?.["market"]
+        ? { ...scored.meta, market: factsMarket }
+        : scored.meta;
     await col.updateOne(
       { signalId: scored.signalId },
       {
@@ -102,7 +114,7 @@ export function captureScoringContext(
           route,
           persistenceOutcome,
           scoredAt: scored.scoredAt,
-          meta: scored.meta,
+          meta,
           analystScore: scored.analystScore,
           uwrResolvedSource: s.uwrResolvedSource,
           decayParams: s.decayParams,

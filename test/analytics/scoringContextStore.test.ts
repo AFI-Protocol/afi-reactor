@@ -59,6 +59,44 @@ describe("operational scoring-context capture", () => {
     expect(typeof doc.capturedAt).toBe("string");
   });
 
+  it("projects the governed instrument fact (facts.market) into the doc's meta", async () => {
+    const updates: Array<{ update: unknown }> = [];
+    __setAnalyticsCollectionForTests(async () =>
+      ({
+        updateOne: async (_f: unknown, update: unknown) => {
+          updates.push({ update });
+          return { acknowledged: true };
+        },
+      }) as never
+    );
+
+    const withMarket = scored();
+    (withMarket as unknown as { rawUss: { facts: Record<string, unknown> } }).rawUss = {
+      facts: { direction: "long", market: "perp" },
+    };
+    await captureScoringContext(withMarket, { outcome: "inserted" }, "markittick");
+
+    const doc = (updates[0].update as { $setOnInsert: Record<string, unknown> }).$setOnInsert;
+    expect(doc.meta).toMatchObject({ symbol: "BTC/USDT.P", market: "perp" });
+  });
+
+  it("leaves meta untouched when the USS carries no market fact", async () => {
+    const updates: Array<{ update: unknown }> = [];
+    __setAnalyticsCollectionForTests(async () =>
+      ({
+        updateOne: async (_f: unknown, update: unknown) => {
+          updates.push({ update });
+          return { acknowledged: true };
+        },
+      }) as never
+    );
+
+    await captureScoringContext(scored(), { outcome: "inserted" }, "markittick");
+
+    const doc = (updates[0].update as { $setOnInsert: Record<string, unknown> }).$setOnInsert;
+    expect(doc.meta).not.toHaveProperty("market");
+  });
+
   it("FAIL-OPEN: a throwing store resolves (never rejects) and logs a warning", async () => {
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
     __setAnalyticsCollectionForTests(async () =>
