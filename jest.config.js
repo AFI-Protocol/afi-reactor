@@ -81,6 +81,9 @@ export default {
     // run (non-skippable); only the real-Mongo half lives in the gated
     // test:oracle:mongo script (repo IT convention).
     "**/test/oracle/*.test.ts",
+    // Operational analytics plane (fail-open capture; NEVER evidence code —
+    // MONGO-GOV D-MONGO-4).
+    "**/test/analytics/*.test.ts",
   ],
   testPathIgnorePatterns: [
     "<rootDir>/dist/",

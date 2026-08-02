@@ -71,6 +71,7 @@ import {
   ReactorEvidencePersistenceError,
   closeEvidenceStore,
 } from "./evidence/index.js";
+import { captureScoringContext } from "./analytics/scoringContextStore.js";
 import { startTelegramCollector } from "./collectors/telegram/telegramCollector.js";
 import { createMtprotoClientFromEnv } from "./collectors/telegram_mtproto/mtprotoClient.js";
 import { startMtprotoCollector } from "./collectors/telegram_mtproto/mtprotoCollector.js";
@@ -334,6 +335,9 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
       invocations: run.invocations,
     });
 
+    // Operational analytics capture — fail-open, never awaited (D-MONGO-4).
+    void captureScoringContext(run.scored, persistence, "tradingview-webhook");
+
     return res.status(200).json({ ...run.scored, persistence });
   } catch (err: any) {
     return respondWithFailure(res, err, "Error processing TradingView webhook");
@@ -492,6 +496,9 @@ app.post("/api/webhooks/tradingview/markittick", async (req: Request, res: Respo
         reason: "AFI_MARKITTICK_PERSIST=false (persistence excluded by config for this run)",
       };
     }
+
+    // Operational analytics capture — fail-open, never awaited (D-MONGO-4).
+    void captureScoringContext(run.scored, persistence, "markittick");
 
     const totalLatencyMs = Date.now() - t0;
     const selectedProfileId = `${run.registration.analystId}/${run.registration.strategyId}@${run.registration.strategyVersion}`;
@@ -731,6 +738,9 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
       registration: run.registration,
       invocations: run.invocations,
     });
+
+    // Operational analytics capture — fail-open, never awaited (D-MONGO-4).
+    void captureScoringContext(pipelineResult, persistence, "cpj");
 
     // Return result
     return res.status(200).json({
