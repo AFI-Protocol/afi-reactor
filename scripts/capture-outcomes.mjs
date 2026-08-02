@@ -47,10 +47,24 @@ for (const h of HORIZONS) {
   }
 }
 
-/** "BTC/USDT.P" → Blofin swap "BTC/USDT:USDT"; spot passes through. */
-function toCcxtSymbol(symbol) {
+/**
+ * Governed-fact symbol translation: the USS records the instrument kind
+ * (facts.market: "perp" | "spot"), captured into the analytics doc's
+ * meta.market (and always present under rawUss.facts.market on older docs).
+ * ccxt's unified naming makes the bare pair mean SPOT ("BTC/USDT") and the
+ * USDT-margined swap "BTC/USDT:USDT" — so the market fact, never symbol
+ * notation, decides the translation. No market fact → null (honest skip).
+ * The legacy ".P" suffix (TradingView perp notation) is still honored.
+ */
+function toCcxtSymbol(symbol, market) {
   if (typeof symbol !== "string" || !symbol.includes("/")) return null;
-  return symbol.endsWith(".P") ? `${symbol.slice(0, -2)}:USDT` : symbol;
+  if (symbol.endsWith(".P")) return `${symbol.slice(0, -2)}:USDT`;
+  if (market === "perp") {
+    const quote = symbol.split("/")[1];
+    return quote === "USDT" ? `${symbol}:USDT` : null;
+  }
+  if (market === "spot") return symbol;
+  return null;
 }
 
 const client = new MongoClient(URI);
@@ -64,11 +78,15 @@ const exchange = new ccxt.blofin({ enableRateLimit: true });
 const now = Date.now();
 let written = 0, skipped = 0, failed = 0;
 
-const cursor = contexts.find({}, { projection: { signalId: 1, capturedAt: 1, meta: 1 } });
+const cursor = contexts.find(
+  {},
+  { projection: { signalId: 1, capturedAt: 1, meta: 1, "rawUss.facts.market": 1 } }
+);
 for await (const ctx of cursor) {
   const capturedMs = Date.parse(ctx.capturedAt);
   if (!Number.isFinite(capturedMs)) { skipped++; continue; }
-  const ccxtSymbol = toCcxtSymbol(ctx.meta?.symbol);
+  const market = ctx.meta?.market ?? ctx.rawUss?.facts?.market;
+  const ccxtSymbol = toCcxtSymbol(ctx.meta?.symbol, market);
   if (!ccxtSymbol) { skipped++; continue; }
 
   for (const horizon of HORIZONS) {
