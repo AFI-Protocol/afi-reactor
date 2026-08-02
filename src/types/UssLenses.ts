@@ -49,6 +49,17 @@ export interface TechnicalLensV1 extends UssLens {
     emaDistancePct?: number;
     /** Whether price is in "sweet spot" (within 1% of EMA-20) */
     isInValueSweetSpot?: boolean;
+    /**
+     * ATR-percentile volatility regime (AR-GOV D-AR-2 closed vocabulary).
+     * Absent when the in-window observation series is too thin.
+     */
+    atrRegime?: "low" | "normal" | "high" | "extreme";
+    /**
+     * Sealed one-decimal midrank percentile of the latest ATR-14 within the
+     * in-window series — the AR-GOV D-AR-2 bucket law's exact input, making
+     * every atrRegime classification auditable against these bytes.
+     */
+    atrPercentile?: number;
   };
 }
 

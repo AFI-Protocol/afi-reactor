@@ -40,6 +40,12 @@ export interface IndicatorBundle {
   rsi?: Record<number, number>;
   /** Average True Range by period (Wilder's smoothed) */
   atr?: Record<number, number>;
+  /**
+   * Per-candle stable ATR observation series by period (chronological; the
+   * last member equals atr[period]). Retained for the AR-GOV D-AR-2 in-window
+   * percentile law; never emitted on a lens payload directly.
+   */
+  atrSeries?: Record<number, number[]>;
   // Future additions:
   // macd?: { value: number; signal: number; histogram: number };
   // bollinger?: { upper: number; middle: number; lower: number; width: number };
@@ -113,16 +119,23 @@ export function computeIndicatorBundle(
     }
   }
 
-  // Compute ATRs (Wilder's smoothed method)
+  // Compute ATRs (Wilder's smoothed method), retaining the stable per-candle
+  // observation series (AR-GOV D-AR-2: the in-window percentile's input).
   if (config.atr && config.atr.length > 0) {
     bundle.atr = {};
+    bundle.atrSeries = {};
     for (const period of config.atr) {
       const atr = new ATR(period);
+      const series: number[] = [];
       for (const candle of candles) {
         atr.update({ high: candle.high, low: candle.low, close: candle.close }, false); // false = append mode
+        if (atr.isStable) {
+          series.push(atr.getResult().valueOf());
+        }
       }
       if (atr.isStable) {
         bundle.atr[period] = atr.getResult().valueOf();
+        bundle.atrSeries[period] = series;
       }
     }
   }

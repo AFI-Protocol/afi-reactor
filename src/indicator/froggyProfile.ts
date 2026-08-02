@@ -60,6 +60,12 @@ export interface FroggyIndicatorBundle {
   rsi14: number;
   /** Average True Range (14-period) - volatility measure */
   atr14: number;
+  /**
+   * Chronological stable ATR-14 observation series over the fetched window
+   * (last member equals atr14). Input to the AR-GOV D-AR-2 percentile law;
+   * never emitted on a lens payload directly.
+   */
+  atrSeries14: number[];
 }
 
 /**
@@ -100,6 +106,6 @@ export function computeFroggyBundle(
     return null;
   }
 
-  return { ema20, ema50, rsi14, atr14 };
+  return { ema20, ema50, rsi14, atr14, atrSeries14: bundle.atrSeries?.[14] ?? [] };
 }
 

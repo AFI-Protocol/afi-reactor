@@ -189,6 +189,7 @@ describe("projectDecimalFieldsForHash", () => {
       "ema50",
       "rsi14",
       "atr14",
+      "atrPercentile", // AR-GOV D-AR-4(3)(a): the sealed one-decimal percentile
       "emaDistancePct",
       "patternConfidence",
       "score",
