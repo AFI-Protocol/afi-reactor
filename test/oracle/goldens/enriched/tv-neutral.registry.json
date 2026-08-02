@@ -89,7 +89,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "5384e1c08ce4bd7f533acc15487df81d7d37b6615d109d611bde968a81f2f386"
+        "value": "e10cf9eeaa0b1878e970dddfcccce7371a946bd0a4079141ed70a857815bfb9f"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -428,14 +428,14 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "1aad0dccc5ebe2b3d71e3e7b3bc7b65e95d2c8c1f9e725f32bb131c82e78ac0b"
+      "value": "97b86f83928970428509dc522bb198227e11ca447bbec5735c5ff45a45959bd7"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "16c1a7b0e55326d3329c8fc5cc7b7939c0d769d04148316d927f62c627f1cac8"
+      "value": "eca179f0e4bb9bdd644449a663b5b837be8c512efdf8bd4f1e5757f11c5ae686"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
