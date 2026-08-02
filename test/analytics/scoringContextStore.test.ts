@@ -10,7 +10,6 @@
 import { describe, it, expect, afterEach, jest } from "@jest/globals";
 import {
   captureScoringContext,
-  closeAnalyticsClient,
   __setAnalyticsCollectionForTests,
 } from "../../src/analytics/scoringContextStore.js";
 import type { ReactorScoredSignalV1 } from "../../src/types/ReactorScoredSignalV1.js";
@@ -27,9 +26,8 @@ function scored(): ReactorScoredSignalV1 {
   } as unknown as ReactorScoredSignalV1;
 }
 
-afterEach(async () => {
+afterEach(() => {
   __setAnalyticsCollectionForTests(null);
-  await closeAnalyticsClient();
 });
 
 describe("operational scoring-context capture", () => {

@@ -16,6 +16,13 @@
  *    canonical persistence. Every failure is logged and swallowed.
  *  - This module must never import from src/evidence/ and no evidence code
  *    may depend on it.
+ *
+ * LIFECYCLE: a SHORT-LIVED MongoClient per capture (connect → upsert → close
+ * in finally). A persistent client here once kept the event loop alive after
+ * in-process harnesses (the CI compiled-build Mongo integration imports the
+ * server and never signals shutdown), hanging the process at exit. Capture is
+ * off the hot path and alert-rate-bounded, so per-write connections are the
+ * correct trade: zero lifecycle coupling beats pooling.
  */
 import { MongoClient, type Collection, type Document } from "mongodb";
 import type { ReactorScoredSignalV1 } from "../types/ReactorScoredSignalV1.js";
@@ -28,7 +35,8 @@ const DEFAULT_DB = "afi_signal_analytics";
 export const SCORING_CONTEXT_COLLECTION = "scoring_context";
 export const SIGNAL_OUTCOMES_COLLECTION = "signal_outcomes";
 
-let client: MongoClient | null = null;
+// Index bootstrap happens at most once per process; per-write clients make
+// this a flag, not a client-lifetime concern.
 let indexEnsured = false;
 
 /** Test seam: replace the collection factory (never used in production). */
@@ -45,20 +53,24 @@ function enabled(): boolean {
   return collectionFactory !== null || Boolean(process.env[URI_ENV]);
 }
 
-async function contextCollection(): Promise<Collection<Document>> {
-  if (collectionFactory) return collectionFactory();
-  if (!client) {
-    client = new MongoClient(process.env[URI_ENV] as string);
+async function withContextCollection<T>(
+  fn: (col: Collection<Document>) => Promise<T>
+): Promise<T> {
+  if (collectionFactory) return fn(await collectionFactory());
+  const client = new MongoClient(process.env[URI_ENV] as string);
+  try {
     await client.connect();
+    const col = client
+      .db(process.env[ANALYTICS_DB_ENV] || DEFAULT_DB)
+      .collection(SCORING_CONTEXT_COLLECTION);
+    if (!indexEnsured) {
+      await col.createIndex({ signalId: 1 }, { unique: true, name: "signalId_unique" });
+      indexEnsured = true;
+    }
+    return await fn(col);
+  } finally {
+    await client.close().catch(() => {});
   }
-  const col = client
-    .db(process.env[ANALYTICS_DB_ENV] || DEFAULT_DB)
-    .collection(SCORING_CONTEXT_COLLECTION);
-  if (!indexEnsured) {
-    await col.createIndex({ signalId: 1 }, { unique: true, name: "signalId_unique" });
-    indexEnsured = true;
-  }
-  return col;
 }
 
 /**
@@ -71,8 +83,7 @@ export function captureScoringContext(
   route: string
 ): Promise<void> {
   if (!enabled()) return Promise.resolve();
-  return (async () => {
-    const col = await contextCollection();
+  return withContextCollection(async (col) => {
     const s = scored as ReactorScoredSignalV1 & {
       lenses?: unknown;
       rawUss?: unknown;
@@ -102,23 +113,14 @@ export function captureScoringContext(
       },
       { upsert: true }
     );
-  })().catch((err: unknown) => {
-    // FAIL-OPEN: analytics loss is acceptable; scoring impact is not.
-    console.warn("[analytics] scoring-context capture failed (ignored)", {
-      signalId: scored.signalId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  });
-}
-
-/** For graceful shutdown paths/tests; never throws. */
-export async function closeAnalyticsClient(): Promise<void> {
-  const c = client;
-  client = null;
-  indexEnsured = false;
-  try {
-    await c?.close();
-  } catch {
-    /* fail-open */
-  }
+  }).then(
+    () => undefined,
+    (err: unknown) => {
+      // FAIL-OPEN: analytics loss is acceptable; scoring impact is not.
+      console.warn("[analytics] scoring-context capture failed (ignored)", {
+        signalId: scored.signalId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  );
 }
