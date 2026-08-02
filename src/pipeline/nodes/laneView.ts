@@ -2,15 +2,19 @@
  * Shared lane-result → FroggyEnrichedView projection helpers (FLPR-GOV).
  *
  * The ONE source of truth for mapping governed category results
- * (afi.enrichment.<lane>.v1) into the analyst-facing view fields. Used by the
- * five-category merge node AND by the aiMl adapter's service-input projection,
- * so the two can never drift apart (no duplicate normalization logic).
+ * (afi.enrichment.<lane>.v1) into the analyst-facing view fields. Sole
+ * consumer: the five-category merge node (mergeEnrichedView).
  *
  * These are pure functions over validated governed results. They contain no
  * vendor logic, no I/O, and no scoring: the scorer-visible values they carry
  * (technical.emaDistancePct / isInValueSweetSpot / brokeEmaWithBody=false,
  * pattern.patternName / patternConfidence, sentiment.tags) are projected
- * byte-identically to the pre-activation runtime.
+ * byte-identically to the pre-activation runtime. The view ADDITIONALLY
+ * carries projected-but-unread lane context (technical.atr14 / trendBias,
+ * pattern.structureBias / trendPullbackConfirmed): no adapter or scorer input
+ * reads them, the view feeds no hash preimage and no golden bytes, so they
+ * change view shape, never scored values — reading any of them in the adapter
+ * is a separately governed change.
  */
 import type { FroggyEnrichedView } from "afi-core/analysts/froggy.enrichment_adapter.js";
 import type { TechnicalLensV1 } from "../../types/UssLenses.js";
@@ -72,6 +76,8 @@ export function viewTechnical(
       ema_50: payload.ema50,
       volume_ratio: payload.volumeRatio,
     },
+    atr14: payload.atr14,
+    trendBias: payload.trendBias,
   };
 }
 
@@ -88,6 +94,12 @@ export function viewPattern(
   return {
     patternName: payload.candlestick.patternName,
     patternConfidence: payload.candlestick.patternConfidence,
+    ...(payload.candlestick.structureBias !== undefined
+      ? { structureBias: payload.candlestick.structureBias }
+      : {}),
+    ...(payload.candlestick.trendPullbackConfirmed !== undefined
+      ? { trendPullbackConfirmed: payload.candlestick.trendPullbackConfirmed }
+      : {}),
   };
 }
 

@@ -831,21 +831,26 @@ describe("FLPR-GOV — laneView projections + inertness", () => {
     }
   });
 
-  it("viewTechnical pins brokeEmaWithBody=false and preserves the scorer-visible renames", () => {
-    const view = viewTechnical({ emaDistancePct: 1.2, isInValueSweetSpot: true, rsi14: 55, ema20: 100, ema50: 98, volumeRatio: 1.1, trendBias: "bullish" } as never)!;
+  it("viewTechnical pins brokeEmaWithBody=false, preserves the scorer-visible renames, and projects the unread context fields", () => {
+    const view = viewTechnical({ emaDistancePct: 1.2, isInValueSweetSpot: true, rsi14: 55, ema20: 100, ema50: 98, volumeRatio: 1.1, atr14: 42.5, trendBias: "bullish" } as never)!;
     expect(view).toEqual({
       emaDistancePct: 1.2,
       isInValueSweetSpot: true,
       brokeEmaWithBody: false,
       indicators: { rsi: 55, ema_20: 100, ema_50: 98, volume_ratio: 1.1 },
+      atr14: 42.5,
+      trendBias: "bullish",
     });
   });
 
-  it("viewPattern carries EXACTLY the two scorer-visible candlestick fields; absent block → undefined", () => {
+  it("viewPattern carries the two scorer-visible candlestick fields plus the unread context fields when present; absent block → undefined", () => {
     expect(viewPattern({ series: { seriesId: "s", length: 1, indexBasis: "position" }, motifs: [], discords: [], changePoints: [], pivots: [] })).toBeUndefined();
     expect(
       viewPattern({ series: { seriesId: "s", length: 1, indexBasis: "position" }, motifs: [], discords: [], changePoints: [], pivots: [], candlestick: { patternName: "pin bar", patternConfidence: 65 } })
     ).toEqual({ patternName: "pin bar", patternConfidence: 65 });
+    expect(
+      viewPattern({ series: { seriesId: "s", length: 1, indexBasis: "position" }, motifs: [], discords: [], changePoints: [], pivots: [], candlestick: { patternName: "pin bar", patternConfidence: 65, structureBias: "higher-highs", trendPullbackConfirmed: true } })
+    ).toEqual({ patternName: "pin bar", patternConfidence: 65, structureBias: "higher-highs", trendPullbackConfirmed: true });
   });
 
   it("viewAiMl maps the governed forecast to the analyst view shape", () => {
@@ -881,6 +886,25 @@ describe("FLPR-GOV — laneView projections + inertness", () => {
     const b = buildFroggyTrendPullbackInputFromEnriched(variant);
     expect(a).toEqual(b);
     expect(a.liquiditySwept).toBe(false);
+  });
+
+  it("SCORER-INPUT INERTNESS: the projected-but-unread lane context fields cannot move the analyst input", () => {
+    const base: FroggyEnrichedView = {
+      signalId: "sig-1",
+      symbol: "BTC/USDT",
+      market: "perp",
+      timeframe: "1h",
+      technical: { emaDistancePct: 1.5, isInValueSweetSpot: true, brokeEmaWithBody: false, indicators: { rsi: 50 } },
+      pattern: { patternName: "bullish engulfing", patternConfidence: 75 },
+    } as FroggyEnrichedView;
+    const withContext: FroggyEnrichedView = {
+      ...base,
+      technical: { ...base.technical, atr14: 999.9, trendBias: "bearish" },
+      pattern: { ...base.pattern, structureBias: "lower-lows", trendPullbackConfirmed: true },
+    } as FroggyEnrichedView;
+    expect(buildFroggyTrendPullbackInputFromEnriched(withContext)).toEqual(
+      buildFroggyTrendPullbackInputFromEnriched(base)
+    );
   });
 });
 
