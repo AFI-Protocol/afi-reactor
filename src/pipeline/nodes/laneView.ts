@@ -78,6 +78,9 @@ export function viewTechnical(
     },
     atr14: payload.atr14,
     trendBias: payload.trendBias,
+    // AR-GOV D-AR-3: the regime is projected AND read by the adapter (unlike
+    // the four context-only fields above/below it).
+    atrRegime: payload.atrRegime,
   };
 }
 

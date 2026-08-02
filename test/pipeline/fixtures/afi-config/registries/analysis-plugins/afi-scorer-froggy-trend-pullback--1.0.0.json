@@ -2,7 +2,7 @@
   "schema": "afi.analysis-plugin.v1",
   "pluginId": "afi-scorer-froggy-trend-pullback",
   "pluginVersion": "1.0.0",
-  "implementationVersion": "1.1.0",
+  "implementationVersion": "1.2.0",
   "category": "scorer",
   "description": "Official froggy trend-pullback scorer plugin manifest: the single scoring seam of the froggy-trend-pullback pipeline. Consumes the AI/ML-augmented enriched view and produces the scored output on deterministic kernels; performs the sole VALIDATED->SCORED transition in the consuming runtime (LIFE-GOV transition monopoly).",
   "inputSchemaRef": "afi.enrichment.aiml.v1",

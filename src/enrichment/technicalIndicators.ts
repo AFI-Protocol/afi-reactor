@@ -30,6 +30,42 @@ import { computeFroggyBundle } from "../indicator/froggyProfile.js";
  * @param candles - Array of OHLCV candles (oldest first)
  * @returns TechnicalLensV1 payload or null
  */
+/**
+ * AR-GOV D-AR-2: the ATR-percentile regime law.
+ *
+ * p = midrank percentile of the latest ATR-14 within the in-window stable
+ * observation series, 100 * (count(obs < latest) + 0.5 * count(obs = latest)) / N,
+ * ROUNDED HALF-UP TO ONE DECIMAL. The rounded value is both the sealed
+ * `atrPercentile` byte and the bucket law's input (classifications audit
+ * exactly against sealed lane bytes): p < 25 -> low; 25 <= p <= 75 -> normal;
+ * 75 < p <= 95 -> high; p > 95 -> extreme. Fewer than 20 observations ->
+ * null (the lane emits no regime fields; unreachable in the composed
+ * pipeline behind the 50-candle kernel floor — defensive law).
+ */
+export function computeAtrRegime(
+  atrSeries: number[]
+): { atrPercentile: number; atrRegime: "low" | "normal" | "high" | "extreme" } | null {
+  if (atrSeries.length < 20) return null;
+  const latest = atrSeries[atrSeries.length - 1];
+  let below = 0;
+  let equal = 0;
+  for (const obs of atrSeries) {
+    if (obs < latest) below++;
+    else if (obs === latest) equal++;
+  }
+  const raw = (100 * (below + 0.5 * equal)) / atrSeries.length;
+  const atrPercentile = Math.round(raw * 10) / 10; // half-up to one decimal
+  const atrRegime =
+    atrPercentile < 25
+      ? ("low" as const)
+      : atrPercentile <= 75
+        ? ("normal" as const)
+        : atrPercentile <= 95
+          ? ("high" as const)
+          : ("extreme" as const);
+  return { atrPercentile, atrRegime };
+}
+
 export function computeTechnicalEnrichment(
   candles: AfiCandle[]
 ): TechnicalLensV1["payload"] | null {
@@ -82,6 +118,11 @@ export function computeTechnicalEnrichment(
       candles.slice(-20).reduce((sum, c) => sum + c.volume, 0) / 20;
     const volumeRatio = latestCandle.volume / avgVolume;
 
+    // AR-GOV D-AR-2: the governed volatility-regime observation (closed
+    // vocabulary + sealed one-decimal percentile); absent when the series is
+    // too thin, never a guess.
+    const regime = computeAtrRegime(bundle.atrSeries14);
+
     return {
       ema20,
       ema50,
@@ -91,6 +132,9 @@ export function computeTechnicalEnrichment(
       volumeRatio,
       emaDistancePct,
       isInValueSweetSpot,
+      ...(regime !== null
+        ? { atrRegime: regime.atrRegime, atrPercentile: regime.atrPercentile }
+        : {}),
     };
   } catch (error) {
     console.error("❌ Technical enrichment failed:", error);

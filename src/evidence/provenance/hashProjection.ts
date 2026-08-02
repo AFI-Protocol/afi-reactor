@@ -58,6 +58,7 @@ export const ENRICHMENT_DECIMAL_KEYS = [
   "ema50",
   "rsi14",
   "atr14",
+  "atrPercentile",
   "emaDistancePct",
   "patternConfidence",
   "score",
