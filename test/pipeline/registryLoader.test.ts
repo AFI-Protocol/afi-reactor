@@ -93,7 +93,7 @@ describe("validateRuntimeConfig — positive resolution over the fixture registr
       "e34471dec8dd3b8fcf0e5576765e469aec1a89f77af6b693ef3c06fc4200bbad"
     );
     expect(froggy.pluginSetHash.value).toBe(
-      "5384e1c08ce4bd7f533acc15487df81d7d37b6615d109d611bde968a81f2f386"
+      "e10cf9eeaa0b1878e970dddfcccce7371a946bd0a4079141ed70a857815bfb9f"
     );
     expect(froggy.decay).toEqual({ kind: "template", templateId: "decay-swing-v1" });
     expect(froggy.plugins.size).toBe(7);
