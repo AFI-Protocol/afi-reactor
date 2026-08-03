@@ -101,7 +101,7 @@ if (CUTOVER_MS > Date.now() && !args.includes("--allow-legacy-law")) {
 
 const exchange = new ccxt.blofin({ enableRateLimit: true });
 const now = Date.now();
-let written = 0, skipped = 0, failed = 0, mixedLaw = 0;
+let written = 0, skipped = 0, failed = 0, mixedLaw = 0, skippedRetired = 0;
 
 const cursor = contexts.find(
   {},
@@ -115,6 +115,8 @@ for await (const ctx of cursor) {
   if (!ccxtSymbol) { skipped++; continue; }
 
   const plan = resolveHorizonPlan(ctx, { overrideMinutes, cutoverIso: DH_CUTOVER_ISO });
+  // DHP-GOV D-DHP-1: pre-cutover / unstamped docs are never captured.
+  if (plan === null) { skippedRetired++; continue; }
 
   for (const { label: horizon, minutes, fractionOfHalfLife } of plan.horizons) {
     const horizonMs = minutes * 60_000;
@@ -199,4 +201,4 @@ for await (const ctx of cursor) {
 }
 
 await client.close();
-console.log(`done: ${written} written, ${skipped} skipped (not due / already captured / unmappable), ${failed} failed, ${mixedLaw} mixed-law label collisions`);
+console.log(`done: ${written} written, ${skipped} skipped (not due / already captured / unmappable), ${skippedRetired} skipped (pre-cutover/unstamped — retired law, never captured), ${failed} failed, ${mixedLaw} mixed-law label collisions`);

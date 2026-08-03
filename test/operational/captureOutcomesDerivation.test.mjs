@@ -74,28 +74,21 @@ eq(
 );
 eq(
   resolveHorizonPlan({ ...intradayCtx, capturedAt: "2026-08-03T23:59:59.999Z" }, { cutoverIso: CUT }),
-  {
-    basis: "legacy-global",
-    horizons: [
-      { label: "1h", minutes: 60 },
-      { label: "4h", minutes: 240 },
-      { label: "24h", minutes: 1440 },
-    ],
-  },
-  "pre-cutover doc stays on the legacy global set (D-DH-2(3))"
+  null,
+  "pre-cutover doc is NEVER captured (DHP-GOV D-DHP-1, retired legacy law)"
 );
 eq(
-  resolveHorizonPlan({ capturedAt: "2026-08-04T01:00:00.000Z" }, { cutoverIso: CUT }).basis,
-  "legacy-global",
-  "absent decayParams falls back to legacy (D-DH-2(4))"
+  resolveHorizonPlan({ capturedAt: "2026-08-04T01:00:00.000Z" }, { cutoverIso: CUT }),
+  null,
+  "absent decayParams -> skip, never legacy (D-DHP-1)"
 );
 eq(
   resolveHorizonPlan(
     { capturedAt: "2026-08-04T01:00:00.000Z", decayParams: { halfLifeMinutes: -1, greeksTemplateId: "x" } },
     { cutoverIso: CUT }
-  ).basis,
-  "legacy-global",
-  "malformed half-life falls back to legacy (D-DH-2(4))"
+  ),
+  null,
+  "malformed half-life -> skip, never legacy (D-DHP-1)"
 );
 eq(
   resolveHorizonPlan(intradayCtx, { overrideMinutes: [10, 25], cutoverIso: CUT }),
@@ -117,14 +110,14 @@ eq(
   "swing-stamped doc would derive 3h/6h/12h (stamped-value law)"
 );
 eq(
-  resolveHorizonPlan(intradayCtx, { cutoverIso: "not-a-date" }).basis,
-  "legacy-global",
-  "unparseable cutover fails CLOSED to legacy law (NaN-safe guard, D-DH-2(3))"
+  resolveHorizonPlan(intradayCtx, { cutoverIso: "not-a-date" }),
+  null,
+  "unparseable cutover fails CLOSED to skip (NaN-safe guard)"
 );
 eq(
-  resolveHorizonPlan(intradayCtx, { cutoverIso: "9999-01-01T00:00:00Z" }).basis,
-  "legacy-global",
-  "far-future placeholder cutover keeps everything on legacy law (fail-safe)"
+  resolveHorizonPlan(intradayCtx, { cutoverIso: "9999-01-01T00:00:00Z" }),
+  null,
+  "future cutover skips everything (fail-safe: no capture rather than wrong law)"
 );
 
 // --- D-DH-4(1) selectWindow head assertion ---
