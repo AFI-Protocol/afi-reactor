@@ -20,8 +20,9 @@ const HOUR_MIN = 60;
  */
 export const DH_CUTOVER_ISO = "2026-08-03T06:31:14Z";
 
-/** Legacy global horizon set (pre-DH-GOV law; also the defensive fallback). */
-export const LEGACY_HORIZON_MINUTES = [60, 240, 1440];
+// DHP-GOV (owner ruling 2026-08-03, "Purge"): the legacy global horizon set
+// is RETIRED. Pre-cutover, unstamped, or malformed docs are never captured —
+// one law on the books, no dual-law data.
 
 /**
  * D-DH-2(1): {ceil(H/4), ceil(H/2), H} minutes from the stamped half-life.
@@ -52,10 +53,12 @@ export function parseHorizonLabel(label) {
 
 /**
  * Resolve the horizon plan for one scoring-context doc.
- * Returns { basis, horizons: [{label, minutes, fractionOfHalfLife?}], decayRef? }.
+ * Returns { basis, horizons: [{label, minutes, fractionOfHalfLife?}], decayRef? }
+ * or NULL meaning "never capture this doc" (DHP-GOV):
  *  - operator override (explicit --horizons) wins outright;
- *  - docs captured before the cutover, or with an unusable decay stamp,
- *    fall back to the legacy global set (D-DH-2(3)/(4));
+ *  - docs captured before the cutover, or with an absent/malformed decay
+ *    stamp, or under an unparseable cutover, are SKIPPED — the retired
+ *    legacy law is never applied (D-DHP-1);
  *  - otherwise horizons derive from the stamped decayParams (D-DH-2(1)).
  */
 export function resolveHorizonPlan(ctx, { overrideMinutes = null, cutoverIso = DH_CUTOVER_ISO } = {}) {
@@ -70,17 +73,13 @@ export function resolveHorizonPlan(ctx, { overrideMinutes = null, cutoverIso = D
   const half = ctx?.decayParams?.halfLifeMinutes;
   const templateId = ctx?.decayParams?.greeksTemplateId;
   const derived = deriveHorizonMinutes(half);
-  // Fail-closed (D-DH-2(3)): derivation requires a PARSEABLE cutover the doc
-  // is at-or-after. An unparseable cutover (NaN) must send everything to the
-  // legacy branch — `capturedMs >= NaN` is false, so the guard below is
-  // NaN-safe by construction; callers (the capture script) additionally
-  // refuse to run at all on an unparseable DH_CUTOVER_ISO.
+  // Fail-closed: derivation requires a PARSEABLE cutover the doc is at-or-
+  // after (`capturedMs >= NaN` is false, so an unparseable cutover skips
+  // everything; the capture script additionally refuses to run at all on an
+  // unparseable DH_CUTOVER_ISO).
   const atOrAfterCutover = Number.isFinite(cutoverMs) && capturedMs >= cutoverMs;
   if (!Number.isFinite(capturedMs) || !atOrAfterCutover || derived === null || typeof templateId !== "string") {
-    return {
-      basis: "legacy-global",
-      horizons: LEGACY_HORIZON_MINUTES.map((m) => ({ label: horizonLabel(m), minutes: m })),
-    };
+    return null;
   }
   const fractions = [0.25, 0.5, 1];
   return {
