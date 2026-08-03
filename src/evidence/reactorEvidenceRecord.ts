@@ -105,8 +105,19 @@ export interface EvidenceInvocationCapture {
   /** category -> the category result the analyst path ACTUALLY consumed. */
   laneResults: Partial<Record<AnalysisCategory, unknown>>;
   laneBindings: LaneBindingExpectation[];
-  /** The registration-resolved decay identity (binds via analystConfigHash). */
-  decay: { halfLifeMinutes: number; greeksTemplateId: string };
+  /**
+   * The registration-resolved decay identity (binds via analystConfigHash) —
+   * for ratio-form registrations this is the per-signal resolution of the
+   * declared law over the signal's facts.timeframe (TDR-GOV D-TDR-3(4)); the
+   * optional fields are present exactly on ratio-law stamps.
+   */
+  decay: {
+    halfLifeMinutes: number;
+    greeksTemplateId: string;
+    barsPerHalfLife?: number;
+    timeframeMinutes?: number;
+    timeframeAssumed?: boolean;
+  };
 }
 
 /**
@@ -599,14 +610,19 @@ export function buildReactorEvidenceRecord(
     );
   }
 
-  // Decay identity (D-EV3-5(3)): the runtime decay params MUST equal the
-  // registration-resolved values (they bind via analystConfigHash — asserted
-  // explicitly, fail closed).
+  // Decay identity (D-EV3-5(3), TDR-GOV D-TDR-3(4) reading): the runtime
+  // decay params MUST equal the registration-resolved values — for ratio-form
+  // registrations, the one per-signal resolution of the declared law over the
+  // signal's facts.timeframe — on EVERY field of the stamp (they bind via
+  // analystConfigHash — asserted explicitly, fail closed).
   if (
     !scored.decayParams ||
     !capture.decay ||
     scored.decayParams.halfLifeMinutes !== capture.decay.halfLifeMinutes ||
-    scored.decayParams.greeksTemplateId !== capture.decay.greeksTemplateId
+    scored.decayParams.greeksTemplateId !== capture.decay.greeksTemplateId ||
+    scored.decayParams.barsPerHalfLife !== capture.decay.barsPerHalfLife ||
+    scored.decayParams.timeframeMinutes !== capture.decay.timeframeMinutes ||
+    scored.decayParams.timeframeAssumed !== capture.decay.timeframeAssumed
   ) {
     throw new EvidenceProofViolationError(
       "decay-identity-mismatch",

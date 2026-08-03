@@ -90,12 +90,16 @@ describe("validateRuntimeConfig — positive resolution over the fixture registr
       "df3372dadaca1595d0e6d2f6bad9464ccc9abb7106e9f5b7111df148a145bc4f"
     );
     expect(froggy.analystConfigHash.value).toBe(
-      "8ab167066132dbff48dc958afb51d93284fbf54f11b921a83092bec8b236749d"
+      "1172e5da91dfd9ac6e65a060b628c5a4f1bbdd41545904a7a6a59e15fc0fe705"
     );
     expect(froggy.pluginSetHash.value).toBe(
       "f63c6f21beb20834c76bc392373746db520828802e7797e84085a831572629d5"
     );
-    expect(froggy.decay).toEqual({ kind: "template", templateId: "decay-intraday-v1" });
+    expect(froggy.decay).toEqual({
+      kind: "ratio",
+      barsPerHalfLife: 12,
+      unknownTimeframeMinutes: 5,
+    });
     expect(froggy.plugins.size).toBe(7);
     expect(validated.registries.analysisPlugins.size).toBe(7);
     expect(validated.bindings.size).toBe(5);

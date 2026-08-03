@@ -50,8 +50,11 @@
     "schema": "afi.usignal.v1.1"
   },
   "decayParams": {
-    "greeksTemplateId": "decay-intraday-v1",
-    "halfLifeMinutes": 60
+    "barsPerHalfLife": 12,
+    "greeksTemplateId": "decay-ratio-v1",
+    "halfLifeMinutes": 720,
+    "timeframeAssumed": false,
+    "timeframeMinutes": 60
   },
   "endpoint": "/api/ingest/cpj",
   "evidenceRecord": {
@@ -62,7 +65,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "8ab167066132dbff48dc958afb51d93284fbf54f11b921a83092bec8b236749d"
+        "value": "1172e5da91dfd9ac6e65a060b628c5a4f1bbdd41545904a7a6a59e15fc0fe705"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
@@ -427,14 +430,14 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "df7e00117d725c8f73f16dffebc1960106c7ab4e8fbe3cdadfd848dd60ccfbd0"
+      "value": "41338aa2b9b7658ea262d6a0c8797cee07ef3eeb6f16d035c529254f83a9e3cd"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "a72d874406adb511331318a5e2beca97652428050a68261c8d21a6189bef3768"
+      "value": "48a99510ea3ba4781ec979cad49ccc0d66bb99711ff78c99ab75f46d28e43c3e"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
@@ -545,8 +548,11 @@
         "uwrScore": 0.5916666666666667
       },
       "decayParams": {
-        "greeksTemplateId": "decay-intraday-v1",
-        "halfLifeMinutes": 60
+        "barsPerHalfLife": 12,
+        "greeksTemplateId": "decay-ratio-v1",
+        "halfLifeMinutes": 720,
+        "timeframeAssumed": false,
+        "timeframeMinutes": 60
       },
       "lenses": [
         {

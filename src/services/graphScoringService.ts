@@ -32,7 +32,7 @@ import type { CanonicalUss } from "../types/canonicalUss.js";
 import { getRuntimeComposition, type RuntimeComposition } from "../config/runtimeComposition.js";
 import { canonicalHashOf, DOMAIN_TAGS } from "../pipeline/hashing.js";
 import type { CompositionRefV1, PipelineManifest } from "../pipeline/manifestTypes.js";
-import { resolveDecayParams, type ResolvedStrategy } from "../pipeline/registryLoader.js";
+import { resolveDecayParamsForSignal, type ResolvedStrategy } from "../pipeline/registryLoader.js";
 import type { AnalysisCategory, ProviderRecordStore } from "../providers/index.js";
 import type {
   EvidenceInvocationCapture,
@@ -208,13 +208,14 @@ export async function scoreRegisteredStrategyFromCanonicalUss(
     );
   }
 
-  // Decay from the REGISTRATION's decayConfig (governed template or validated
-  // inline surface) — no horizon inference, no hardcoded template.
-  const decayParams = resolveDecayParams(resolved.decay);
-
   const scoredAt = new Date().toISOString();
   const provenance = (canonicalUss as { provenance?: Record<string, unknown> }).provenance ?? {};
   const facts = (canonicalUss as { facts?: Record<string, unknown> }).facts ?? {};
+
+  // Decay from the REGISTRATION's declared decayConfig — boot-frozen for
+  // ref/inline, per-signal over facts.timeframe under the declared ratio law
+  // (TDR-GOV D-TDR-3(2)). Horizon inference stays banned.
+  const decayParams = resolveDecayParamsForSignal(resolved.decay, facts.timeframe);
   const signalId = String(provenance.signalId ?? "");
 
   const lenses = Array.isArray(scorerOutput.lenses) ? scorerOutput.lenses : [];
@@ -237,6 +238,15 @@ export async function scoreRegisteredStrategyFromCanonicalUss(
     decayParams: {
       halfLifeMinutes: decayParams.halfLifeMinutes,
       greeksTemplateId: decayParams.greeksTemplateId,
+      ...(decayParams.barsPerHalfLife !== undefined
+        ? { barsPerHalfLife: decayParams.barsPerHalfLife }
+        : {}),
+      ...(decayParams.timeframeMinutes !== undefined
+        ? { timeframeMinutes: decayParams.timeframeMinutes }
+        : {}),
+      ...(decayParams.timeframeAssumed !== undefined
+        ? { timeframeAssumed: decayParams.timeframeAssumed }
+        : {}),
     },
     meta: {
       symbol: (facts.symbol as string) ?? "UNKNOWN",
@@ -311,6 +321,15 @@ export async function scoreRegisteredStrategyFromCanonicalUss(
       decay: {
         halfLifeMinutes: decayParams.halfLifeMinutes,
         greeksTemplateId: decayParams.greeksTemplateId,
+        ...(decayParams.barsPerHalfLife !== undefined
+          ? { barsPerHalfLife: decayParams.barsPerHalfLife }
+          : {}),
+        ...(decayParams.timeframeMinutes !== undefined
+          ? { timeframeMinutes: decayParams.timeframeMinutes }
+          : {}),
+        ...(decayParams.timeframeAssumed !== undefined
+          ? { timeframeAssumed: decayParams.timeframeAssumed }
+          : {}),
       },
     },
     laneTimings: execution.nodes.map((r) => ({

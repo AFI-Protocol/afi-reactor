@@ -52,8 +52,11 @@
     "schema": "afi.usignal.v1.1"
   },
   "decayParams": {
-    "greeksTemplateId": "decay-intraday-v1",
-    "halfLifeMinutes": 60
+    "barsPerHalfLife": 12,
+    "greeksTemplateId": "decay-ratio-v1",
+    "halfLifeMinutes": 180,
+    "timeframeAssumed": false,
+    "timeframeMinutes": 15
   },
   "endpoint": "/api/webhooks/tradingview",
   "evidenceRecord": {
@@ -64,7 +67,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "8ab167066132dbff48dc958afb51d93284fbf54f11b921a83092bec8b236749d"
+        "value": "1172e5da91dfd9ac6e65a060b628c5a4f1bbdd41545904a7a6a59e15fc0fe705"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
@@ -429,14 +432,14 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "ea7ec4ac30eeef5efc39a38f81dff75106c466d6c1d3b4807e55903c15fd7a78"
+      "value": "b20a4482c7a34da80b4c833e121f4c612672f903aa6e5651d73d1f6c805b3ab3"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "1751ed5522e488dade718f66c905daa9d266d7887f0223e58dc69afd4244d436"
+      "value": "954e49a703e454be5530ca8ccc2a4a9d06ea939d0db70eb5eca08083c2185c38"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
@@ -531,8 +534,11 @@
       "uwrScore": 0.4
     },
     "decayParams": {
-      "greeksTemplateId": "decay-intraday-v1",
-      "halfLifeMinutes": 60
+      "barsPerHalfLife": 12,
+      "greeksTemplateId": "decay-ratio-v1",
+      "halfLifeMinutes": 180,
+      "timeframeAssumed": false,
+      "timeframeMinutes": 15
     },
     "lenses": [
       {

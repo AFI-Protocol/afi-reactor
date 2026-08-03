@@ -35,6 +35,7 @@ import { Ajv } from "ajv";
 import * as ajvFormatsModule from "ajv-formats";
 import type { ValidateFunction } from "ajv";
 import { DEFAULT_DECAY_TEMPLATES_BY_HORIZON } from "afi-core/decay";
+import { normalizeTimeframe } from "../uss/markitTickMapper.js";
 import { PINNED_UWR_PROFILE_ID } from "afi-core/validators/UwrProfileLoader.js";
 import {
   computeAnalystConfigHash,
@@ -95,7 +96,8 @@ export interface ResolvedStrategy {
   plugins: Map<string, AnalysisPluginManifest>;
   decay:
     | { kind: "template"; templateId: string }
-    | { kind: "inline"; config: Record<string, unknown> };
+    | { kind: "inline"; config: Record<string, unknown> }
+    | { kind: "ratio"; barsPerHalfLife: number; unknownTimeframeMinutes?: number };
 }
 
 export interface ValidatedRuntimeConfig {
@@ -394,10 +396,64 @@ export function governedDecayTemplateIds(): Set<string> {
   );
 }
 
-/** The runtime decay surface (identical to afi-core's DecayParams). */
+/**
+ * The runtime decay surface (a superset of afi-core's DecayParams): the three
+ * optional fields are present exactly on ratio-law stamps (TDR-GOV
+ * D-TDR-3(3)) so every stamp is self-describing about which law produced its
+ * clock; `template`/`inline` stamps keep the two-field shape byte-identically.
+ */
 export interface ResolvedDecayParams {
   halfLifeMinutes: number;
   greeksTemplateId: string;
+  barsPerHalfLife?: number;
+  timeframeMinutes?: number;
+  timeframeAssumed?: boolean;
+}
+
+/**
+ * The derived-surface law identifier (TDR-GOV D-TDR-1(1)): stamped as
+ * greeksTemplateId on every ratio-resolved decay surface. Deliberately NOT a
+ * member of DEFAULT_DECAY_TEMPLATES_BY_HORIZON and not a registry template —
+ * it marks the exp-family surface `halfLifeMinutes = barsPerHalfLife ×
+ * timeframeMinutes`.
+ */
+export const RATIO_DECAY_TEMPLATE_ID = "decay-ratio-v1";
+
+/**
+ * TDR-GOV D-TDR-1(4): the declared-nothing backstop for ratio-form
+ * registrations whose signal timeframe is unparseable and which declare no
+ * unknownTimeframeMinutes. The value mirrors the profile's pinned
+ * unknownOrMissing selection and its template half-life; the mirror is
+ * test-pinned against the registered profile document (consumed at test time
+ * only — no runtime profile read).
+ */
+export const UNKNOWN_TIMEFRAME_BACKSTOP = Object.freeze({
+  greeksTemplateId: "decay-swing-v1",
+  halfLifeMinutes: 720,
+});
+
+const TIMEFRAME_UNIT_MINUTES: Record<string, number> = {
+  m: 1,
+  h: 60,
+  d: 1440,
+  w: 10080,
+  M: 43200,
+};
+
+/**
+ * The TDR-GOV D-TDR-1(2) parsing law: normalize (so raw TradingView tokens
+ * and AFI forms resolve identically), then match `^([1-9][0-9]*)(m|h|d|w|M)$`
+ * (case-sensitive: lowercase minute/hour/day/week, uppercase M = month —
+ * exactly the normalizer's output vocabulary). Anything else (including
+ * "unknown", empty, or a non-string) is null: the caller's assumption or
+ * backstop arm decides.
+ */
+export function parseTimeframeMinutes(timeframe: unknown): number | null {
+  if (typeof timeframe !== "string") return null;
+  const normalized = normalizeTimeframe(timeframe);
+  const match = /^([1-9][0-9]*)(m|h|d|w|M)$/.exec(normalized);
+  if (!match) return null;
+  return parseInt(match[1], 10) * TIMEFRAME_UNIT_MINUTES[match[2]];
 }
 
 /**
@@ -405,13 +461,20 @@ export interface ResolvedDecayParams {
  * a `ref.templateId` is looked up BY TEMPLATE ID in afi-core's
  * DEFAULT_DECAY_TEMPLATES_BY_HORIZON values (unknown → refusal — boot
  * validation enforces the same set, so a live miss is a deployment defect);
- * a schema-validated `inline` surface is taken verbatim. The froggy
- * registration selects decay-intraday-v1 (DH-GOV D-DH-1 analyst-decay
- * correction; the prior decay-swing-v1 selection was the profile's
- * unknownOrMissing fallback, not an analyst choice). NO horizon inference, NO
- * hardcoded template selection anywhere in the live path.
+ * a schema-validated `inline` surface is taken verbatim; a `ratio` selection
+ * resolves per signal in resolveDecayParamsForSignal (TDR-GOV D-TDR-1 — the
+ * froggy registration declares barsPerHalfLife 12 / unknownTimeframeMinutes 5
+ * per D-TDR-4). Decay resolves from the registration's DECLARED decayConfig
+ * only — boot-frozen for ref/inline, per-signal under the declared ratio law —
+ * and horizon INFERENCE (the retired holdingHorizon-guessing helper) stays
+ * banned from the live path.
  */
 export function resolveDecayParams(decay: ResolvedStrategy["decay"]): ResolvedDecayParams {
+  if (decay.kind === "ratio") {
+    throw new RuntimeConfigValidationError([
+      "ratio decayConfig resolves per signal — use resolveDecayParamsForSignal",
+    ]);
+  }
   if (decay.kind === "template") {
     const template = Object.values(DEFAULT_DECAY_TEMPLATES_BY_HORIZON).find(
       (t) => t.templateId === decay.templateId
@@ -435,6 +498,42 @@ export function resolveDecayParams(decay: ResolvedStrategy["decay"]): ResolvedDe
     ]);
   }
   return { halfLifeMinutes, greeksTemplateId };
+}
+
+/**
+ * TDR-GOV D-TDR-3(2): the per-signal resolution seam. `ref`/`inline`
+ * registrations keep the boot-frozen path unchanged; `ratio` registrations
+ * resolve from the canonical signal's facts.timeframe under D-TDR-1:
+ * parseable → derived surface (timeframeAssumed false); unparseable with a
+ * declared unknownTimeframeMinutes → same law over the assumed timeframe
+ * (timeframeAssumed true); unparseable with nothing declared → the
+ * UNKNOWN_TIMEFRAME_BACKSTOP value (timeframeAssumed true).
+ */
+export function resolveDecayParamsForSignal(
+  decay: ResolvedStrategy["decay"],
+  factsTimeframe: unknown
+): ResolvedDecayParams {
+  if (decay.kind !== "ratio") return resolveDecayParams(decay);
+  const parsed = parseTimeframeMinutes(factsTimeframe);
+  if (parsed !== null) {
+    return {
+      halfLifeMinutes: decay.barsPerHalfLife * parsed,
+      greeksTemplateId: RATIO_DECAY_TEMPLATE_ID,
+      barsPerHalfLife: decay.barsPerHalfLife,
+      timeframeMinutes: parsed,
+      timeframeAssumed: false,
+    };
+  }
+  if (decay.unknownTimeframeMinutes !== undefined) {
+    return {
+      halfLifeMinutes: decay.barsPerHalfLife * decay.unknownTimeframeMinutes,
+      greeksTemplateId: RATIO_DECAY_TEMPLATE_ID,
+      barsPerHalfLife: decay.barsPerHalfLife,
+      timeframeMinutes: decay.unknownTimeframeMinutes,
+      timeframeAssumed: true,
+    };
+  }
+  return { ...UNKNOWN_TIMEFRAME_BACKSTOP, timeframeAssumed: true };
 }
 
 function strategyKey(analystId: string, strategyId: string, strategyVersion: string): string {
@@ -767,7 +866,8 @@ export function validateRuntimeConfig(
       );
     }
 
-    // Decay ref: governed template id or schema-valid inline surface.
+    // Decay ref: governed template id, per-signal ratio law (TDR-GOV
+    // D-TDR-3(1), fail-closed), or schema-valid inline surface.
     let decay: ResolvedStrategy["decay"];
     const decayConfig = config.decayConfig as Record<string, unknown>;
     if (decayConfig && typeof decayConfig === "object" && "ref" in decayConfig) {
@@ -779,6 +879,33 @@ export function validateRuntimeConfig(
         continue;
       }
       decay = { kind: "template", templateId };
+    } else if (decayConfig && typeof decayConfig === "object" && "ratio" in decayConfig) {
+      const ratio = (decayConfig.ratio ?? {}) as {
+        barsPerHalfLife?: unknown;
+        unknownTimeframeMinutes?: unknown;
+      };
+      const bars = ratio.barsPerHalfLife;
+      const unknownTf = ratio.unknownTimeframeMinutes;
+      if (typeof bars !== "number" || !Number.isFinite(bars) || bars <= 0) {
+        issues.push(
+          `registration ${key}: ratio decayConfig requires a finite positive barsPerHalfLife`
+        );
+        continue;
+      }
+      if (
+        unknownTf !== undefined &&
+        (typeof unknownTf !== "number" || !Number.isFinite(unknownTf) || unknownTf <= 0)
+      ) {
+        issues.push(
+          `registration ${key}: ratio decayConfig unknownTimeframeMinutes must be a finite positive number when declared`
+        );
+        continue;
+      }
+      decay = {
+        kind: "ratio",
+        barsPerHalfLife: bars,
+        ...(typeof unknownTf === "number" ? { unknownTimeframeMinutes: unknownTf } : {}),
+      };
     } else {
       decay = { kind: "inline", config: decayConfig };
     }
