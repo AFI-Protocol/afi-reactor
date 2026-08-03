@@ -5,7 +5,16 @@
  * For every scoring_context document whose horizon has elapsed and that has no
  * outcome row yet, fetches Blofin OHLCV around [capturedAt, capturedAt+H] and
  * appends one signal_outcomes document per (signalId, horizon): entry/exit
- * price, raw and direction-signed return, max favorable/adverse excursion.
+ * price, raw and direction-signed return, max favorable/adverse excursion and
+ * WHEN each occurred (D-DH-3 excursion timing).
+ *
+ * HORIZON LAW (DH-GOV D-DH-2): horizons derive from the signal's STAMPED
+ * decayParams as {H/4, H/2, H} minutes of the declared half-life — the
+ * analyst strategy config, not a global constant, decides how long a signal's
+ * performance window is (decay-intraday-v1 → 15m/30m/1h). Docs captured
+ * before the DH_CUTOVER_ISO deploy boundary, or without a usable stamp,
+ * complete under the legacy global set (1h/4h/24h). An explicit --horizons
+ * argument is an operator override.
  *
  * PLANE RULES: operational store, never canonical evidence (MONGO-GOV
  * D-MONGO-4; "Do not collapse commitment, evidence, and analytics into one
@@ -13,10 +22,18 @@
  *
  * Usage:
  *   AFI_EVIDENCE_MONGODB_URI='mongodb+srv://…' node scripts/capture-outcomes.mjs
- *   Optional: --horizons 1h,4h,24h   --db afi_signal_analytics   --dry-run
+ *   Optional: --horizons 15m,30m,1h   --db afi_signal_analytics   --dry-run
  */
 import { MongoClient } from "mongodb";
 import ccxt from "ccxt";
+import {
+  CANDLE_MS,
+  DH_CUTOVER_ISO,
+  excursions,
+  parseHorizonLabel,
+  resolveHorizonPlan,
+  toCcxtSymbol,
+} from "./capture-outcomes-lib.mjs";
 
 const args = process.argv.slice(2);
 const argOf = (flag, dflt) => {
@@ -25,46 +42,24 @@ const argOf = (flag, dflt) => {
 };
 const DRY = args.includes("--dry-run");
 const DB = argOf("--db", process.env.AFI_ANALYTICS_DB_NAME || "afi_signal_analytics");
-const HORIZONS = argOf("--horizons", "1h,4h,24h")
-  .split(",")
-  .map((h) => h.trim())
-  .filter(Boolean);
 
-const HOUR = 3600_000;
-const HORIZON_MS = { "1h": HOUR, "4h": 4 * HOUR, "24h": 24 * HOUR };
 const CANDLE_TF = "5m";
-const CANDLE_MS = 5 * 60_000;
+const SCHEMA_ID = "afi.operational.signal-outcome.v0.1";
+
+const overrideRaw = argOf("--horizons", null);
+let overrideMinutes = null;
+if (overrideRaw !== null) {
+  overrideMinutes = overrideRaw.split(",").map((h) => h.trim()).filter(Boolean).map(parseHorizonLabel);
+  if (overrideMinutes.length === 0 || overrideMinutes.some((m) => m === null)) {
+    console.error(`FATAL: --horizons '${overrideRaw}' does not parse under the label grammar (e.g. 15m,30m,1h)`);
+    process.exit(1);
+  }
+}
 
 const URI = process.env.AFI_EVIDENCE_MONGODB_URI;
 if (!URI) {
   console.error("FATAL: AFI_EVIDENCE_MONGODB_URI is required (same cluster; analytics db).");
   process.exit(1);
-}
-for (const h of HORIZONS) {
-  if (!HORIZON_MS[h]) {
-    console.error(`FATAL: unsupported horizon "${h}" (supported: ${Object.keys(HORIZON_MS).join(", ")})`);
-    process.exit(1);
-  }
-}
-
-/**
- * Governed-fact symbol translation: the USS records the instrument kind
- * (facts.market: "perp" | "spot"), captured into the analytics doc's
- * meta.market (and always present under rawUss.facts.market on older docs).
- * ccxt's unified naming makes the bare pair mean SPOT ("BTC/USDT") and the
- * USDT-margined swap "BTC/USDT:USDT" — so the market fact, never symbol
- * notation, decides the translation. No market fact → null (honest skip).
- * The legacy ".P" suffix (TradingView perp notation) is still honored.
- */
-function toCcxtSymbol(symbol, market) {
-  if (typeof symbol !== "string" || !symbol.includes("/")) return null;
-  if (symbol.endsWith(".P")) return `${symbol.slice(0, -2)}:USDT`;
-  if (market === "perp") {
-    const quote = symbol.split("/")[1];
-    return quote === "USDT" ? `${symbol}:USDT` : null;
-  }
-  if (market === "spot") return symbol;
-  return null;
 }
 
 const client = new MongoClient(URI);
@@ -80,7 +75,7 @@ let written = 0, skipped = 0, failed = 0;
 
 const cursor = contexts.find(
   {},
-  { projection: { signalId: 1, capturedAt: 1, meta: 1, "rawUss.facts.market": 1 } }
+  { projection: { signalId: 1, capturedAt: 1, meta: 1, decayParams: 1, "rawUss.facts.market": 1 } }
 );
 for await (const ctx of cursor) {
   const capturedMs = Date.parse(ctx.capturedAt);
@@ -89,8 +84,10 @@ for await (const ctx of cursor) {
   const ccxtSymbol = toCcxtSymbol(ctx.meta?.symbol, market);
   if (!ccxtSymbol) { skipped++; continue; }
 
-  for (const horizon of HORIZONS) {
-    const horizonMs = HORIZON_MS[horizon];
+  const plan = resolveHorizonPlan(ctx, { overrideMinutes, cutoverIso: DH_CUTOVER_ISO });
+
+  for (const { label: horizon, minutes, fractionOfHalfLife } of plan.horizons) {
+    const horizonMs = minutes * 60_000;
     if (capturedMs + horizonMs > now) { skipped++; continue; }
     const exists = await outcomes.findOne({ signalId: ctx.signalId, horizon }, { projection: { _id: 1 } });
     if (exists) { skipped++; continue; }
@@ -104,16 +101,19 @@ for await (const ctx of cursor) {
 
       const entryPrice = inWindow[0][4];
       const exitPrice = inWindow[inWindow.length - 1][4];
-      const maxHigh = Math.max(...inWindow.map((c) => c[2]));
-      const minLow = Math.min(...inWindow.map((c) => c[3]));
       const returnPct = ((exitPrice - entryPrice) / entryPrice) * 100;
       const direction = ctx.meta?.direction ?? "neutral";
       const sign = direction === "short" ? -1 : direction === "long" ? 1 : 0;
+      const exc = excursions(inWindow, entryPrice, sign);
       const doc = {
-        schema: "afi.operational.signal-outcome.v0",
+        schema: SCHEMA_ID,
         plane: "operational",
         signalId: ctx.signalId,
         horizon,
+        horizonBasis: plan.basis,
+        ...(plan.basis === "decay-derived"
+          ? { decayRef: { ...plan.decayRef, fractionOfHalfLife } }
+          : {}),
         capturedAt: ctx.capturedAt,
         evaluatedAt: new Date(now).toISOString(),
         symbol: ctx.meta?.symbol,
@@ -123,17 +123,19 @@ for await (const ctx of cursor) {
         exitPrice,
         returnPct,
         signedReturnPct: sign === 0 ? null : sign * returnPct,
-        mfePct: sign >= 0 ? ((maxHigh - entryPrice) / entryPrice) * 100 : ((entryPrice - minLow) / entryPrice) * 100,
-        maePct: sign >= 0 ? ((entryPrice - minLow) / entryPrice) * 100 : ((maxHigh - entryPrice) / entryPrice) * 100,
+        mfePct: exc.mfePct,
+        maePct: exc.maePct,
+        mfeAtMinutes: exc.mfeAtMinutes,
+        maeAtMinutes: exc.maeAtMinutes,
         candleTimeframe: CANDLE_TF,
         source: "blofin",
       };
       if (DRY) {
-        console.log("[dry-run] would write:", { signalId: doc.signalId, horizon, returnPct: doc.returnPct.toFixed(3) });
+        console.log("[dry-run] would write:", { signalId: doc.signalId, horizon, basis: plan.basis, returnPct: doc.returnPct.toFixed(3) });
       } else {
         await outcomes.insertOne(doc);
         written++;
-        console.log(`outcome ${ctx.signalId} @${horizon}: return ${returnPct.toFixed(3)}% (signed ${doc.signedReturnPct === null ? "n/a" : doc.signedReturnPct.toFixed(3) + "%"})`);
+        console.log(`outcome ${ctx.signalId} @${horizon} (${plan.basis}): return ${returnPct.toFixed(3)}% (signed ${doc.signedReturnPct === null ? "n/a" : doc.signedReturnPct.toFixed(3) + "%"}; mfe@${doc.mfeAtMinutes}m mae@${doc.maeAtMinutes}m)`);
       }
     } catch (err) {
       failed++;

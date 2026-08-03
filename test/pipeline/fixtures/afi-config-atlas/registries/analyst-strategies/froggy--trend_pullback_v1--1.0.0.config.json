@@ -22,7 +22,7 @@
   },
   "decayConfig": {
     "ref": {
-      "templateId": "decay-swing-v1"
+      "templateId": "decay-intraday-v1"
     }
   }
 }
