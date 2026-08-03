@@ -109,10 +109,18 @@ export interface ReactorScoredSignalV1 {
   /** Timestamp when scoring was completed (ISO 8601) */
   scoredAt: string;
 
-  /** Decay parameters (Greeks-style time decay) */
+  /**
+   * Decay parameters (Greeks-style time decay). The three optional fields are
+   * present exactly on ratio-law stamps (TDR-GOV D-TDR-3(3)): the declared
+   * ratio, the timeframe minutes actually used, and whether that timeframe
+   * was assumed (unparseable signal timeframe) rather than parsed.
+   */
   decayParams: {
     halfLifeMinutes: number;
     greeksTemplateId: string;
+    barsPerHalfLife?: number;
+    timeframeMinutes?: number;
+    timeframeAssumed?: boolean;
   } | null;
 
   /** Market metadata */

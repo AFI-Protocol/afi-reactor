@@ -22,12 +22,12 @@ function sha256(relPath: string): string {
 
 describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   it("pins the authorizing afi-config commit", () => {
-    // EV3-GOV re-vendor (Mission C): the closure gains the V3 evidence +
-    // provider-invocation-proof + aiml-invocation-proof members and DROPS the
-    // superseded v2 evidence member (D-EV3-1/D-EV3-8), byte-identical at the
-    // afi-config Evidence V3 branch head. NOTE: this pin is re-recorded to
-    // the squash-merge commit before this repo merges.
-    expect(manifest.afiConfigCommit).toBe("d6f2504805059ffa09d8c1bfcecb67cd47abcea2");
+    // TDR-GOV re-vendor (D-TDR-2/D-TDR-5(1)): the analyst-strategy-config
+    // member gains the additive decayConfig ratio arm, byte-identical at the
+    // afi-config PR #78 merge commit; every other closure member is
+    // byte-unchanged between the prior pin (d6f2504…, the EV3-GOV re-vendor)
+    // and this commit.
+    expect(manifest.afiConfigCommit).toBe("c5cf83a23bd6a4ca7886a59fe787261f4255de37");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {

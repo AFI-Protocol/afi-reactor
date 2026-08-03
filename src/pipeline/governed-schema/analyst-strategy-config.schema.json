@@ -110,7 +110,7 @@
       }
     },
     "decayConfig": {
-      "description": "Decay selection: EITHER a reference to a governed decay template (ref.templateId, e.g. a GreeksDecayTemplate id) OR an inline surface (halfLifeMinutes > 0 + the greeksTemplateId it derives from). Exactly one form.",
+      "description": "Decay selection: EITHER a reference to a governed decay template (ref.templateId, e.g. a GreeksDecayTemplate id), OR an inline surface (halfLifeMinutes > 0 + the greeksTemplateId it derives from), OR a per-signal ratio law (TDR-GOV D-TDR-2: halfLifeMinutes = barsPerHalfLife x the signal's parsed timeframe minutes; derived stamps carry greeksTemplateId decay-ratio-v1). Exactly one form.",
       "oneOf": [
         {
           "type": "object",
@@ -152,6 +152,30 @@
                   "minLength": 1,
                   "maxLength": 100,
                   "description": "The Greeks template family the inline surface derives from."
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ratio"],
+          "properties": {
+            "ratio": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["barsPerHalfLife"],
+              "properties": {
+                "barsPerHalfLife": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Per-signal decay ratio (TDR-GOV D-TDR-1): halfLifeMinutes = barsPerHalfLife x timeframeMinutes parsed from the signal's facts.timeframe. Governed default/reference value: 12."
+                },
+                "unknownTimeframeMinutes": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "OPTIONAL assumed timeframe (minutes) for signals whose timeframe is missing or unparseable; such stamps are flagged timeframeAssumed: true. Absent: the profile's pinned unknownOrMissing selection (decay-swing-v1, 720) is the backstop (TDR-GOV D-TDR-1(4))."
                 }
               }
             }

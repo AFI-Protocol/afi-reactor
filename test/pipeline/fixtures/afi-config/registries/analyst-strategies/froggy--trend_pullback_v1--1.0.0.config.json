@@ -21,8 +21,9 @@
     "profileId": "uwr-weighted-lifts-v0.1"
   },
   "decayConfig": {
-    "ref": {
-      "templateId": "decay-intraday-v1"
+    "ratio": {
+      "barsPerHalfLife": 12,
+      "unknownTimeframeMinutes": 5
     }
   }
 }
