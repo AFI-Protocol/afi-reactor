@@ -22,13 +22,12 @@ function sha256(relPath: string): string {
 
 describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   it("pins the authorizing afi-config commit", () => {
-    // TDR-GOV re-vendor (D-TDR-2): the analyst-strategy-config member gains
-    // the additive decayConfig ratio arm, byte-identical at the afi-config
-    // mission/timeframe-decay-resolution-v0.1 branch head; every other
-    // closure member is byte-unchanged between the prior pin (d6f2504…, the
-    // EV3-GOV re-vendor) and this commit. NOTE: this pin is re-recorded to
-    // the afi-config merge commit before this repo merges.
-    expect(manifest.afiConfigCommit).toBe("dff269e9e60cf4a44ce8a9f9634ac77e814fddef");
+    // TDR-GOV re-vendor (D-TDR-2/D-TDR-5(1)): the analyst-strategy-config
+    // member gains the additive decayConfig ratio arm, byte-identical at the
+    // afi-config PR #78 merge commit; every other closure member is
+    // byte-unchanged between the prior pin (d6f2504…, the EV3-GOV re-vendor)
+    // and this commit.
+    expect(manifest.afiConfigCommit).toBe("c5cf83a23bd6a4ca7886a59fe787261f4255de37");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {
