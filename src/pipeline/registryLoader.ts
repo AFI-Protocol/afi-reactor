@@ -406,8 +406,9 @@ export interface ResolvedDecayParams {
  * DEFAULT_DECAY_TEMPLATES_BY_HORIZON values (unknown → refusal — boot
  * validation enforces the same set, so a live miss is a deployment defect);
  * a schema-validated `inline` surface is taken verbatim. The froggy
- * registration selects decay-swing-v1 → byte-equal to the superseded
- * horizon-inferring helper's swing-template result. NO horizon inference, NO
+ * registration selects decay-intraday-v1 (DH-GOV D-DH-1 analyst-decay
+ * correction; the prior decay-swing-v1 selection was the profile's
+ * unknownOrMissing fallback, not an analyst choice). NO horizon inference, NO
  * hardcoded template selection anywhere in the live path.
  */
 export function resolveDecayParams(decay: ResolvedStrategy["decay"]): ResolvedDecayParams {
