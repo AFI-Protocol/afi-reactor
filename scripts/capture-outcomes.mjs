@@ -32,6 +32,7 @@ import {
   excursions,
   parseHorizonLabel,
   resolveHorizonPlan,
+  selectWindow,
   toCcxtSymbol,
 } from "./capture-outcomes-lib.mjs";
 
@@ -62,6 +63,14 @@ if (!URI) {
   process.exit(1);
 }
 
+// D-DH-2(3) fail-closed cutover validation: an unparseable cutover refuses
+// the whole run (loud red cron) instead of silently deciding law.
+const CUTOVER_MS = Date.parse(DH_CUTOVER_ISO);
+if (!Number.isFinite(CUTOVER_MS)) {
+  console.error(`FATAL: DH_CUTOVER_ISO '${DH_CUTOVER_ISO}' does not parse — refusing to decide horizon law (D-DH-2(3)).`);
+  process.exit(1);
+}
+
 const client = new MongoClient(URI);
 await client.connect();
 const db = client.db(DB);
@@ -69,9 +78,30 @@ const contexts = db.collection("scoring_context");
 const outcomes = db.collection("signal_outcomes");
 await outcomes.createIndex({ signalId: 1, horizon: 1 }, { unique: true, name: "signalId_horizon_unique" });
 
+// Placeholder-shipped guard (D-DH-4(1)): if the cutover is still in the
+// future (the fail-safe placeholder, or a mis-set instant) while post-deploy
+// decay stamps already exist, the DH-GOV program image is live without its
+// cutover — refuse loudly rather than accrue wrong-law rows, unless the
+// operator explicitly accepts legacy law for this run.
+if (CUTOVER_MS > Date.now() && !args.includes("--allow-legacy-law")) {
+  const postDeployStamp = await contexts.findOne(
+    { "decayParams.greeksTemplateId": "decay-intraday-v1" },
+    { projection: { signalId: 1 } }
+  );
+  if (postDeployStamp) {
+    console.error(
+      `FATAL: DH_CUTOVER_ISO '${DH_CUTOVER_ISO}' is in the future but post-deploy decay stamps exist ` +
+      `(e.g. ${postDeployStamp.signalId}) — the cutover was not set at deploy (D-DH-2(3)). ` +
+      `Set the constant, or pass --allow-legacy-law to run this once under legacy law.`
+    );
+    await client.close();
+    process.exit(1);
+  }
+}
+
 const exchange = new ccxt.blofin({ enableRateLimit: true });
 const now = Date.now();
-let written = 0, skipped = 0, failed = 0;
+let written = 0, skipped = 0, failed = 0, mixedLaw = 0;
 
 const cursor = contexts.find(
   {},
@@ -89,15 +119,39 @@ for await (const ctx of cursor) {
   for (const { label: horizon, minutes, fractionOfHalfLife } of plan.horizons) {
     const horizonMs = minutes * 60_000;
     if (capturedMs + horizonMs > now) { skipped++; continue; }
-    const exists = await outcomes.findOne({ signalId: ctx.signalId, horizon }, { projection: { _id: 1 } });
-    if (exists) { skipped++; continue; }
+    // Law-aware dedup (D-DH-4(1)): the H row shares its label with the legacy
+    // set ("1h" for decay-intraday-v1), so a basis mismatch at the same label
+    // is surfaced loudly instead of silently absorbed — the (signalId,
+    // horizon) uniqueness still stands, we never overwrite.
+    const exists = await outcomes.findOne(
+      { signalId: ctx.signalId, horizon },
+      { projection: { _id: 1, horizonBasis: 1, schema: 1 } }
+    );
+    if (exists) {
+      const existingBasis = exists.horizonBasis ?? "legacy-global";
+      if (plan.basis === "decay-derived" && existingBasis !== "decay-derived") {
+        mixedLaw++;
+        console.warn(
+          `MIXED-LAW ${ctx.signalId} @${horizon}: existing ${existingBasis} row (schema ${exists.schema ?? "v0"}) occupies the label this doc derives — row kept, derived row not written`
+        );
+      }
+      skipped++;
+      continue;
+    }
 
     try {
       const since = capturedMs - CANDLE_MS;
+      const windowEnd = capturedMs + horizonMs;
       const need = Math.ceil(horizonMs / CANDLE_MS) + 3;
-      const candles = await exchange.fetchOHLCV(ccxtSymbol, CANDLE_TF, since, Math.min(need, 300));
-      const inWindow = candles.filter(([ts]) => ts >= since && ts <= capturedMs + horizonMs);
-      if (inWindow.length < 2) throw new Error(`insufficient candles (${inWindow.length})`);
+      // Anchor the fetch to the capture window: blofin's fetchOHLCV ignores
+      // `since` in the request (newest-`limit` candles otherwise), but maps
+      // `until` -> `after`, so the page ends at the window end and `need`
+      // suffices for any signal age. selectWindow() then asserts the head
+      // candle actually reaches back to capture (front-truncation refusal).
+      const candles = await exchange.fetchOHLCV(ccxtSymbol, CANDLE_TF, since, Math.min(need, 300), {
+        until: windowEnd + CANDLE_MS,
+      });
+      const inWindow = selectWindow(candles, since, windowEnd, capturedMs);
 
       const entryPrice = inWindow[0][4];
       const exitPrice = inWindow[inWindow.length - 1][4];
@@ -145,4 +199,4 @@ for await (const ctx of cursor) {
 }
 
 await client.close();
-console.log(`done: ${written} written, ${skipped} skipped (not due / already captured / unmappable), ${failed} failed`);
+console.log(`done: ${written} written, ${skipped} skipped (not due / already captured / unmappable), ${failed} failed, ${mixedLaw} mixed-law label collisions`);

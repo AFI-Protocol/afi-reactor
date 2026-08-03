@@ -10,6 +10,7 @@ import {
   horizonLabel,
   parseHorizonLabel,
   resolveHorizonPlan,
+  selectWindow,
   toCcxtSymbol,
 } from "../../scripts/capture-outcomes-lib.mjs";
 
@@ -30,6 +31,7 @@ eq(deriveHorizonMinutes(60), [15, 30, 60], "intraday H=60 -> 15/30/60");
 eq(deriveHorizonMinutes(720), [180, 360, 720], "swing H=720 -> 180/360/720");
 eq(deriveHorizonMinutes(8), [2, 4, 8], "scalp H=8 -> 2/4/8");
 eq(deriveHorizonMinutes(90), [23, 45, 90], "H=90 ceils the quarter (22.5 -> 23)");
+eq(deriveHorizonMinutes(7.5), [2, 4, 8], "fractional inline H=7.5 ceils per-window, never rewrites H itself");
 eq(deriveHorizonMinutes(0), null, "H=0 rejected");
 eq(deriveHorizonMinutes(-5), null, "negative rejected");
 eq(deriveHorizonMinutes(undefined), null, "absent rejected");
@@ -114,6 +116,31 @@ eq(
   ["3h", "6h", "12h"],
   "swing-stamped doc would derive 3h/6h/12h (stamped-value law)"
 );
+eq(
+  resolveHorizonPlan(intradayCtx, { cutoverIso: "not-a-date" }).basis,
+  "legacy-global",
+  "unparseable cutover fails CLOSED to legacy law (NaN-safe guard, D-DH-2(3))"
+);
+eq(
+  resolveHorizonPlan(intradayCtx, { cutoverIso: "9999-01-01T00:00:00Z" }).basis,
+  "legacy-global",
+  "far-future placeholder cutover keeps everything on legacy law (fail-safe)"
+);
+
+// --- D-DH-4(1) selectWindow head assertion ---
+const W0 = Date.parse("2026-08-04T01:00:00Z");
+const mk = (offsetsMin) => offsetsMin.map((m) => [W0 + m * 60_000, 100, 101, 99, 100.5]);
+eq(
+  selectWindow(mk([-5, 0, 5, 10]), W0 - 5 * 60_000, W0 + 15 * 60_000, W0).length,
+  4,
+  "well-formed window passes selectWindow"
+);
+let threw = null;
+try { selectWindow(mk([5, 10, 15]), W0 - 5 * 60_000, W0 + 15 * 60_000, W0); } catch (e) { threw = e.message; }
+eq(/window head missing/.test(threw ?? ""), true, "front-truncated fetch (head after capture) throws loudly");
+threw = null;
+try { selectWindow(mk([0]), W0 - 5 * 60_000, W0 + 15 * 60_000, W0); } catch (e) { threw = e.message; }
+eq(/insufficient candles/.test(threw ?? ""), true, "single-candle window still rejected");
 
 // --- D-DH-3(2) excursions + timing (candles: [ts, o, h, l, c], 5m spacing) ---
 const T0 = Date.parse("2026-08-04T01:00:00Z");

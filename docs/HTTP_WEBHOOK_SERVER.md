@@ -123,7 +123,8 @@ TradingView webhook endpoint. Receives alert payloads and runs them through the 
   },
   "scoredAt": "2025-12-06T21:30:00.000Z",
   "decayParams": {
-    "halfLifeHours": 24
+    "greeksTemplateId": "decay-intraday-v1",
+    "halfLifeMinutes": 60
   },
   "meta": {
     "symbol": "BTCUSDT",

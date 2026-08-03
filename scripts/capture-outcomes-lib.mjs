@@ -22,11 +22,16 @@ export const DH_CUTOVER_ISO = "9999-01-01T00:00:00Z";
 /** Legacy global horizon set (pre-DH-GOV law; also the defensive fallback). */
 export const LEGACY_HORIZON_MINUTES = [60, 240, 1440];
 
-/** D-DH-2(1): {ceil(H/4), ceil(H/2), H} minutes from the stamped half-life. */
+/**
+ * D-DH-2(1): {ceil(H/4), ceil(H/2), H} minutes from the stamped half-life.
+ * H is used exactly as stamped (never rewritten); a fractional inline H only
+ * ceils where the law says ceil — the outer window ceils solely to keep
+ * whole-minute labels, which for every governed (integer) template is H itself.
+ */
 export function deriveHorizonMinutes(halfLifeMinutes) {
   if (!Number.isFinite(halfLifeMinutes) || halfLifeMinutes <= 0) return null;
-  const H = Math.round(halfLifeMinutes);
-  return [Math.ceil(H / 4), Math.ceil(H / 2), H];
+  const H = halfLifeMinutes;
+  return [Math.ceil(H / 4), Math.ceil(H / 2), Math.ceil(H)];
 }
 
 /** D-DH-2(1) label grammar: whole hours render "<n>h", otherwise "<n>m". */
@@ -64,7 +69,13 @@ export function resolveHorizonPlan(ctx, { overrideMinutes = null, cutoverIso = D
   const half = ctx?.decayParams?.halfLifeMinutes;
   const templateId = ctx?.decayParams?.greeksTemplateId;
   const derived = deriveHorizonMinutes(half);
-  if (!Number.isFinite(capturedMs) || capturedMs < cutoverMs || derived === null || typeof templateId !== "string") {
+  // Fail-closed (D-DH-2(3)): derivation requires a PARSEABLE cutover the doc
+  // is at-or-after. An unparseable cutover (NaN) must send everything to the
+  // legacy branch — `capturedMs >= NaN` is false, so the guard below is
+  // NaN-safe by construction; callers (the capture script) additionally
+  // refuse to run at all on an unparseable DH_CUTOVER_ISO.
+  const atOrAfterCutover = Number.isFinite(cutoverMs) && capturedMs >= cutoverMs;
+  if (!Number.isFinite(capturedMs) || !atOrAfterCutover || derived === null || typeof templateId !== "string") {
     return {
       basis: "legacy-global",
       horizons: LEGACY_HORIZON_MINUTES.map((m) => ({ label: horizonLabel(m), minutes: m })),
@@ -76,6 +87,26 @@ export function resolveHorizonPlan(ctx, { overrideMinutes = null, cutoverIso = D
     decayRef: { greeksTemplateId: templateId, halfLifeMinutes: half },
     horizons: derived.map((m, i) => ({ label: horizonLabel(m), minutes: m, fractionOfHalfLife: fractions[i] })),
   };
+}
+
+/**
+ * D-DH-4(1) window selection with head assertion: from a fetched candle
+ * array, keep candles in [sinceMs, endMs] and REFUSE a window whose first
+ * candle opens after the capture instant — a front-truncated fetch (e.g. an
+ * exchange returning only its newest candles) must throw loudly rather than
+ * let a wrong entry price write a permanent row.
+ */
+export function selectWindow(candles, sinceMs, endMs, capturedMs) {
+  const inWindow = (candles ?? []).filter(([ts]) => ts >= sinceMs && ts <= endMs);
+  if (inWindow.length < 2) {
+    throw new Error(`insufficient candles (${inWindow.length})`);
+  }
+  if (inWindow[0][0] > capturedMs) {
+    throw new Error(
+      `window head missing: first candle ${new Date(inWindow[0][0]).toISOString()} opens after capture ${new Date(capturedMs).toISOString()} (front-truncated fetch)`
+    );
+  }
+  return inWindow;
 }
 
 /**
