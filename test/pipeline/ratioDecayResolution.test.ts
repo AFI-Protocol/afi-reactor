@@ -51,6 +51,13 @@ describe("parseTimeframeMinutes (TDR-GOV D-TDR-1(2))", () => {
     ["D", 1440],
     ["W", 10080],
     ["M", 43200],
+    // TradingView multi-unit uppercase tokens pass through the normalizer
+    // unchanged; h/d/w fold case in the grammar (m/M stay case-sensitive).
+    ["1D", 1440],
+    ["2D", 2880],
+    ["3D", 4320],
+    ["2W", 20160],
+    ["1H", 60],
   ])("parses %s -> %d minutes", (tf, minutes) => {
     expect(parseTimeframeMinutes(tf)).toBe(minutes);
   });
@@ -59,11 +66,14 @@ describe("parseTimeframeMinutes (TDR-GOV D-TDR-1(2))", () => {
     ["unknown"],
     [""],
     ["banana"],
-    ["1D"], // mixed-case passthrough is NOT in the grammar's vocabulary
     ["0m"],
     ["07m"],
     ["-5m"],
     ["5 m"],
+    // Overflowing digit strings must fall to the assumption/backstop arm,
+    // never stamp an unsafe or Infinity clock (safe-integer guard).
+    ["999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999m"],
+    ["99999999999999999m"],
   ])("rejects %j (null -> assumption/backstop arm)", (tf) => {
     expect(parseTimeframeMinutes(tf)).toBeNull();
   });

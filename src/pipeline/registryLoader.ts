@@ -434,26 +434,30 @@ export const UNKNOWN_TIMEFRAME_BACKSTOP = Object.freeze({
 
 const TIMEFRAME_UNIT_MINUTES: Record<string, number> = {
   m: 1,
+  M: 43200,
   h: 60,
   d: 1440,
   w: 10080,
-  M: 43200,
 };
 
 /**
  * The TDR-GOV D-TDR-1(2) parsing law: normalize (so raw TradingView tokens
- * and AFI forms resolve identically), then match `^([1-9][0-9]*)(m|h|d|w|M)$`
- * (case-sensitive: lowercase minute/hour/day/week, uppercase M = month —
- * exactly the normalizer's output vocabulary). Anything else (including
- * "unknown", empty, or a non-string) is null: the caller's assumption or
- * backstop arm decides.
+ * and AFI forms resolve identically), then match
+ * `^([1-9][0-9]*)([mM]|[hH]|[dD]|[wW])$` — m/M are case-sensitive (minute vs
+ * month); h/d/w fold case so TradingView's uppercase multi-unit tokens
+ * (2D/3D/2W), which pass through the normalizer unchanged, resolve to their
+ * real minutes. The product must be a safe integer; anything else (including
+ * "unknown", empty, a non-string, or an overflowing digit string) is null:
+ * the caller's assumption or backstop arm decides.
  */
 export function parseTimeframeMinutes(timeframe: unknown): number | null {
   if (typeof timeframe !== "string") return null;
   const normalized = normalizeTimeframe(timeframe);
-  const match = /^([1-9][0-9]*)(m|h|d|w|M)$/.exec(normalized);
+  const match = /^([1-9][0-9]*)([mM]|[hH]|[dD]|[wW])$/.exec(normalized);
   if (!match) return null;
-  return parseInt(match[1], 10) * TIMEFRAME_UNIT_MINUTES[match[2]];
+  const unit = match[2] === "M" ? "M" : match[2].toLowerCase();
+  const minutes = parseInt(match[1], 10) * TIMEFRAME_UNIT_MINUTES[unit];
+  return Number.isSafeInteger(minutes) ? minutes : null;
 }
 
 /**

@@ -149,10 +149,12 @@ function extractSignalFields(text: string): any {
     extracted.leverageHint = parseInt(levMatch[1], 10);
   }
 
-  // Extract timeframe
-  const tfMatch = text.match(/(?:TIMEFRAME|TF)[\s:]+(\d+[mhd])/i);
+  // Extract timeframe. Case is PRESERVED (TDR-GOV D-TDR-5(1)): the decay
+  // parsing law is case-sensitive on m (minute) vs M (month), so lowercasing
+  // here would silently turn a monthly hint into a one-minute clock.
+  const tfMatch = text.match(/(?:TIMEFRAME|TF)[\s:]+(\d+[mhdMHD])/);
   if (tfMatch) {
-    extracted.timeframeHint = tfMatch[1].toLowerCase();
+    extracted.timeframeHint = tfMatch[1];
   }
 
   return extracted;
