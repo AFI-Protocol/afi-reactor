@@ -12,12 +12,13 @@ const HOUR_MIN = 60;
  * docs captured at/after it derive {H/4, H/2, H} from their stamped
  * decayParams. Set to the deploy timestamp of the DH-GOV program image.
  *
- * ⚠️ DEPLOY GATE: the placeholder below is deliberately FAR-FUTURE so that a
- * premature deploy is fail-safe (everything stays legacy law, no wrong-law
- * rows). It MUST be set to the actual deploy instant as the final act before
- * the image build (D-DH-2(3): "recorded in the program PR").
+ * Set 2026-08-03 as the final act before the DH-GOV program image build
+ * (D-DH-2(3); DH-GOV accepted via afi-governance PR #37, merge e7b85e3).
+ * Docs captured before this instant complete under legacy law; any doc
+ * scored by the pre-DH image during the build/deploy window carries a
+ * swing stamp and lawfully derives that stamp's windows (stamped-value law).
  */
-export const DH_CUTOVER_ISO = "9999-01-01T00:00:00Z";
+export const DH_CUTOVER_ISO = "2026-08-03T06:31:14Z";
 
 /** Legacy global horizon set (pre-DH-GOV law; also the defensive fallback). */
 export const LEGACY_HORIZON_MINUTES = [60, 240, 1440];
