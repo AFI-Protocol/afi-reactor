@@ -831,12 +831,16 @@ describe("FLPR-GOV — laneView projections + inertness", () => {
     }
   });
 
-  it("viewTechnical pins brokeEmaWithBody=false, preserves the scorer-visible renames, and projects the unread context fields", () => {
+  it("viewTechnical pins brokeEmaWithBody to the declared unimplemented stub, preserves scorer-visible renames, and projects unread context", () => {
+    const { BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB } = require("afi-core/analysts/froggy.enrichment_adapter.js") as {
+      BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB: false;
+    };
+    expect(BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB).toBe(false);
     const view = viewTechnical({ emaDistancePct: 1.2, isInValueSweetSpot: true, rsi14: 55, ema20: 100, ema50: 98, volumeRatio: 1.1, atr14: 42.5, trendBias: "bullish" } as never)!;
     expect(view).toEqual({
       emaDistancePct: 1.2,
       isInValueSweetSpot: true,
-      brokeEmaWithBody: false,
+      brokeEmaWithBody: BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB,
       indicators: { rsi: 55, ema_20: 100, ema_50: 98, volume_ratio: 1.1 },
       atr14: 42.5,
       trendBias: "bullish",

@@ -7,7 +7,7 @@
  *
  * These are pure functions over validated governed results. They contain no
  * vendor logic, no I/O, and no scoring: the scorer-visible values they carry
- * (technical.emaDistancePct / isInValueSweetSpot / brokeEmaWithBody=false,
+ * (technical.emaDistancePct / isInValueSweetSpot / brokeEmaWithBody stub,
  * pattern.patternName / patternConfidence, sentiment.tags) are projected
  * byte-identically to the pre-activation runtime. The view ADDITIONALLY
  * carries projected-but-unread lane context (technical.atr14 / trendBias,
@@ -16,7 +16,10 @@
  * change view shape, never scored values — reading any of them in the adapter
  * is a separately governed change.
  */
-import type { FroggyEnrichedView } from "afi-core/analysts/froggy.enrichment_adapter.js";
+import {
+  BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB,
+  type FroggyEnrichedView,
+} from "afi-core/analysts/froggy.enrichment_adapter.js";
 import type { TechnicalLensV1 } from "../../types/UssLenses.js";
 
 /** Governed sentiment axis observation (afi.enrichment.sentiment.v1 item). */
@@ -60,7 +63,8 @@ export interface AiMlLanePayload {
 
 /**
  * technical governed result → view.technical (BYTE-IDENTICAL to the
- * pre-activation merge mapping: brokeEmaWithBody pinned false, same renames).
+ * pre-activation merge mapping: brokeEmaWithBody pinned to the declared
+ * unimplemented stub, same renames).
  */
 export function viewTechnical(
   payload: TechnicalLensV1["payload"] | null | undefined
@@ -69,7 +73,10 @@ export function viewTechnical(
   return {
     emaDistancePct: payload.emaDistancePct,
     isInValueSweetSpot: payload.isInValueSweetSpot,
-    brokeEmaWithBody: false,
+    // D5 / D5-GOV zero-movement: explicit unimplemented-input stub — NOT a
+    // computed candle fact. See BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB in
+    // afi-core/analysts/froggy.enrichment_adapter.ts.
+    brokeEmaWithBody: BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB,
     indicators: {
       rsi: payload.rsi14,
       ema_20: payload.ema20,
