@@ -6,7 +6,7 @@
  * news, aiMl) into the analyst-facing FroggyEnrichedView + USS lenses +
  * _priceFeedMetadata. The scorer-visible values are projected through the
  * shared laneView helpers BYTE-IDENTICALLY to the pre-activation runtime
- * (technical emaDistancePct / isInValueSweetSpot / brokeEmaWithBody=false and
+ * (technical emaDistancePct / isInValueSweetSpot / brokeEmaWithBody stub and
  * indicator renames; pattern patternName / patternConfidence from the
  * candlestick block; sentiment tags from the closed axis-tag vocabulary), so
  * analyst scoring, UWR, and the ScoredSignal projection are unchanged.

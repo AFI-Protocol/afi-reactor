@@ -12,6 +12,8 @@ declare module "afi-core/analyst" {
 }
 declare module "afi-core/analysts/froggy.enrichment_adapter.js" {
   export type FroggyEnrichedView = any;
+  /** Declared unimplemented-input stub (D5 zero-movement); value is always false. */
+  export const BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB: false;
   export function buildFroggyTrendPullbackInputFromEnriched(enriched: any): any;
 }
 declare module "afi-core/analysts/froggy.trend_pullback_v1.js" {
