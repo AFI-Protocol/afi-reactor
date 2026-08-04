@@ -1,0 +1,24 @@
+{
+  // BUILD config — what actually ships.
+  //
+  // tsconfig.json is the TYPECHECK config: it includes test/**/* so the compiler
+  // checks the suite (D8). That is correct for `tsc --noEmit` and for ts-jest,
+  // but `tsc` with an outDir would then EMIT the compiled tests into dist/ and
+  // ship test code in the production image. This config inherits every
+  // compilerOption (strict, bundler resolution, …) and narrows the input set
+  // back to the shipping sources.
+  //
+  // `npm run build`     → this file  (emit src only)
+  // `npm run typecheck` → tsconfig.json (check src + test, no emit)
+  "extends": "./tsconfig.json",
+  // Matches main's emitted output exactly: dist/src only, 87 .js files.
+  "include": [
+    "src/**/*",
+    "typings.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test"
+  ]
+}

@@ -12,7 +12,7 @@
  * @see https://docs.ccxt.com/
  */
 
-import ccxt from "ccxt";
+import ccxt, { type OHLCV } from "ccxt";
 import type { PriceFeedAdapter, OHLCVCandle, TickerSnapshot } from "./types.js";
 import { toVenueSymbol } from "../symbolRegistry.js";
 
@@ -28,7 +28,13 @@ class BloFinPriceFeedAdapter implements PriceFeedAdapter {
   public readonly supportsPerps = true;
   public readonly supportsSpot = true;
 
-  private exchange: any; // ccxt.Exchange type
+  // D8-R2: this `any` is why the OHLCV mapping below type-checks at all.
+  // Typing it `ccxt.Exchange` surfaces that ccxt declares every OHLCV
+  // element as `Num` (number | undefined) and `ticker.symbol` as `Str`,
+  // neither of which satisfies our OHLCVCandle/TickerSnapshot contracts.
+  // Left as-is deliberately: tightening it forces a reject-or-default
+  // decision that changes scoring behaviour. See the D8 report.
+  private exchange: any; // ccxt.Exchange
 
   constructor() {
     // Initialize ccxt BloFin exchange
@@ -93,8 +99,14 @@ class BloFinPriceFeedAdapter implements PriceFeedAdapter {
         limit
       );
 
-      // Transform ccxt format to our OHLCVCandle type
-      const candles: OHLCVCandle[] = ohlcvData.map((candle) => ({
+      // Transform ccxt format to our OHLCVCandle type.
+      // ccxt types every OHLCV element as `Num` (number | undefined) — a venue
+      // MAY return a partial candle — while OHLCVCandle requires `number`. The
+      // assignment still compiles only because `exchange` below is `any`, so
+      // presence is asserted, not checked. That is the pre-existing runtime
+      // contract and is deliberately left unchanged: rejecting or defaulting a
+      // partial candle would alter scoring behaviour. Recorded as D8-R2.
+      const candles: OHLCVCandle[] = ohlcvData.map((candle: OHLCV) => ({
         timestamp: candle[0],
         open: candle[1],
         high: candle[2],

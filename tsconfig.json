@@ -1,11 +1,24 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "node",
+    // D8: was module ESNext + moduleResolution "node". "node" (node10) cannot
+    // read afi-core's package `exports` map, and that failure is why the
+    // afi-core boundary was papered over with ambient `declare module` shims
+    // typing it as `any`.
+    //
+    // NodeNext is chosen over "bundler" deliberately: this package runs as real
+    // Node ESM ("type": "module", entrypoint dist/src/server.js), so NodeNext is
+    // the semantics that actually apply at runtime. It resolves the exports map
+    // AND enforces `.js`-suffixed relative specifiers at compile time — which
+    // "bundler" does not, leaving that invariant to scripts/esm-check.sh (which
+    // is not run by CI). Measured: both settings typecheck clean; NodeNext is
+    // the one that cannot drift.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "outDir": "./dist",
     "rootDir": "./",
-    "strict": false,
+    "strict": true,
+    // Third-party declaration files only; does NOT relax the afi-core seam.
     "skipLibCheck": true,
     "allowJs": true,
     "resolveJsonModule": true,
@@ -18,13 +31,36 @@
   },
   "include": [
     "src/**/*",
+    "test/**/*",
     "typings.d.ts"
   ],
+  // The excluded test paths mirror jest.config.js `testPathIgnorePatterns`
+  // exactly — the files jest is explicitly configured to skip. They are excluded
+  // because both currently-rotten ones would otherwise gate CI on code that no
+  // longer runs.
+  //
+  // NOTE: this is NOT the same as "everything jest never executes". jest's
+  // `testMatch` is an ALLOWLIST, so three further test files match no pattern
+  // and never run either, yet are still typechecked here (deliberately — they
+  // compile clean, and typechecking them is what would catch them rotting).
+  // They are recorded as D8-D3. Keep this list in sync with
+  // `testPathIgnorePatterns`, not with `testMatch`.
+  //
+  // The two rotten exclusions are recorded as dormant surfaces (D8-D1/D8-D2 in
+  // reports/afi-dormant-surface-inventory-v0.1.md) with deletion proposed:
+  //   - test/receiptProvenanceService.test.ts imports src/types/TssdSignalDocument.js,
+  //     which does not exist (retired TSSD framing) — it can never run.
+  //   - test/uss/ussMapper.test.ts calls mapTradingViewToUssV11 with 1 arg; the
+  //     function has required 2 since resolution-precedes-mapping landed, and
+  //     both live callers pass 2.
+  // Keep this list in sync with jest.config.js.
   "exclude": [
     "node_modules",
     "dist",
-    "**/*.test.ts",
-    "**/*.spec.ts"
+    "test/receiptProvenanceService.test.ts",
+    "test/vaultReplayService.test.ts",
+    "test/uss",
+    "test/cpj"
   ],
   "ts-node": {
     "esm": true
