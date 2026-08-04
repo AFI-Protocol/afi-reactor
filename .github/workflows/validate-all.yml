@@ -91,6 +91,20 @@ jobs:
         working-directory: afi-reactor
         run: npm ci
 
+      # D8: the reactor↔afi-core boundary is genuinely typechecked now (strict,
+      # real afi-core dist/*.d.ts, no ambient `any` shims). `npm run build` only
+      # compiles src/, and ts-jest only checks the suites jest actually runs, so
+      # this step is what keeps the FULL typecheck config honest — including the
+      # test tree. If it fails, do not re-add a shim: fix resolution, or install
+      # the package's @types. See reports/afi-d8-type-boundary-v0.1.md.
+      - name: Typecheck (src + tests, strict)
+        id: typecheck
+        working-directory: afi-reactor
+        run: |
+          echo "🔎 Typechecking AFI Reactor (strict, afi-core boundary included)..."
+          npm run typecheck
+          echo "✅ Typecheck clean"
+
       - name: Build
         id: build
         working-directory: afi-reactor

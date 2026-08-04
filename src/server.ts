@@ -697,7 +697,14 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
     const ingestHash = canonicalUss.provenance.ingestHash;
     const signalId = canonicalUss.provenance.signalId;
 
-    const duplicate = checkDuplicate(ingestHash);
+    // The governed USS v1.1 schema requires only source/providerId/signalId, so
+    // provenance.ingestHash is legitimately optional. mapCpjToUssV11 always
+    // populates it, so these guards are no-ops on every payload this route can
+    // produce today. They exist because an absent hash would otherwise be used
+    // as a literal cache key: with dedupe enabled (AFI_INGEST_DEDUPE=1) the
+    // first hashless signal would be recorded under `undefined` and every
+    // subsequent hashless signal rejected 409 as a duplicate. See D6.
+    const duplicate = ingestHash ? checkDuplicate(ingestHash) : undefined;
     if (duplicate) {
       console.warn(`⚠️  Duplicate CPJ ingestion detected:`, {
         ingestHash,
@@ -715,7 +722,7 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
     }
 
     // Record this ingest for future dedupe checks
-    recordIngest(ingestHash, signalId);
+    if (ingestHash) recordIngest(ingestHash, signalId);
 
     // ✅ STEP 4: Execute the RESOLVED registered composition through the
     // manifest-driven GraphExecutor (boot-validated registry composition).

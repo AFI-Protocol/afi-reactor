@@ -177,7 +177,7 @@ function canonicalizeCpjForHashing(cpj: CpjV01Payload): any {
   if (Array.isArray(clone.extracted?.takeProfits)) {
     clone.extracted.takeProfits = clone.extracted.takeProfits
       .slice() // Copy array
-      .sort((a, b) => {
+      .sort((a: { price: number } | number, b: { price: number } | number) => {
         const priceA = typeof a === "object" ? a.price : a;
         const priceB = typeof b === "object" ? b.price : b;
         return priceA - priceB;
@@ -188,7 +188,7 @@ function canonicalizeCpjForHashing(cpj: CpjV01Payload): any {
   if (Array.isArray(clone.extracted?.stopLoss)) {
     clone.extracted.stopLoss = clone.extracted.stopLoss
       .slice()
-      .sort((a, b) => a - b);
+      .sort((a: number, b: number) => a - b);
   }
 
   return clone;
