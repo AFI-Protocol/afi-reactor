@@ -14,6 +14,7 @@
 
 import ccxt, { type OHLCV } from "ccxt";
 import type { PriceFeedAdapter, OHLCVCandle, TickerSnapshot } from "./types.js";
+import { toOHLCVCandle } from "./types.js";
 import { toVenueSymbol } from "../symbolRegistry.js";
 
 /**
@@ -100,20 +101,13 @@ class BloFinPriceFeedAdapter implements PriceFeedAdapter {
       );
 
       // Transform ccxt format to our OHLCVCandle type.
-      // ccxt types every OHLCV element as `Num` (number | undefined) — a venue
-      // MAY return a partial candle — while OHLCVCandle requires `number`. The
-      // assignment still compiles only because `exchange` below is `any`, so
-      // presence is asserted, not checked. That is the pre-existing runtime
-      // contract and is deliberately left unchanged: rejecting or defaulting a
-      // partial candle would alter scoring behaviour. Recorded as D8-R2.
-      const candles: OHLCVCandle[] = ohlcvData.map((candle: OHLCV) => ({
-        timestamp: candle[0],
-        open: candle[1],
-        high: candle[2],
-        low: candle[3],
-        close: candle[4],
-        volume: candle[5],
-      }));
+      // ccxt types every OHLCV element as `Num` (number | undefined): a
+      // venue MAY return a partial bar. toOHLCVCandle REFUSES such a bar
+      // rather than repairing it — see the rationale on that function.
+      const candles: OHLCVCandle[] = ohlcvData.map(
+        (candle: OHLCV, index: number) =>
+          toOHLCVCandle(candle, "BloFin", blofinSymbol, index)
+      );
 
       return candles;
     } catch (error) {

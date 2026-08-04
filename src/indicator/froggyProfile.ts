@@ -96,12 +96,27 @@ export function computeFroggyBundle(
   const rsi14 = bundle.rsi?.[14];
   const atr14 = bundle.atr?.[14];
 
-  // Validate all required indicators are present
+  // Validate all required indicators are present AND USABLE.
+  //
+  // `== null` alone is not sufficient: `NaN == null` is false, so a NaN would
+  // pass this check and be returned as a valid bundle. That is reachable —
+  // EMA.update(undefined) and RSI.update(undefined) both return NaN silently
+  // rather than throwing (verified against trading-signals@7). Once past here a
+  // NaN is laundered into plausible-looking values by ordinary comparisons
+  // (`trendBias` → "range", `isInValueSweetSpot` → false) and can no longer be
+  // detected: the canonical-hash finiteness policy never sees it, because the
+  // enrichment bundle is round-tripped through `JSON.stringify`, which rewrites
+  // `NaN` to `null`.
+  //
+  // Declining the bundle is the house response — the same "refuse, never
+  // fabricate" rule the lanes and the honest-503 store path already follow.
+  // (`typeof x !== "number"` is what narrows away `undefined` — `Number.isFinite`
+  // is not a type guard — and it subsumes the previous `== null` check.)
   if (
-    ema20 == null ||
-    ema50 == null ||
-    rsi14 == null ||
-    atr14 == null
+    typeof ema20 !== "number" || !Number.isFinite(ema20) ||
+    typeof ema50 !== "number" || !Number.isFinite(ema50) ||
+    typeof rsi14 !== "number" || !Number.isFinite(rsi14) ||
+    typeof atr14 !== "number" || !Number.isFinite(atr14)
   ) {
     return null;
   }

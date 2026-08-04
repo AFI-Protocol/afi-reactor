@@ -34,8 +34,78 @@ export interface OHLCVCandle {
 }
 
 /**
+ * Raised when a venue returns a candle that is not fully populated.
+ *
+ * ccxt types every OHLCV element as `Num` (`number | undefined`) because a
+ * venue MAY return a partial bar. AFI refuses such a bar rather than repairing
+ * it: defaulting a missing price to 0 or carrying the previous bar forward
+ * would invent market data, and the resulting score would be indistinguishable
+ * from one derived from real data.
+ */
+export class PartialCandleError extends Error {
+  constructor(
+    readonly venue: string,
+    readonly symbol: string,
+    readonly index: number,
+    readonly field: keyof OHLCVCandle,
+    readonly received: unknown
+  ) {
+    super(
+      `${venue}: candle[${index}].${field} is not a finite number ` +
+        `(received ${String(received)}) for ${symbol} — refusing the series ` +
+        `rather than substituting a value`
+    );
+    this.name = "PartialCandleError";
+  }
+}
+
+/**
+ * Convert one ccxt OHLCV tuple to an OHLCVCandle, refusing anything non-finite.
+ *
+ * This is the boundary where market data enters the scoring pipeline, and it is
+ * the only place a missing value can be detected cheaply and attributed to its
+ * source. Downstream it becomes undiagnosable: `EMA.update(undefined)` returns
+ * `NaN` silently (verified), `NaN == null` is false so the indicator-bundle
+ * presence check passes it, comparisons then launder it into plausible values
+ * (`trendBias` → "range", `isInValueSweetSpot` → false), and the canonical-hash
+ * finiteness policy never sees it because the enrichment bundle is round-tripped
+ * through `JSON.stringify`, which rewrites `NaN` to `null`.
+ *
+ * @throws {PartialCandleError} if any element is absent, NaN, or infinite.
+ */
+export function toOHLCVCandle(
+  tuple: ReadonlyArray<number | undefined>,
+  venue: string,
+  symbol: string,
+  index: number
+): OHLCVCandle {
+  const fields: ReadonlyArray<keyof OHLCVCandle> = [
+    "timestamp",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+  ];
+  for (let i = 0; i < fields.length; i++) {
+    const value = tuple[i];
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new PartialCandleError(venue, symbol, index, fields[i]!, value);
+    }
+  }
+  return {
+    timestamp: tuple[0]!,
+    open: tuple[1]!,
+    high: tuple[2]!,
+    low: tuple[3]!,
+    close: tuple[4]!,
+    volume: tuple[5]!,
+  };
+}
+
+/**
  * Ticker Snapshot
- * 
+ *
  * Real-time price snapshot for a trading pair.
  */
 export interface TickerSnapshot {
