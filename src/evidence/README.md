@@ -41,6 +41,33 @@ boundary-verified by the KAT-proven recomputation in
 `src/providers/clients/tinyBrainsHashV1.ts` — never recomputed under either
 afi.hash.v1 law.
 
+## Two hashing laws that share the stamp `afi.hash.v1` (do not unify)
+
+Both composition and evidence paths stamp `canonicalizationVersion: "afi.hash.v1"`,
+but they are **different implementations** with different value policies. Unifying
+them would move digests (era + cutover). Documented here so competing notes are
+not mistaken for a single law:
+
+| Law | Module | Digest preimage | Domain tag | Numbers |
+|---|---|---|---|---|
+| **Composition** (`canonical-json-hashing.v1`) | `src/pipeline/hashing.ts` (+ infra twin) | `sha256(canonicalize(material))` | **CARRIED** on the CanonicalHash object — **not** in digest bytes | Shortest ECMAScript round-trip floats **admissible** |
+| **Evidence** (District-2 / provenance) | `src/evidence/provenance/canonicalHashV1.ts` | `sha256("afi.hash.v1\\n" + domainTag + "\\n" + canonicalJson)` | **Inside** the preimage | Safe integers only; raw floats rejected; declared keys projected to decimal strings via `hashProjection.ts` |
+| **Tiny Brains** (third) | `tiny-brains.hash.v1` (opaque hex on proofs) | Service canonical JSON | n/a (not a CanonicalHash) | Service float domain |
+
+**Live assignment (EV3-GOV):** `enrichmentHash`, `manifestHash`, `analystConfigHash`,
+`pluginSetHash`, `executionSummaryHash`, lane/provider proof hashes, `recordHash`,
+and `replayHash` use the **composition** law. Provenance `inputHash` / `outputHash`
+use the **evidence** law.
+
+**Fixture note correction:** `test/evidence/provenance/fixtures/golden.json`'s `_note`
+claims evidence-law (tag-in-preimage) digests for `enrichmentHash` / `strategyLocalViewHash`.
+That note is **stale relative to the live path**: live `composition.enrichmentHash` is
+composition-law (`graphScoringService.ts` → `canonicalHashOf`); `strategyLocalViewHash`
+is declared but **not produced** on the live path. The golden file bytes are intentionally
+left untouched (whole-file pin `312da118…`); this README is the correction. Tests that
+recompute digests assert `inputHash` under the evidence law; they do not recompute the
+golden's enrichment/strategyLocalView hex fields.
+
 ## The composition stamp (`afi.composition-ref.v1`)
 
 All-or-nothing (a run that cannot pin its full composition refuses to
