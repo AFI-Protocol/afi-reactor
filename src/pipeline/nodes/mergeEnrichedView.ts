@@ -32,6 +32,7 @@ import type {
   SupportedLens,
 } from "../../types/UssLenses.js";
 import type { NewsFeatures } from "../../news/newsFeatures.js";
+import type { AfiMarketType, VenueType } from "../../utils/marketUtils.js";
 import {
   ok,
   type AnalysisNodePlugin,
@@ -51,6 +52,36 @@ import {
 /** The join-shaped input the executor delivers to a merge node. */
 export interface MergeNodeInput {
   parents: Record<string, unknown>;
+}
+
+/**
+ * The enriched view as it LEAVES this node: afi-core's analyst-facing
+ * `FroggyEnrichedView` plus three reactor-only runtime attachments.
+ *
+ * These three are deliberately NOT part of afi-core's contract — the analyst
+ * adapter and scorer never read them — and the Evidence V3 record structurally
+ * rejects them as runtime/storage baggage (`additionalProperties: false`; see
+ * pipeline/governed-schema/scored-signal-evidence.v3.schema.json). They exist
+ * for the scored-response projection and the analytics plane:
+ *   - `lenses`             → ReactorScoredSignalV1.lenses, analytics scoring_context
+ *   - `_priceFeedMetadata` → graphScoringService, analytics scoring_context
+ *   - `_enrichmentSummary` → NO READER in either repo (dormant; see D8-D3 in
+ *                            reports/afi-dormant-surface-inventory-v0.1.md)
+ *
+ * Declaring the extension keeps the attachment sites honest: they were
+ * previously three `as Record<string, unknown>` casts, which suppressed the
+ * fact that this node widens a cross-repo type.
+ */
+interface ReactorEnrichedView extends FroggyEnrichedView {
+  lenses?: SupportedLens[];
+  _priceFeedMetadata?: {
+    priceSource: string;
+    venueType: VenueType;
+    marketType: AfiMarketType;
+    technicalIndicators?: TechnicalLensV1["payload"];
+    patternSignals?: PatternLensV1["payload"];
+  };
+  _enrichmentSummary?: string;
 }
 
 interface CategorizedResult {
@@ -204,7 +235,7 @@ export function createMergeEnrichedViewNode(): AnalysisNodePlugin {
         enrichmentSummary += `. Pattern: ${pattern.patternName}`;
       }
 
-      const enriched: FroggyEnrichedView = {
+      const enriched: ReactorEnrichedView = {
         signalId,
         symbol,
         market: normalizedMarketType,
@@ -222,15 +253,15 @@ export function createMergeEnrichedViewNode(): AnalysisNodePlugin {
         },
       };
 
-      (enriched as Record<string, unknown>).lenses = lenses;
-      (enriched as Record<string, unknown>)._priceFeedMetadata = {
+      enriched.lenses = lenses;
+      enriched._priceFeedMetadata = {
         priceSource: actualPriceSource,
         venueType,
         marketType: normalizedMarketType,
         technicalIndicators: technicalLensPayload || undefined,
         patternSignals: patternLensPayload || undefined,
       };
-      (enriched as Record<string, unknown>)._enrichmentSummary = enrichmentSummary;
+      enriched._enrichmentSummary = enrichmentSummary;
 
       ctx.logger.info("enriched view assembled", { categories: enrichedCategories });
       return ok(enriched);
