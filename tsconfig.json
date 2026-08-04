@@ -35,9 +35,18 @@
     "typings.d.ts"
   ],
   // The excluded test paths mirror jest.config.js `testPathIgnorePatterns`
-  // exactly: they are the files jest never executes, so typechecking them would
-  // gate CI on code that no longer runs. Both currently-rotten ones are recorded
-  // as dormant surfaces (D8-D1/D8-D2 in
+  // exactly — the files jest is explicitly configured to skip. They are excluded
+  // because both currently-rotten ones would otherwise gate CI on code that no
+  // longer runs.
+  //
+  // NOTE: this is NOT the same as "everything jest never executes". jest's
+  // `testMatch` is an ALLOWLIST, so three further test files match no pattern
+  // and never run either, yet are still typechecked here (deliberately — they
+  // compile clean, and typechecking them is what would catch them rotting).
+  // They are recorded as D8-D3. Keep this list in sync with
+  // `testPathIgnorePatterns`, not with `testMatch`.
+  //
+  // The two rotten exclusions are recorded as dormant surfaces (D8-D1/D8-D2 in
   // reports/afi-dormant-surface-inventory-v0.1.md) with deletion proposed:
   //   - test/receiptProvenanceService.test.ts imports src/types/TssdSignalDocument.js,
   //     which does not exist (retired TSSD framing) — it can never run.
