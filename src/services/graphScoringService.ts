@@ -148,26 +148,47 @@ interface ScorerOutput {
 
 /**
  * Apply the registration's validated nodeOverrides to the registered manifest
- * (config merge per node). `enabled:false` is not supported by this runtime —
- * fail closed rather than silently serving a different graph.
+ * (config merge per node).
+ *
+ * `enabled:false` on an ANALYSIS-LANE node is the analyst's deliberate lane
+ * non-selection (CFG-GOV D-CFG-3(3)): the node and its edges are removed from
+ * the effective graph, so the lane is not executed, not bound
+ * (laneBindingExpectations reads this manifest), and not owed a proof —
+ * never a failure. Both inputs are hash-committed on the record: the
+ * registered manifest by composition.manifestHash and the overrides by
+ * composition.analystConfigHash. Disabling any NON-lane node (ingest, merge,
+ * scorer, transform) is NOT lane selection and stays fail-closed; so does a
+ * residual graph the executor's structural validation refuses (e.g. every
+ * lane disabled leaves merge/scorer unreachable).
  */
-function effectiveManifest(resolved: ResolvedStrategy): PipelineManifest {
+export function effectiveManifest(resolved: ResolvedStrategy): PipelineManifest {
   const overrides = resolved.config.nodeOverrides ?? {};
   if (Object.keys(overrides).length === 0) return resolved.pipeline;
+
+  const disabled = new Set<string>();
+  for (const [nodeId, override] of Object.entries(overrides)) {
+    if (override.enabled !== false) continue;
+    const node = resolved.pipeline.nodes.find((n) => n.id === nodeId);
+    if (!node || !ANALYSIS_LANES.has(node.category)) {
+      throw new Error(
+        `nodeOverrides['${nodeId}'].enabled=false is admissible only on an analysis-lane node ` +
+          `(CFG-GOV D-CFG-3 lane selection) — refusing to serve a silently altered graph.`
+      );
+    }
+    disabled.add(nodeId);
+  }
+
   return {
     ...resolved.pipeline,
-    nodes: resolved.pipeline.nodes.map((node) => {
-      const override = overrides[node.id];
-      if (!override) return node;
-      if (override.enabled === false) {
-        throw new Error(
-          `nodeOverrides['${node.id}'].enabled=false is not supported by this runtime — refusing to serve a silently altered graph.`
-        );
-      }
-      return override.config
-        ? { ...node, config: { ...(node.config ?? {}), ...override.config } }
-        : node;
-    }),
+    nodes: resolved.pipeline.nodes
+      .filter((node) => !disabled.has(node.id))
+      .map((node) => {
+        const override = overrides[node.id];
+        return override?.config
+          ? { ...node, config: { ...(node.config ?? {}), ...override.config } }
+          : node;
+      }),
+    edges: resolved.pipeline.edges.filter((e) => !disabled.has(e.from) && !disabled.has(e.to)),
   };
 }
 

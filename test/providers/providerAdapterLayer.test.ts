@@ -567,9 +567,16 @@ describe("EV3-GOV — Evidence V3 guard (D-EV3-1/D-EV3-2/D-EV3-5; a V3-shaped gu
     for (const added of ["providerInvocations", "recordHash", "replayHash"]) {
       expect(schema.required).toContain(added);
     }
-    const proofs = schema.properties.providerInvocations as { minItems?: number; maxItems?: number };
-    expect(proofs.minItems).toBe(5);
+    // Composition-scoped proof count (CFG-GOV D-CFG-3): 1..5 proofs, bound to
+    // the 31 ascending category subsets by the binder's oneOf enumeration.
+    const proofs = schema.properties.providerInvocations as {
+      minItems?: number;
+      maxItems?: number;
+      oneOf?: unknown[];
+    };
+    expect(proofs.minItems).toBe(1);
     expect(proofs.maxItems).toBe(5);
+    expect(proofs.oneOf).toHaveLength(31);
   });
 
   it("a built record IS v3: five proofs uniquely and deterministically ordered, the nested aiMl proof only at position 0", () => {

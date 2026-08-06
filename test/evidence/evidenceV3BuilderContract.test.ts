@@ -26,7 +26,7 @@ import {
 import { validateEvidenceRecordV3 } from "../../src/evidence/evidenceV3Schema.js";
 import type { ProviderInvocationProofV1 } from "../../src/providers/invocationProof.js";
 import type { AnalysisCategory } from "../../src/providers/types.js";
-import { makeScored, makeContext } from "./support/evidenceV3World.js";
+import { makeScored, makeContext, makeInvocations } from "./support/evidenceV3World.js";
 
 /** Build with the given context and capture the typed violation. */
 function violation(
@@ -88,7 +88,7 @@ describe("EV3-GOV 15.1 — baseline: the valid world builds a valid record", () 
   });
 });
 
-describe("EV3-GOV 15.1 — invocation capture and the five-proof law", () => {
+describe("EV3-GOV 15.1 — invocation capture and the declared-lane proof law", () => {
   it("reason 'invocation-capture-missing': no capture propagated", () => {
     const context = makeContext();
     (context as unknown as Record<string, unknown>).invocations = undefined;
@@ -102,7 +102,7 @@ describe("EV3-GOV 15.1 — invocation capture and the five-proof law", () => {
   });
 
   it.each(["aiMl", "news", "pattern", "sentiment", "technical"] as const)(
-    "reason 'proof-count': the '%s' lane proof is missing (all five required, D-EV3-5(1))",
+    "reason 'proof-count': the '%s' DECLARED lane proof is missing (every declared lane required, D-EV3-5(1)/D-CFG-3)",
     (category) => {
       const context = makeContext();
       context.invocations.proofs = context.invocations.proofs.filter(
@@ -178,12 +178,16 @@ describe("EV3-GOV 15.1 — registry-identity law (boot-verified resolution agree
     expectReason(context, "registry-identity-mismatch");
   });
 
-  it("reason 'registry-identity-mismatch': no lane binding exists for the category", () => {
+  it("reason 'proof-undeclared-category': a proof exists for a lane with no boot-verified binding (the composition does not declare it — CFG-GOV D-CFG-3)", () => {
+    // Pre-CFG-GOV this tripped 'registry-identity-mismatch' at the identity
+    // cross-check; the declared lane set is now DERIVED from the bindings, so
+    // a binding-less proof is refused earlier as an undeclared-lane proof.
+    // Fail-closed either way: no record.
     const context = makeContext();
     context.invocations.laneBindings = context.invocations.laneBindings.filter(
       (b) => b.category !== "pattern"
     );
-    expectReason(context, "registry-identity-mismatch");
+    expectReason(context, "proof-undeclared-category");
   });
 });
 
@@ -357,6 +361,61 @@ describe("EV3-GOV 15.1 — decay and composition identity law", () => {
   });
 });
 
+describe("CFG-GOV D-CFG-3 — composition-scoped proof completeness", () => {
+  /** The froggy world with the news lane NOT DECLARED (removed from bindings,
+   *  proofs, and lane results — as the effective manifest of a composition
+   *  that disabled the lane would produce). */
+  function fourLaneContext(): EvidenceCompositionContext {
+    const context = makeContext();
+    context.invocations.laneBindings = context.invocations.laneBindings.filter(
+      (b) => b.category !== "news"
+    );
+    context.invocations.proofs = context.invocations.proofs.filter((p) => p.category !== "news");
+    delete (context.invocations.laneResults as Record<string, unknown>).news;
+    return context;
+  }
+
+  it("builds a schema-valid record with exactly the four declared proofs, ascending (D-CFG-3(1)/(2))", () => {
+    const record = buildReactorEvidenceRecord(makeScored(), fourLaneContext());
+    expect(record.providerInvocations.map((p) => p.category)).toEqual([
+      "aiMl",
+      "pattern",
+      "sentiment",
+      "technical",
+    ]);
+    const v3 = validateEvidenceRecordV3(record);
+    expect(v3.errors).toEqual([]);
+    expect(v3.ok).toBe(true);
+  });
+
+  it("FAIL-CLOSED LAW UNWEAKENED: a DECLARED lane without a proof still yields nothing (D-EV3-5(1))", () => {
+    // Four declared lanes; the pattern lane produced no proof (a failed or
+    // degraded declared lane is captured as no succeeded proof). No record.
+    const context = fourLaneContext();
+    context.invocations.proofs = context.invocations.proofs.filter(
+      (p) => p.category !== "pattern"
+    );
+    expectReason(context, "proof-count");
+  });
+
+  it("reason 'proof-undeclared-category': a proof for a lane the composition did not declare (D-CFG-3(3) is selection, never a back door)", () => {
+    const context = fourLaneContext();
+    const invocations = makeInvocations();
+    context.invocations.proofs = [
+      ...context.invocations.proofs,
+      invocations.proofs.find((p) => p.category === "news")!,
+    ];
+    expectReason(context, "proof-undeclared-category");
+  });
+
+  it("reason 'proof-count': a composition declaring NO lanes never yields a record", () => {
+    const context = makeContext();
+    context.invocations.laneBindings = [];
+    context.invocations.proofs = [];
+    expectReason(context, "proof-count");
+  });
+});
+
 describe("EV3-GOV 15.1 — vendored v3 closure rejections (AJV over the governed contract)", () => {
   function validRecord() {
     return JSON.parse(
@@ -372,13 +431,26 @@ describe("EV3-GOV 15.1 — vendored v3 closure rejections (AJV over the governed
     }
   });
 
-  it("rejects fewer than five proofs (minItems 5)", () => {
+  it("admits an ascending subset at the SCHEMA layer (composition-scoped count is the builder's law, D-CFG-3)", () => {
     const record = validRecord();
     (record.providerInvocations as unknown[]).pop();
+    expect(validateEvidenceRecordV3(record).ok).toBe(true);
+  });
+
+  it("rejects an empty proof set (minItems 1 — a record carries at least one proven invocation)", () => {
+    const record = validRecord();
+    record.providerInvocations = [];
     expect(validateEvidenceRecordV3(record).ok).toBe(false);
   });
 
-  it("rejects mis-ordered proofs (the positional five-tuple enforces the ascending category order)", () => {
+  it("rejects a duplicate category inside a subset (the 31-subset oneOf admits sets only)", () => {
+    const record = validRecord();
+    const proofs = record.providerInvocations as unknown[];
+    record.providerInvocations = [proofs[0], proofs[3], proofs[3]];
+    expect(validateEvidenceRecordV3(record).ok).toBe(false);
+  });
+
+  it("rejects mis-ordered proofs (every oneOf branch is an ascending positional tuple)", () => {
     const record = validRecord();
     (record.providerInvocations as unknown[]).reverse();
     expect(validateEvidenceRecordV3(record).ok).toBe(false);
