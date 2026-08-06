@@ -22,12 +22,14 @@ function sha256(relPath: string): string {
 
 describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   it("pins the authorizing afi-config commit", () => {
-    // CHR-GOV re-vendor (D-CHR-5(1)): scored-signal-evidence.v3 loses the
-    // retired CHALLENGE_OPEN and CONTESTED lifecycleState members (10 -> 8;
-    // FINAL_REJECTED retained per D-CHR-2(4)), byte-identical at the
-    // afi-config merge commit; every other closure member is byte-unchanged
-    // between the prior pin (c5cf83a…, the TDR-GOV re-vendor) and this commit.
-    expect(manifest.afiConfigCommit).toBe("666b2475a72153416ef2262b84089d11f395a1de");
+    // CFG-GOV re-vendor (D-CFG-3, slot CFG-PROOF-SCOPE): the evidence
+    // contract's providerInvocations binder becomes composition-scoped — a
+    // oneOf enumerating all 31 ascending subsets of the unchanged
+    // five-category namespace (this follows the D-CFG-2 CFG-IMMUTABILITY
+    // re-vendor at 4f8f5ef…, which amended the finalized binding). Every
+    // other closure member is byte-unchanged between the prior pin and this
+    // commit.
+    expect(manifest.afiConfigCommit).toBe("d7896461f3f51fb3992d119f1e7c820ae8523297");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {

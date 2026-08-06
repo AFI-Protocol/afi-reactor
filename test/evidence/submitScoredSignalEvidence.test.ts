@@ -67,7 +67,8 @@ describe("buildReactorEvidenceRecord (v3)", () => {
 
     expect(record.schema).toBe("afi.scored-signal-evidence.v3");
     expect(record.lifecycleState).toBe("SCORED");
-    expect(record.finalized).toBe(false);
+    // Sealed at admission (CFG-GOV D-CFG-2): the writer emits finalized:true.
+    expect(record.finalized).toBe(true);
     // complete strategy triple carried at top level
     expect(record.analystId).toBe("froggy");
     expect(record.strategyId).toBe("trend_pullback_v1");

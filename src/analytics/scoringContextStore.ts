@@ -26,6 +26,7 @@
  */
 import { MongoClient, type Collection, type Document } from "mongodb";
 import type { ReactorScoredSignalV1 } from "../types/ReactorScoredSignalV1.js";
+import type { CompositionRefV1 } from "../pipeline/manifestTypes.js";
 
 const ANALYTICS_DB_ENV = "AFI_ANALYTICS_DB_NAME";
 const ANALYTICS_ENABLED_ENV = "AFI_ANALYTICS_CAPTURE";
@@ -76,11 +77,19 @@ async function withContextCollection<T>(
 /**
  * Fire-and-forget capture of the full scoring context. Returns a promise only
  * so tests can await it; production call sites intentionally do not await.
+ *
+ * `compositionRef` (CFG-GOV slot CFG-ANALYTICS-STAMP): the run's complete
+ * afi.composition-ref.v1 stamp — the same object the canonical evidence
+ * record already carries — copied here so analytics rows are self-describing
+ * about WHICH registered configuration produced the score. Analytics-plane
+ * projection only: non-normative, additive, and verifiable against the
+ * sealed evidence record via signalId, never the other way round.
  */
 export function captureScoringContext(
   scored: ReactorScoredSignalV1,
   persistenceOutcome: unknown,
-  route: string
+  route: string,
+  compositionRef?: CompositionRefV1
 ): Promise<void> {
   if (!enabled()) return Promise.resolve();
   return withContextCollection(async (col) => {
@@ -115,6 +124,7 @@ export function captureScoringContext(
           persistenceOutcome,
           scoredAt: scored.scoredAt,
           meta,
+          compositionRef,
           analystScore: scored.analystScore,
           uwrResolvedSource: s.uwrResolvedSource,
           decayParams: s.decayParams,

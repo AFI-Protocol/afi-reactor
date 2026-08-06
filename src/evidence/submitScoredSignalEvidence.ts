@@ -100,7 +100,10 @@ function evidenceWrapperViolations(r: ReactorEvidenceRecord): string[] {
   const v: string[] = [];
   if (r.schema !== EVIDENCE_SCHEMA) v.push("schema is not afi.scored-signal-evidence.v3");
   if (r.lifecycleState !== REACTOR_LIFECYCLE_STATE) v.push("lifecycleState is not SCORED");
-  if (r.finalized !== false) v.push("finalized must be false for a SCORED record");
+  if (r.finalized !== true)
+    v.push(
+      "finalized must be true — a SCORED record is sealed at admission (CFG-GOV D-CFG-2)"
+    );
   if (!r.analystId) v.push("analystId missing");
   if (!r.strategyId) v.push("strategyId missing");
   if (!r.strategyVersion) v.push("strategyVersion missing (complete triple required)");

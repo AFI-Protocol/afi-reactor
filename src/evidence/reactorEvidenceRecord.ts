@@ -153,7 +153,13 @@ export interface ReactorEvidenceRecord {
   strategyVersion: string;
   canonicalizationVersion: string;
   lifecycleState: typeof REACTOR_LIFECYCLE_STATE;
-  finalized: false;
+  /**
+   * Determination-sealed marker (CFG-GOV D-CFG-2, amending MONGO-GOV
+   * D-MONGO-5): immutability attaches at ADMISSION in the SCORED state, so
+   * the sole canonical writer writes every record sealed. Storage-custody
+   * immutability only — never settlement finality (CHAIN-GOV).
+   */
+  finalized: true;
   scoredSignal: ScoredSignalV1;
   provenanceRecord: ProvenanceRecordV1;
   /**
@@ -169,10 +175,12 @@ export interface ReactorEvidenceRecord {
    */
   composition: CompositionRefV1;
   /**
-   * REQUIRED five-lane provider invocation proof collection (v3 addition,
-   * D-EV3-2): exactly five, unique by category, ordered ascending
-   * case-sensitive (aiMl, news, pattern, sentiment, technical). Carried,
-   * never consumed.
+   * REQUIRED composition-scoped provider invocation proof collection (v3
+   * addition, D-EV3-2 as amended by CFG-GOV D-CFG-3): exactly as many proofs
+   * as the registered composition declares enrichment lanes — an ascending
+   * (case-sensitive), unique-by-category subset of the unchanged governed
+   * five-category namespace (aiMl, news, pattern, sentiment, technical).
+   * Carried, never consumed.
    */
   providerInvocations: ProviderInvocationProofV1[];
   /** REQUIRED full-record integrity commitment (afi.d2.evidence-record). */
@@ -207,6 +215,7 @@ export type EvidenceProofViolationReason =
   | "invocation-capture-missing"
   | "proof-count"
   | "proof-unknown-category"
+  | "proof-undeclared-category"
   | "proof-duplicate-category"
   | "proof-mis-ordered"
   | "proof-malformed"
@@ -300,10 +309,16 @@ function hashesEqual(a: CanonicalHashRef, b: CanonicalHashRef): boolean {
 }
 
 /**
- * The D-EV3-5(3) proof validation: exactly five proofs, unique, known,
- * deterministically ordered after sort; every identity fact equal to the
- * boot-verified registry resolution; every hash recomputed from the results
- * the analyst path ACTUALLY consumed. Returns the sorted proof five-tuple.
+ * The D-EV3-5(3) proof validation, composition-scoped per CFG-GOV D-CFG-3:
+ * exactly one proof per lane the registered composition DECLARES (the
+ * boot-verified lane bindings, derived from the effective manifest the
+ * composition's manifestHash/analystConfigHash already commit) — unique,
+ * known, deterministically ordered after sort; every identity fact equal to
+ * the boot-verified registry resolution; every hash recomputed from the
+ * results the analyst path ACTUALLY consumed. A lane the analyst did not
+ * select is NOT a failure (D-CFG-3(3)); a DECLARED lane without a succeeded
+ * proof still yields no record (D-EV3-5(1), retained in full). Returns the
+ * sorted proof tuple.
  */
 function validateInvocationProofs(
   capture: EvidenceInvocationCapture,
@@ -311,12 +326,34 @@ function validateInvocationProofs(
 ): ProviderInvocationProofV1[] {
   const proofs = capture.proofs ?? [];
 
-  // -- category set law: unknown / duplicate / missing / count ------------
+  // -- the declared lane set (from the registered composition) ------------
+  // laneBindings are built from the EFFECTIVE manifest (registered pipeline +
+  // the registration's validated nodeOverrides), so a lane disabled by the
+  // analyst's configuration is simply not declared here. No new source of
+  // truth: the same bindings the identity cross-checks below already trust.
+  const declared = new Set<string>(capture.laneBindings.map((b) => b.category));
+  const declaredOrder = PROOF_CATEGORY_ORDER.filter((c) => declared.has(c));
+  if (declaredOrder.length === 0) {
+    throw new EvidenceProofViolationError(
+      "proof-count",
+      "the composition declares no enrichment lanes — a scored record carries at least one proven invocation or does not exist",
+      signalId
+    );
+  }
+
+  // -- category set law: unknown / undeclared / duplicate / missing / count --
   for (const proof of proofs) {
     if (!KNOWN_CATEGORIES.has(proof.category)) {
       throw new EvidenceProofViolationError(
         "proof-unknown-category",
         `proof names unknown category '${String(proof.category)}'`,
+        signalId
+      );
+    }
+    if (!declared.has(proof.category)) {
+      throw new EvidenceProofViolationError(
+        "proof-undeclared-category",
+        `proof names category '${proof.category}' which the registered composition does not declare (D-CFG-3)`,
         signalId
       );
     }
@@ -332,19 +369,19 @@ function validateInvocationProofs(
     }
     seen.add(proof.category);
   }
-  for (const category of PROOF_CATEGORY_ORDER) {
+  for (const category of declaredOrder) {
     if (!seen.has(category)) {
       throw new EvidenceProofViolationError(
         "proof-count",
-        `no invocation proof for category '${category}' — a scored evaluation requires all five lanes (D-EV3-5(1))`,
+        `no invocation proof for declared lane '${category}' — a scored evaluation requires every declared lane to succeed (D-EV3-5(1), D-CFG-3)`,
         signalId
       );
     }
   }
-  if (proofs.length !== PROOF_CATEGORY_ORDER.length) {
+  if (proofs.length !== declaredOrder.length) {
     throw new EvidenceProofViolationError(
       "proof-count",
-      `expected exactly ${PROOF_CATEGORY_ORDER.length} proofs, got ${proofs.length}`,
+      `expected exactly ${declaredOrder.length} proofs (the composition's declared lanes), got ${proofs.length}`,
       signalId
     );
   }
@@ -354,11 +391,11 @@ function validateInvocationProofs(
     a.category < b.category ? -1 : a.category > b.category ? 1 : 0
   );
   sorted.forEach((proof, index) => {
-    if (proof.category !== PROOF_CATEGORY_ORDER[index]) {
-      // Unique + known + all-five makes this unreachable — an internal error.
+    if (proof.category !== declaredOrder[index]) {
+      // Unique + declared + all-declared makes this unreachable — internal.
       throw new EvidenceProofViolationError(
         "proof-mis-ordered",
-        `internal error: sorted proof[${index}] is '${proof.category}', expected '${PROOF_CATEGORY_ORDER[index]}'`,
+        `internal error: sorted proof[${index}] is '${proof.category}', expected '${declaredOrder[index]}'`,
         signalId
       );
     }
@@ -605,7 +642,7 @@ export function buildReactorEvidenceRecord(
   if (!capture || !Array.isArray(capture.proofs) || !capture.laneBindings || !capture.laneResults) {
     throw new EvidenceProofViolationError(
       "invocation-capture-missing",
-      `no invocation capture was propagated for signalId '${scored.signalId}' — a v3 record carries exactly five proven invocations or does not exist`,
+      `no invocation capture was propagated for signalId '${scored.signalId}' — a v3 record carries a proven invocation for every declared lane or does not exist`,
       scored.signalId
     );
   }
@@ -686,7 +723,11 @@ export function buildReactorEvidenceRecord(
     strategyVersion,
     canonicalizationVersion: AFI_HASH_V1,
     lifecycleState: REACTOR_LIFECYCLE_STATE,
-    finalized: false as const,
+    // Sealed at admission (CFG-GOV D-CFG-2): inside the recordHash preimage
+    // (only recordHash/replayHash are excluded), deliberately OUTSIDE the
+    // replayHash preimage — flipping this marker moved recordHash on every
+    // record written after CFG-IMMUTABILITY and left replayHash byte-stable.
+    finalized: true as const,
     scoredSignal: projection,
     provenanceRecord,
     uwrProfile,

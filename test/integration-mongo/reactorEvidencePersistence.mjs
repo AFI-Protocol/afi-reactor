@@ -13,7 +13,7 @@
  *      cpjParseConfidence (no integer-only crutch).
  *   3. Read-back by signalId returns the canonical record, with identifier
  *      continuity across record / scoredSignal / provenanceRecord and the
- *      SCORED / not-finalized lifecycle.
+ *      SCORED lifecycle, sealed at admission (finalized:true, CFG-GOV D-CFG-2).
  *   4. ENDPOINT idempotency: re-POSTing the SAME canonical input + signalId
  *      through BOTH endpoints yields an identical record and an idempotent 200
  *      (deterministic scoring — the demo feed is now seeded from governed input).
@@ -85,7 +85,8 @@ function assertGovernedRecord(record, signalId) {
   assert.equal(record.scoredSignal.schema, "afi.scored-signal.v1", "thin projection schema");
   assert.equal(record.provenanceRecord.schema, "afi.provenance-record.v1", "provenance schema");
   assert.equal(record.lifecycleState, "SCORED", "SCORED lifecycle");
-  assert.equal(record.finalized, false, "SCORED is not finalized");
+  // Sealed at admission (CFG-GOV D-CFG-2(1)): "this determination is sealed".
+  assert.equal(record.finalized, true, "a SCORED record is sealed at admission");
   assert.ok(record.analystId && record.strategyId && record.strategyVersion, "strategy triple");
   // v2's REQUIRED composition provenance (FCP-GOV D-FCP-7) — all pins present.
   assert.equal(record.composition?.schema, "afi.composition-ref.v1", "composition ref schema");

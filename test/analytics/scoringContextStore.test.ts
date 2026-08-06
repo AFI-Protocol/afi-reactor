@@ -59,6 +59,58 @@ describe("operational scoring-context capture", () => {
     expect(typeof doc.capturedAt).toBe("string");
   });
 
+  it("stamps the run's compositionRef into the doc (CFG-GOV CFG-ANALYTICS-STAMP)", async () => {
+    const updates: Array<{ update: unknown }> = [];
+    __setAnalyticsCollectionForTests(async () =>
+      ({
+        updateOne: async (_f: unknown, update: unknown) => {
+          updates.push({ update });
+          return { acknowledged: true };
+        },
+      }) as never
+    );
+
+    const compositionRef = {
+      schema: "afi.composition-ref.v1",
+      pipelineId: "froggy-trend-pullback",
+      pipelineVersion: "v1.3.0",
+      manifestHash: { algorithm: "sha256", value: "a".repeat(64) },
+      analystConfigHash: { algorithm: "sha256", value: "b".repeat(64) },
+      scorerPluginId: "afi-scorer-froggy-trend-pullback",
+      scorerPluginVersion: "1.0.0",
+      pluginSetHash: { algorithm: "sha256", value: "c".repeat(64) },
+      executionSummaryHash: { algorithm: "sha256", value: "d".repeat(64) },
+      enrichmentHash: { algorithm: "sha256", value: "e".repeat(64) },
+    };
+    await captureScoringContext(
+      scored(),
+      { outcome: "inserted" },
+      "tradingview-webhook",
+      compositionRef as never
+    );
+
+    const doc = (updates[0].update as { $setOnInsert: Record<string, unknown> }).$setOnInsert;
+    expect(doc.compositionRef).toEqual(compositionRef);
+  });
+
+  it("omits nothing else when the caller passes no compositionRef (additive field)", async () => {
+    const updates: Array<{ update: unknown }> = [];
+    __setAnalyticsCollectionForTests(async () =>
+      ({
+        updateOne: async (_f: unknown, update: unknown) => {
+          updates.push({ update });
+          return { acknowledged: true };
+        },
+      }) as never
+    );
+
+    await captureScoringContext(scored(), { outcome: "inserted" }, "cpj");
+
+    const doc = (updates[0].update as { $setOnInsert: Record<string, unknown> }).$setOnInsert;
+    expect(doc.compositionRef).toBeUndefined();
+    expect(doc.analystScore).toBeDefined();
+  });
+
   it("projects the governed instrument fact (facts.market) into the doc's meta", async () => {
     const updates: Array<{ update: unknown }> = [];
     __setAnalyticsCollectionForTests(async () =>
