@@ -153,7 +153,13 @@ export interface ReactorEvidenceRecord {
   strategyVersion: string;
   canonicalizationVersion: string;
   lifecycleState: typeof REACTOR_LIFECYCLE_STATE;
-  finalized: false;
+  /**
+   * Determination-sealed marker (CFG-GOV D-CFG-2, amending MONGO-GOV
+   * D-MONGO-5): immutability attaches at ADMISSION in the SCORED state, so
+   * the sole canonical writer writes every record sealed. Storage-custody
+   * immutability only — never settlement finality (CHAIN-GOV).
+   */
+  finalized: true;
   scoredSignal: ScoredSignalV1;
   provenanceRecord: ProvenanceRecordV1;
   /**
@@ -686,7 +692,11 @@ export function buildReactorEvidenceRecord(
     strategyVersion,
     canonicalizationVersion: AFI_HASH_V1,
     lifecycleState: REACTOR_LIFECYCLE_STATE,
-    finalized: false as const,
+    // Sealed at admission (CFG-GOV D-CFG-2): inside the recordHash preimage
+    // (only recordHash/replayHash are excluded), deliberately OUTSIDE the
+    // replayHash preimage — flipping this marker moved recordHash on every
+    // record written after CFG-IMMUTABILITY and left replayHash byte-stable.
+    finalized: true as const,
     scoredSignal: projection,
     provenanceRecord,
     uwrProfile,

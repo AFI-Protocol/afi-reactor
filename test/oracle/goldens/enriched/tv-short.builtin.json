@@ -99,7 +99,7 @@
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
       "scorerPluginVersion": "1.0.0"
     },
-    "finalized": false,
+    "finalized": true,
     "lifecycleState": "SCORED",
     "provenanceRecord": {
       "canonicalizationVersion": "afi.hash.v1",
@@ -432,7 +432,7 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "6dc17cb962260150c48f517a10b91a8467162f18b8ecaa1097e0dd900d6fbc18"
+      "value": "8a2478c32aa5d42eb4b892237f6ff7c0ae37d77ff56b26e1485ed702ae2935ac"
     },
     "recordVersion": 1,
     "replayHash": {
