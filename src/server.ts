@@ -336,7 +336,7 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
     });
 
     // Operational analytics capture — fail-open, never awaited (D-MONGO-4).
-    void captureScoringContext(run.scored, persistence, "tradingview-webhook");
+    void captureScoringContext(run.scored, persistence, "tradingview-webhook", run.composition);
 
     return res.status(200).json({ ...run.scored, persistence });
   } catch (err: any) {
@@ -498,7 +498,7 @@ app.post("/api/webhooks/tradingview/markittick", async (req: Request, res: Respo
     }
 
     // Operational analytics capture — fail-open, never awaited (D-MONGO-4).
-    void captureScoringContext(run.scored, persistence, "markittick");
+    void captureScoringContext(run.scored, persistence, "markittick", run.composition);
 
     const totalLatencyMs = Date.now() - t0;
     const selectedProfileId = `${run.registration.analystId}/${run.registration.strategyId}@${run.registration.strategyVersion}`;
@@ -747,7 +747,7 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
     });
 
     // Operational analytics capture — fail-open, never awaited (D-MONGO-4).
-    void captureScoringContext(pipelineResult, persistence, "cpj");
+    void captureScoringContext(pipelineResult, persistence, "cpj", run.composition);
 
     // Return result
     return res.status(200).json({
