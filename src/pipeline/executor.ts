@@ -38,6 +38,7 @@
  *    nodeId (src/pipeline/executionSummary.ts) + executionSummaryHash.
  */
 import type { CanonicalUss } from "../types/canonicalUss.js";
+import type { ResolvedUwrRuntimeConfig } from "../config/uwrRuntimeProfile.js";
 import { evaluatePredicate, type ConditionEnv } from "./conditions.js";
 import {
   buildExecutionSummary,
@@ -266,6 +267,8 @@ export interface ExecuteRequest {
   input: unknown;
   /** The canonical USS signal (ctx.signal for every node). */
   signal: CanonicalUss;
+  /** Resolved UWR configuration for this determination (CFG-GOV D-CFG-4(4)). */
+  uwr?: ResolvedUwrRuntimeConfig;
   /** Pipeline context addressable by predicates under /context/... */
   context?: Record<string, unknown>;
   /** External cancellation. */
@@ -712,6 +715,9 @@ export class GraphExecutor {
             // Invocation-proof deposit sink (EV3-GOV D-EV3-5(2)): run-scoped,
             // keyed by nodeId; only provider-backed nodes ever call it.
             depositInvocationProof: (proof) => invocationProofs.set(node.id, proof),
+            // CFG-GOV D-CFG-4(4): per-determination UWR config, resolved above
+            // the executor from the registration in scope. Never resolved here.
+            uwr: request.uwr,
           }),
           racer.promise,
         ]);

@@ -20,6 +20,7 @@
  */
 import type { CanonicalUss } from "../types/canonicalUss.js";
 import type { ProviderInvocationProofV1 } from "../providers/invocationProof.js";
+import type { ResolvedUwrRuntimeConfig } from "../config/uwrRuntimeProfile.js";
 
 export type { CanonicalUss };
 
@@ -65,6 +66,18 @@ export interface NodeRunContext {
    * D-EV3-2).
    */
   depositInvocationProof?: (proof: ProviderInvocationProofV1) => void;
+
+  /**
+   * OPTIONAL resolved UWR configuration for the determination in scope
+   * (CFG-GOV D-CFG-4(4)): resolved above the executor from the strategy
+   * registration's uwrProfileRef, never re-resolved or defaulted here.
+   * This field carries resolved UWR configuration ONLY — it is not a general
+   * node-parameter channel (node params remain schema-validated under
+   * FCP-GOV D-FCP-2(7)); a guardrail asserts the scorer node is its sole
+   * reader. Present on scorer-bearing runs; a scorer node that does not
+   * receive it refuses to score (fail-closed, RC-4).
+   */
+  uwr?: ResolvedUwrRuntimeConfig;
 }
 
 /** One recorded degradation — never silent, never fabricated data. */

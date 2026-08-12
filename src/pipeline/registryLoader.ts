@@ -36,7 +36,7 @@ import * as ajvFormatsModule from "ajv-formats";
 import type { ValidateFunction } from "ajv";
 import { DEFAULT_DECAY_TEMPLATES_BY_HORIZON } from "afi-core/decay";
 import { normalizeTimeframe } from "../uss/markitTickMapper.js";
-import { PINNED_UWR_PROFILE_ID } from "afi-core/validators/UwrProfileLoader.js";
+import { REGISTERED_UWR_PROFILE_IDS } from "../config/uwrProfilePin.js";
 import {
   computeAnalystConfigHash,
   computeManifestHash,
@@ -862,11 +862,13 @@ export function validateRuntimeConfig(
       );
     }
 
-    // UWR profile ref: the pinned recognized profile (the identity the
-    // existing RC loader enforces at score time — fail-closed there too).
-    if (config.uwrProfileRef.profileId !== PINNED_UWR_PROFILE_ID) {
+    // UWR profile ref (D-CFG-4(3)): recognition is registration-driven, and the
+    // named profile must be REGISTERED (UP-10 retained in full). Boot refuses an
+    // unregistered ref — the same set the stamp gate enforces at score time.
+    if (!REGISTERED_UWR_PROFILE_IDS.includes(config.uwrProfileRef.profileId)) {
       issues.push(
-        `registration ${key}: uwrProfileRef '${config.uwrProfileRef.profileId}' is not the recognized profile '${PINNED_UWR_PROFILE_ID}'`
+        `registration ${key}: uwrProfileRef '${config.uwrProfileRef.profileId}' is not the recognized profile ` +
+          `(registered: ${REGISTERED_UWR_PROFILE_IDS.join(", ")})`
       );
     }
 

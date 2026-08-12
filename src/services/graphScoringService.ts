@@ -30,6 +30,7 @@
 import type { ReactorScoredSignalV1 } from "../types/ReactorScoredSignalV1.js";
 import type { CanonicalUss } from "../types/canonicalUss.js";
 import { getRuntimeComposition, type RuntimeComposition } from "../config/runtimeComposition.js";
+import { getUwrRuntimeConfigForProfile } from "../config/uwrRuntimeProfile.js";
 import { canonicalHashOf, DOMAIN_TAGS } from "../pipeline/hashing.js";
 import type { CompositionRefV1, PipelineManifest } from "../pipeline/manifestTypes.js";
 import { resolveDecayParamsForSignal, type ResolvedStrategy } from "../pipeline/registryLoader.js";
@@ -202,10 +203,17 @@ export async function scoreRegisteredStrategyFromCanonicalUss(
   composition: RuntimeComposition = getRuntimeComposition()
 ): Promise<ScoredCompositionRun> {
   const manifest = effectiveManifest(resolved);
+  // CFG-GOV D-CFG-4(4): resolve the UWR configuration for THIS determination
+  // from the strategy registration in scope. Fail-closed (RC-4): an
+  // unresolvable or invalid profile throws here, before any scoring.
+  const uwr = getUwrRuntimeConfigForProfile(
+    resolved.config.uwrProfileRef.profileId
+  );
   const execution = await composition.executor.execute({
     manifest,
     input: {},
     signal: canonicalUss,
+    uwr,
   });
 
   const scorerOutput = execution.result as ScorerOutput;

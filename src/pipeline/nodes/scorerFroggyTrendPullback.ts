@@ -13,7 +13,6 @@
 import type { FroggyEnrichedView } from "afi-core/analysts/froggy.enrichment_adapter.js";
 import { buildFroggyTrendPullbackInputFromEnriched } from "afi-core/analysts/froggy.enrichment_adapter.js";
 import { scoreFroggyTrendPullback } from "afi-core/analysts/froggy.trend_pullback_v1.js";
-import { getUwrRuntimeConfigOnce } from "../../config/uwrRuntimeProfile.js";
 import {
   ok,
   type AnalysisNodePlugin,
@@ -39,9 +38,16 @@ export function createScorerFroggyTrendPullbackNode(): AnalysisNodePlugin {
       }
       const enriched = input;
 
-      // PR-UWR-RUNTIME-READ: resolve the UWR config at the composition root
-      // (fail-closed; a failed resolution throws before any scoring happens).
-      const uwrRuntime = getUwrRuntimeConfigOnce();
+      // CFG-GOV D-CFG-4(4): the UWR config is resolved per determination from
+      // the strategy registration and handed down; this node never resolves,
+      // re-reads the flag, or defaults. No config => no score (RC-4).
+      const uwrRuntime = ctx.uwr;
+      if (!uwrRuntime) {
+        throw new Error(
+          "scorer node received no resolved UWR configuration (CFG-GOV D-CFG-4(4)) — " +
+            "refusing to score (fail-closed, no fallback; RC-4)."
+        );
+      }
 
       const scorerInput = buildFroggyTrendPullbackInputFromEnriched(enriched);
       const analysis = scoreFroggyTrendPullback(scorerInput, uwrRuntime.config, enriched);

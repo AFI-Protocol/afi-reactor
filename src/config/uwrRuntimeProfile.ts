@@ -15,20 +15,22 @@
  * Behavior (RC-3/RC-4):
  * - Source selection is explicit via the AFI_UWR_PROFILE_SOURCE env flag:
  *   "builtin" (DEFAULT — today's behavior, no file read whatsoever) or
- *   "registry". Any other value refuses to score: the flag cannot be
- *   enabled by accident. The resolved source is logged in both modes at
- *   first resolution (the composition root resolves once per process).
- * - In registry mode the composition root reads the pinned registry
- *   document through the afi-config file: dependency, parses it, and
- *   validates it with afi-core's PURE `loadUwrProfile` — which enforces the
- *   RC-5 identity predicate (weights strictly equal `defaultUwrConfig`'s;
- *   axes exact; profileId pinned; supersedes = "uwr-default-stub"). That
- *   predicate IS the permanent v0.1 value-identity cross-check: a passing
- *   load is provably behavior-neutral, and the returned config's weight
- *   values are `defaultUwrConfig`'s own by construction.
- * - FAIL-CLOSED, NO SILENT FALLBACK (RC-4): a missing/unreadable file, a
- *   parse error, or any RC-5 refusal throws; registry mode never quietly
- *   degrades to the builtin config.
+ *   "registry". Unset or empty resolves to "registry" (CFG-GOV D-CFG-4(2)
+ *   flips RC-3's default). Any other value refuses to score: the flag cannot
+ *   be enabled by accident. The resolved source is logged in both modes.
+ * - In registry mode the caller reads the registry document that the strategy
+ *   registration's uwrProfileRef names, parses it, and validates it with
+ *   afi-core's PURE `loadUwrProfile` — which under D-CFG-4(1) checks schema
+ *   id, axis registry content and order, exact weight keying and finiteness,
+ *   and that the document declares the profileId the registration named.
+ *   RC-5's identity predicate is RETIRED: the returned config carries the
+ *   DOCUMENT's own weight values, so a registry load is no longer
+ *   behaviour-neutral by construction.
+ * - Resolution is PER STRATEGY, not per process (D-CFG-4(4)). There is no
+ *   singleton; successful resolutions are cached per (source, profileId).
+ * - FAIL-CLOSED, NO SILENT FALLBACK (RC-4, retained in full by D-CFG-4(1)):
+ *   a missing/unreadable file, a parse error, an unsafe profile id, or any
+ *   loader refusal throws; registry mode never quietly degrades to builtin.
  *
  * Path resolution follows the repo's proven schema-load precedent
  * (src/evidence/provenance/schemaValidation.ts et al.):
@@ -69,18 +71,37 @@ export const UWR_PROFILE_SOURCE_ENV = "AFI_UWR_PROFILE_SOURCE";
 export type UwrProfileSource = "builtin" | "registry";
 
 /**
- * Registry document location through the afi-config file: dependency —
- * the RC-9-sanctioned raw-file-read mechanism. This module is the only
- * src/ file allowed to carry this path (RC-7 grant 1), and a guardrail
- * bans other src/ files from importing this constant to do their own read.
+ * Registry DIRECTORY through the afi-config file: dependency — the
+ * RC-9-sanctioned raw-file-read mechanism. This module is the only src/ file
+ * allowed to carry this path (RC-7 grant 1), and a guardrail bans other src/
+ * files from importing it to do their own read.
+ *
+ * D-CFG-4(4): resolution is per strategy, so the location is a directory and
+ * the document is selected by the profile id the registration names.
  */
-export const UWR_REGISTRY_RELATIVE_PATH =
-  "node_modules/afi-config/registries/uwr-profiles/uwr-weighted-lifts-v0.1.json";
+export const UWR_REGISTRY_RELATIVE_DIR =
+  "node_modules/afi-config/registries/uwr-profiles";
 
-/** Machine-checkable refusal reasons for failures OUTSIDE the RC-5 predicate
- * (predicate refusals keep afi-core's UwrProfileLoadError + reason). */
+/**
+ * Registry document path for a profile id. Refuses separators and traversal:
+ * the id comes from a registration and must never be able to address a file
+ * outside the registry directory.
+ */
+export function uwrRegistryPathFor(profileId: string, dir: string): string {
+  if (!/^[A-Za-z0-9._-]+$/.test(profileId)) {
+    throw new UwrRuntimeProfileError(
+      "invalid-profile-id",
+      `profileId "${profileId}" is not a safe registry document name`
+    );
+  }
+  return join(dir, `${profileId}.json`);
+}
+
+/** Machine-checkable refusal reasons for failures OUTSIDE afi-core's loader
+ * (loader refusals keep afi-core's UwrProfileLoadError + reason). */
 export type UwrRuntimeProfileErrorReason =
   | "invalid-source-flag"
+  | "invalid-profile-id"
   | "registry-unreadable"
   | "registry-parse-error";
 
@@ -103,20 +124,25 @@ export interface ResolvedUwrRuntimeConfig {
   /** Which source produced the config. NOT persisted-stamp semantics —
    * stamp changes await PR-UWR-STAMP-SEMANTICS. */
   source: UwrProfileSource;
-  /** Value-identical to defaultUwrConfig by RC-5 (registry) or identity (builtin). */
+  /** The resolved configuration. Under D-CFG-4(1) a registry document's OWN
+   * weight values flow into this config — it is no longer value-identical to
+   * defaultUwrConfig by construction. */
   config: Readonly<UniversalWeightingRuleConfig>;
 }
 
 /**
- * Parse the source flag. Unset/empty → "builtin" (the default stays the
- * default). Exactly "builtin" or "registry" are accepted; any other value
- * throws — an explicit misconfiguration must never silently score.
+ * Parse the source flag. Unset/empty → "registry" (D-CFG-4(2) flips RC-3's
+ * default; RC-3 had reserved the flip to "a separate future decision" and
+ * CFG-GOV is that decision). Exactly "builtin" or "registry" are accepted;
+ * any other value throws — an explicit misconfiguration must never silently
+ * score. The explicit "builtin" branch keeps its RC-3 semantics unchanged.
  */
 export function resolveUwrProfileSource(
   env: Record<string, string | undefined> = process.env
 ): UwrProfileSource {
   const raw = env[UWR_PROFILE_SOURCE_ENV];
-  if (raw === undefined || raw === "") return "builtin";
+  // D-CFG-4(2): RC-3's default flips to "registry".
+  if (raw === undefined || raw === "") return "registry";
   if (raw === "builtin" || raw === "registry") return raw;
   throw new UwrRuntimeProfileError(
     "invalid-source-flag",
@@ -126,19 +152,26 @@ export function resolveUwrProfileSource(
 }
 
 /**
- * Resolve the runtime UWR config from the selected source.
+ * Resolve the runtime UWR config for ONE profile id (D-CFG-4(4)).
  *
- * builtin: returns afi-core's `defaultUwrConfig` — no file read occurs.
- * registry: reads + parses the pinned registry document and validates it
- * through afi-core `loadUwrProfile` (RC-5 predicate = permanent v0.1
- * value-identity cross-check). Every failure throws; there is no fallback.
- * The resolved source is logged in both modes (RC-3).
+ * builtin: returns afi-core's `defaultUwrConfig` — no file read occurs. This
+ * branch is RC-3's explicit operator surface and keeps its semantics; it is
+ * distinct from D-CFG-4(2)'s last-resort clause (owner ruling, 2026-08-12).
+ * registry: reads + parses the registry document the profile id names and
+ * validates it through afi-core `loadUwrProfile`, which under D-CFG-4(1)
+ * returns the DOCUMENT's own weights. Every failure throws; there is no
+ * fallback (RC-4). The resolved source is logged in both modes (RC-3).
  */
-export function resolveUwrRuntimeConfig(options?: {
-  env?: Record<string, string | undefined>;
-  /** Test/override hook; defaults to the file:-dependency registry path. */
-  registryPath?: string;
-}): ResolvedUwrRuntimeConfig {
+export function resolveUwrRuntimeConfigForProfile(
+  profileId: string,
+  options?: {
+    env?: Record<string, string | undefined>;
+    /** Test/override hook: directory holding `<profileId>.json`. */
+    registryDir?: string;
+    /** Test/override hook: exact document path, used verbatim. */
+    registryPath?: string;
+  }
+): ResolvedUwrRuntimeConfig {
   const source = resolveUwrProfileSource(options?.env ?? process.env);
 
   if (source === "builtin") {
@@ -150,7 +183,11 @@ export function resolveUwrRuntimeConfig(options?: {
   }
 
   const registryPath =
-    options?.registryPath ?? join(process.cwd(), UWR_REGISTRY_RELATIVE_PATH);
+    options?.registryPath ??
+    uwrRegistryPathFor(
+      profileId,
+      options?.registryDir ?? join(process.cwd(), UWR_REGISTRY_RELATIVE_DIR)
+    );
 
   let rawBytes: string;
   try {
@@ -174,39 +211,52 @@ export function resolveUwrRuntimeConfig(options?: {
     );
   }
 
-  // RC-5 identity predicate — afi-core's pure loader refuses anything that
-  // is not the pinned, value-identical profile (UwrProfileLoadError with a
-  // machine-checkable reason propagates untouched).
-  const config = loadUwrProfile(parsed);
+  // D-CFG-4(1)/(3): the loader validates the document against the profile id
+  // the registration named and returns the document's OWN weights.
+  // UwrProfileLoadError with a machine-checkable reason propagates untouched.
+  const config = loadUwrProfile(parsed, profileId);
 
   console.info(
     `[uwr-runtime-profile] source=registry profileId=${config.id} ` +
-      `path=${registryPath} (RC-5 value-identity verified; scoring values ` +
-      `remain identical to the builtin config by construction)`
+      `path=${registryPath} (registry weights applied per D-CFG-4(1))`
   );
 
   return { source, config };
 }
 
-let memoized: ResolvedUwrRuntimeConfig | undefined;
+/** Per-profile success cache. Failures are NEVER cached (RC-4 preserved). */
+const resolvedByProfile = new Map<string, ResolvedUwrRuntimeConfig>();
 
 /**
- * Composition-root accessor: only a SUCCESSFUL resolution is cached (once
- * per process). Failures are never cached and never fall back: each call
- * re-attempts resolution and every failed attempt throws (RC-4), so no
- * score is ever produced from a bad state; scoring can begin only after a
- * fully valid resolution succeeds.
+ * D-CFG-4(4): resolution is per determination, keyed by the profile the
+ * strategy registration in scope names. There is no process-wide config and
+ * no singleton. Only a SUCCESSFUL resolution is cached; failures are never
+ * cached and never fall back, so each call re-attempts and every failed
+ * attempt throws (RC-4). Any options argument bypasses the cache entirely,
+ * so an overridden run can never poison the production entry.
  */
-export function getUwrRuntimeConfigOnce(): ResolvedUwrRuntimeConfig {
-  if (!memoized) {
-    memoized = resolveUwrRuntimeConfig();
+export function getUwrRuntimeConfigForProfile(
+  profileId: string,
+  options?: {
+    env?: Record<string, string | undefined>;
+    registryDir?: string;
+    registryPath?: string;
   }
-  return memoized;
+): ResolvedUwrRuntimeConfig {
+  if (options) return resolveUwrRuntimeConfigForProfile(profileId, options);
+  // Throws on a bad flag on EVERY call, cached or not.
+  const source = resolveUwrProfileSource(process.env);
+  const key = `${source}:${profileId}`;
+  const hit = resolvedByProfile.get(key);
+  if (hit) return hit;
+  const resolved = resolveUwrRuntimeConfigForProfile(profileId);
+  resolvedByProfile.set(key, resolved);
+  return resolved;
 }
 
-/** TEST-ONLY: clear the memoized resolution (env changes between tests). */
+/** TEST-ONLY: clear the per-profile cache (env changes between tests). */
 export function __resetUwrRuntimeConfigForTests(): void {
-  memoized = undefined;
+  resolvedByProfile.clear();
 }
 
 export { UwrProfileLoadError };
