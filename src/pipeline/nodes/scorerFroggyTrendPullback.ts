@@ -5,8 +5,9 @@
  * Composes afi-core's public exports EXACTLY like the live
  * plugins/froggy.trend_pullback_v1.plugin.ts does:
  * buildFroggyTrendPullbackInputFromEnriched + scoreFroggyTrendPullback with
- * the UWR config resolved at the composition root through the existing
- * RC loader (getUwrRuntimeConfigOnce — fail-closed, no fallback; RC-4), and
+ * the UWR config resolved PER DETERMINATION above the executor and handed
+ * down as ctx.uwr (CFG-GOV D-CFG-4(4) — fail-closed, no fallback; RC-4:
+ * this node refuses to score without it and never resolves or defaults), and
  * emits analysis + uwrResolvedSource VERBATIM (RC-6: the stamp site never
  * re-reads the environment or infers the source later).
  */
