@@ -28,13 +28,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   resolveUwrProfileSource,
-  resolveUwrRuntimeConfig,
-  getUwrRuntimeConfigOnce,
+  resolveUwrRuntimeConfigForProfile,
+  getUwrRuntimeConfigForProfile,
   __resetUwrRuntimeConfigForTests,
   UwrRuntimeProfileError,
   UwrProfileLoadError,
   UWR_PROFILE_SOURCE_ENV,
-  UWR_REGISTRY_RELATIVE_PATH,
+  UWR_REGISTRY_RELATIVE_DIR,
+  type ResolvedUwrRuntimeConfig,
 } from "../../src/config/uwrRuntimeProfile.js";
 import {
   defaultUwrConfig,
@@ -58,7 +59,7 @@ type ScoredEnvelope = FroggyEnrichedView & {
   uwrResolvedSource: "builtin" | "registry";
 };
 
-function nodeCtx(): NodeRunContext {
+function nodeCtx(uwr?: ResolvedUwrRuntimeConfig): NodeRunContext {
   return {
     signal: {
       schema: "afi.usignal.v1.1",
@@ -71,17 +72,28 @@ function nodeCtx(): NodeRunContext {
     config: {},
     logger: SILENT_NODE_LOGGER,
     abort: new AbortController().signal,
+    // CFG-GOV D-CFG-4(4): the scorer node consumes a per-determination
+    // resolved config and refuses without one; the default mirrors what the
+    // composition root resolves for the froggy registration.
+    uwr: uwr ?? getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1"),
   };
 }
 
-async function runScorer(enriched: FroggyEnrichedView): Promise<ScoredEnvelope> {
-  const result = await scorerFroggyTrendPullbackNode.run(enriched, nodeCtx());
+async function runScorer(
+  enriched: FroggyEnrichedView,
+  uwr?: ResolvedUwrRuntimeConfig
+): Promise<ScoredEnvelope> {
+  const result = await scorerFroggyTrendPullbackNode.run(enriched, nodeCtx(uwr));
   return result.output as ScoredEnvelope;
 }
 
 // Repo idiom (see test/evidence/provenance/*.test.ts): jest runs from the repo root.
 const REPO_ROOT = process.cwd();
-const INSTALLED_REGISTRY = path.resolve(REPO_ROOT, UWR_REGISTRY_RELATIVE_PATH);
+const INSTALLED_REGISTRY = path.resolve(
+  REPO_ROOT,
+  UWR_REGISTRY_RELATIVE_DIR,
+  "uwr-weighted-lifts-v0.1.json"
+);
 
 /** Mirror of the registered profile document's loader-consumed fields
  * (registries/uwr-profiles/uwr-weighted-lifts-v0.1.json @ afi-config merge
@@ -134,9 +146,9 @@ afterEach(() => {
 });
 
 describe("PR-UWR-RUNTIME-READ: source flag (RC-3)", () => {
-  it("defaults to builtin when the flag is unset or empty", () => {
-    expect(resolveUwrProfileSource({})).toBe("builtin");
-    expect(resolveUwrProfileSource({ [UWR_PROFILE_SOURCE_ENV]: "" })).toBe("builtin");
+  it("defaults to registry when the flag is unset or empty (CFG-GOV D-CFG-4(2))", () => {
+    expect(resolveUwrProfileSource({})).toBe("registry");
+    expect(resolveUwrProfileSource({ [UWR_PROFILE_SOURCE_ENV]: "" })).toBe("registry");
   });
 
   it("accepts exactly 'builtin' and 'registry'", () => {
@@ -158,11 +170,12 @@ describe("PR-UWR-RUNTIME-READ: source flag (RC-3)", () => {
   });
 });
 
-describe("PR-UWR-RUNTIME-READ: builtin mode (default behavior unchanged)", () => {
+describe("PR-UWR-RUNTIME-READ: builtin mode (EXPLICIT selection; RC-3 semantics unchanged, D-CFG-4(2))", () => {
+  const builtinEnv = { [UWR_PROFILE_SOURCE_ENV]: "builtin" };
   it("returns defaultUwrConfig itself and never touches the registry file", () => {
     // A registryPath that cannot exist proves no read of the override path.
-    const resolved = resolveUwrRuntimeConfig({
-      env: {},
+    const resolved = resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", {
+      env: builtinEnv,
       registryPath: path.join(tempDir, "definitely-missing", "nope.json"),
     });
     expect(resolved.source).toBe("builtin");
@@ -179,7 +192,9 @@ describe("PR-UWR-RUNTIME-READ: builtin mode (default behavior unchanged)", () =>
       process.chdir(isolatedCwd);
       let caught: unknown;
       try {
-        resolveUwrRuntimeConfig({ env: { [UWR_PROFILE_SOURCE_ENV]: "registry" } });
+        resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", {
+          env: { [UWR_PROFILE_SOURCE_ENV]: "registry" },
+        });
       } catch (error) {
         caught = error;
       }
@@ -187,7 +202,9 @@ describe("PR-UWR-RUNTIME-READ: builtin mode (default behavior unchanged)", () =>
       expect((caught as UwrRuntimeProfileError).reason).toBe("registry-unreadable");
       // …while builtin mode succeeds from the same sandbox: the default
       // registry path is provably not consulted.
-      const resolved = resolveUwrRuntimeConfig({ env: {} });
+      const resolved = resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", {
+        env: builtinEnv,
+      });
       expect(resolved.source).toBe("builtin");
       expect(resolved.config).toBe(defaultUwrConfig);
     } finally {
@@ -198,14 +215,14 @@ describe("PR-UWR-RUNTIME-READ: builtin mode (default behavior unchanged)", () =>
 
   it("logs the resolved source in builtin mode (RC-3 'logged')", () => {
     const infoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
-    resolveUwrRuntimeConfig({ env: {} });
+    resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", { env: builtinEnv });
     expect(
       infoSpy.mock.calls.some(args => String(args[0]).includes("source=builtin"))
     ).toBe(true);
   });
 });
 
-describe("PR-UWR-RUNTIME-READ: registry mode (RC-4 fail-closed, RC-5 identity)", () => {
+describe("PR-UWR-RUNTIME-READ: registry mode (RC-4 fail-closed; D-CFG-4(1) values flow)", () => {
   const env = { [UWR_PROFILE_SOURCE_ENV]: "registry" };
 
   it("loads a valid registry document, records the registry source, and logs it (RC-3)", () => {
@@ -214,7 +231,10 @@ describe("PR-UWR-RUNTIME-READ: registry mode (RC-4 fail-closed, RC-5 identity)",
       "valid.json",
       JSON.stringify(registryDocument())
     );
-    const resolved = resolveUwrRuntimeConfig({ env, registryPath });
+    const resolved = resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", {
+      env,
+      registryPath,
+    });
     expect(resolved.source).toBe("registry");
     expect(resolved.config).toEqual({
       id: "uwr-weighted-lifts-v0.1",
@@ -223,9 +243,9 @@ describe("PR-UWR-RUNTIME-READ: registry mode (RC-4 fail-closed, RC-5 identity)",
       riskWeight: 0.25,
       insightWeight: 0.25,
     });
-    // Re-assert RC-5 value equality per axis (the loader additionally
-    // guarantees the values are defaultUwrConfig's own by construction —
-    // that property is enforced in afi-core's loader source/tests).
+    // The registered document carries 0.25x4, so its values happen to equal
+    // defaultUwrConfig's — asserted as an empirical fact of THIS document
+    // (D-CFG-4(1) retired the by-construction identity guarantee).
     expect(Object.is(resolved.config.structureWeight, defaultUwrConfig.structureWeight)).toBe(true);
     expect(Object.is(resolved.config.executionWeight, defaultUwrConfig.executionWeight)).toBe(true);
     expect(Object.is(resolved.config.riskWeight, defaultUwrConfig.riskWeight)).toBe(true);
@@ -241,7 +261,7 @@ describe("PR-UWR-RUNTIME-READ: registry mode (RC-4 fail-closed, RC-5 identity)",
     const registryPath = path.join(tempDir, "missing.json");
     let caught: unknown;
     try {
-      resolveUwrRuntimeConfig({ env, registryPath });
+      resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", { env, registryPath });
     } catch (error) {
       caught = error;
     }
@@ -256,7 +276,7 @@ describe("PR-UWR-RUNTIME-READ: registry mode (RC-4 fail-closed, RC-5 identity)",
     const registryPath = writeTempRegistry("broken.json", "{ not json ");
     let caught: unknown;
     try {
-      resolveUwrRuntimeConfig({ env, registryPath });
+      resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", { env, registryPath });
     } catch (error) {
       caught = error;
     }
@@ -264,18 +284,18 @@ describe("PR-UWR-RUNTIME-READ: registry mode (RC-4 fail-closed, RC-5 identity)",
     expect((caught as UwrRuntimeProfileError).reason).toBe("registry-parse-error");
   });
 
-  it("fails closed with the loader's machine-checkable reason on a mismatched profile", () => {
+  it("a drifted weight LOADS and flows — D-CFG-4(1) retired the identity refusal", () => {
     const drifted = registryDocument();
     (drifted.weights as Record<string, number>).structureWeight = 0.24;
     const registryPath = writeTempRegistry("drifted.json", JSON.stringify(drifted));
-    let caught: unknown;
-    try {
-      resolveUwrRuntimeConfig({ env, registryPath });
-    } catch (error) {
-      caught = error;
-    }
-    expect(caught).toBeInstanceOf(UwrProfileLoadError);
-    expect((caught as UwrProfileLoadError).reason).toBe("weight-value-mismatch");
+    const resolved = resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", {
+      env,
+      registryPath,
+    });
+    // Under the retired predicate this refused as weight-value-mismatch. The
+    // document's own value is now the value that scores.
+    expect(resolved.config.structureWeight).toBe(0.24);
+    expect(resolved.config.executionWeight).toBe(0.25);
   });
 
   it("fails closed on a wrong profile id", () => {
@@ -284,7 +304,7 @@ describe("PR-UWR-RUNTIME-READ: registry mode (RC-4 fail-closed, RC-5 identity)",
     const registryPath = writeTempRegistry("wrong-id.json", JSON.stringify(wrongId));
     let caught: unknown;
     try {
-      resolveUwrRuntimeConfig({ env, registryPath });
+      resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", { env, registryPath });
     } catch (error) {
       caught = error;
     }
@@ -294,12 +314,12 @@ describe("PR-UWR-RUNTIME-READ: registry mode (RC-4 fail-closed, RC-5 identity)",
 
   it("never silently falls back: a failing registry resolve throws, and only an explicit builtin selection scores", () => {
     const registryPath = path.join(tempDir, "still-missing.json");
-    expect(() => resolveUwrRuntimeConfig({ env, registryPath })).toThrow(
-      UwrRuntimeProfileError
-    );
+    expect(() =>
+      resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", { env, registryPath })
+    ).toThrow(UwrRuntimeProfileError);
     // Same call with builtin explicitly selected works — proving the earlier
     // throw was a refusal, not a degraded fallback result.
-    const builtin = resolveUwrRuntimeConfig({
+    const builtin = resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", {
       env: { [UWR_PROFILE_SOURCE_ENV]: "builtin" },
       registryPath,
     });
@@ -314,9 +334,10 @@ describe("PR-UWR-RUNTIME-READ: scoring is bit-identical under either source", ()
       "identity.json",
       JSON.stringify(registryDocument())
     );
-    const { config } = resolveUwrRuntimeConfig(
-      { env: { [UWR_PROFILE_SOURCE_ENV]: "registry" }, registryPath }
-    );
+    const { config } = resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", {
+      env: { [UWR_PROFILE_SOURCE_ENV]: "registry" },
+      registryPath,
+    });
     const vectors = [
       // D2 M2 golden anchor axes (UP-5): uwrScore must stay 0.1875.
       { structureAxis: 0.15, executionAxis: 0, riskAxis: 0.2, insightAxis: 0.4 },
@@ -338,27 +359,43 @@ describe("PR-UWR-RUNTIME-READ: scoring is bit-identical under either source", ()
   });
 });
 
-describe("PR-UWR-RUNTIME-READ: composition-root memoization (real env pathway)", () => {
-  it("getUwrRuntimeConfigOnce resolves once and caches (builtin default)", () => {
-    const first = getUwrRuntimeConfigOnce();
-    const second = getUwrRuntimeConfigOnce();
+describe("PR-UWR-RUNTIME-READ: per-profile caching (D-CFG-4(4); the singleton is retired)", () => {
+  it("caches per (source, profileId): same key returns the same object", () => {
+    process.env[UWR_PROFILE_SOURCE_ENV] = "builtin";
+    const first = getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1");
+    const second = getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1");
     expect(first.source).toBe("builtin");
     expect(second).toBe(first);
   });
 
-  it("getUwrRuntimeConfigOnce fails closed on an invalid env flag, on every call", () => {
+  it("fails closed on an invalid env flag, on every call — failures are never cached", () => {
     process.env[UWR_PROFILE_SOURCE_ENV] = "not-a-source";
-    expect(() => getUwrRuntimeConfigOnce()).toThrow(UwrRuntimeProfileError);
-    // Failures are never cached: the second call re-attempts and re-throws.
-    expect(() => getUwrRuntimeConfigOnce()).toThrow(UwrRuntimeProfileError);
+    expect(() => getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1")).toThrow(
+      UwrRuntimeProfileError
+    );
+    expect(() => getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1")).toThrow(
+      UwrRuntimeProfileError
+    );
+  });
+
+  it("an unsafe profile id refuses before any file read (path traversal ban)", () => {
+    process.env[UWR_PROFILE_SOURCE_ENV] = "registry";
+    let caught: unknown;
+    try {
+      getUwrRuntimeConfigForProfile("../../etc/passwd");
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(UwrRuntimeProfileError);
+    expect((caught as UwrRuntimeProfileError).reason).toBe("invalid-profile-id");
   });
 
   const maybeRegistryIt = existsSync(INSTALLED_REGISTRY) || process.env.CI ? it : it.skip;
   maybeRegistryIt(
-    "getUwrRuntimeConfigOnce honors AFI_UWR_PROFILE_SOURCE=registry end-to-end",
+    "honors AFI_UWR_PROFILE_SOURCE=registry end-to-end (the D-CFG-4(2) default)",
     () => {
-      process.env[UWR_PROFILE_SOURCE_ENV] = "registry";
-      const resolved = getUwrRuntimeConfigOnce();
+      delete process.env[UWR_PROFILE_SOURCE_ENV];
+      const resolved = getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1");
       expect(resolved.source).toBe("registry");
       expect(resolved.config.id).toBe("uwr-weighted-lifts-v0.1");
     }
@@ -372,8 +409,8 @@ describe("PR-UWR-RUNTIME-READ: installed afi-config registry (file: dependency)"
   // skip); elsewhere it skips cleanly.
   const maybeIt = existsSync(INSTALLED_REGISTRY) || process.env.CI ? it : it.skip;
 
-  maybeIt("the real installed registry document loads through the RC-5 predicate", () => {
-    const resolved = resolveUwrRuntimeConfig({
+  maybeIt("the real installed registry document loads through the D-CFG-4(1) loader", () => {
+    const resolved = resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", {
       env: { [UWR_PROFILE_SOURCE_ENV]: "registry" },
     });
     expect(resolved.source).toBe("registry");
@@ -429,8 +466,12 @@ describe("PR-UWR-RUNTIME-READ: source guardrails (module containment)", () => {
     // would bypass the 'registries/uwr-profiles' string scan. Only the
     // authorized loader module may carry the constant's name.
     const AUTHORIZED_LOADER_MODULE = "src/config/uwrRuntimeProfile.ts";
-    const offenders = scanTsTree(path.resolve(REPO_ROOT, "src"), content =>
-      content.includes("UWR_REGISTRY_RELATIVE_PATH")
+    const offenders = scanTsTree(
+      path.resolve(REPO_ROOT, "src"),
+      content =>
+        content.includes("UWR_REGISTRY_RELATIVE_PATH") ||
+        content.includes("UWR_REGISTRY_RELATIVE_DIR") ||
+        content.includes("uwrRegistryPathFor")
     ).filter(rel => rel !== AUTHORIZED_LOADER_MODULE);
     expect(offenders).toEqual([]);
   });
@@ -463,7 +504,9 @@ describe("PR-UWR-RUNTIME-READ: plugin call-site equivalence (the changed consume
     return clone;
   }
 
-  it("builtin default: plugin run() output is identical to scoreFroggyTrendPullbackFromEnriched", async () => {
+  it("builtin (explicit): plugin run() output is identical to scoreFroggyTrendPullbackFromEnriched", async () => {
+    process.env[UWR_PROFILE_SOURCE_ENV] = "builtin";
+    __resetUwrRuntimeConfigForTests();
     const enriched = enrichedFixture();
     const viaPlugin = await runScorer(enriched);
     const reference = scoreFroggyTrendPullbackFromEnriched(enrichedFixture());

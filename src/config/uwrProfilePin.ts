@@ -139,8 +139,12 @@ export function uwrProfileStampFor(
 ): UwrProfileStamp | undefined {
   if (!analystScore || !registration) return undefined;
   // Registry-backed recognition gate 1: the registration must reference a
-  // REGISTERED profile (never a silent/unregistered recognition).
-  if (!REGISTERED_UWR_PROFILE_IDS.includes(registration.uwrProfileRef?.profileId as string)) {
+  // REGISTERED profile (never a silent/unregistered recognition). This gate is
+  // the surviving half of UP-10, retained IN FULL by D-CFG-4(3); the identity
+  // half is served by gates 2/3 below. Widening REGISTERED_UWR_PROFILE_IDS is
+  // a registry + governance act, never a code default.
+  const resolvedProfileId = registration.uwrProfileRef?.profileId as string;
+  if (!REGISTERED_UWR_PROFILE_IDS.includes(resolvedProfileId)) {
     return undefined;
   }
   // Gate 2: the scorer identity triple must MATCH the resolved registration —
@@ -155,7 +159,9 @@ export function uwrProfileStampFor(
     return undefined;
   }
   return {
-    profileId: UWR_PROFILE_ID,
+    // D-CFG-4(5): the stamp records the RESOLVED profile identity per
+    // determination (gated registered above), not a per-process constant.
+    profileId: resolvedProfileId,
     status: UWR_PROFILE_STATUS,
     decisionRef: UWR_PROFILE_DECISION_REF,
     source: stampSourceFor(resolvedSource),

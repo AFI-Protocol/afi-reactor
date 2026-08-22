@@ -53,6 +53,10 @@ export default {
     "**/test/guardrails/uwrProfileStamp.test.ts",
     "**/test/guardrails/uwrRuntimeProfile.test.ts",
     "**/test/guardrails/uwrStampSemantics.test.ts",
+    // CFG-GOV D-CFG-4 (slot CFG-WEIGHTS): registry weights flow, resolution is
+    // per-strategy, the per-process singleton is retired, the stamp records the
+    // resolved profile identity, and builtin-mode value identity is enforced.
+    "**/test/guardrails/uwrPerStrategyResolution.test.ts",
     "**/test/guardrails/no-legacy-ingest.test.ts",
     "**/test/guardrails/no-legacy-reactor-vault.test.ts",
     // SLOT-FCP-REACTOR stage B: no hardcoded composition identity in the

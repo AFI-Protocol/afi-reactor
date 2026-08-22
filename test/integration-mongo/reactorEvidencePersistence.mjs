@@ -132,6 +132,11 @@ async function main() {
   );
   assert.equal(typeof __resetUwrRuntimeConfigForTests, "function", "uwr runtime reset available");
 
+  // D-CFG-4(2): the unset default is now "registry"; select builtin explicitly
+  // so steps 1-6 exercise the builtin stamp as recorded.
+  process.env[UWR_PROFILE_SOURCE_ENV] = "builtin";
+  __resetUwrRuntimeConfigForTests();
+
   const tvSignalId = "it-tv-0001";
   const tvPayload = {
     signalId: tvSignalId,
@@ -235,8 +240,9 @@ async function main() {
     );
     ok("conflicting duplicate → honest 409, append-once (stored record unchanged)");
 
-    // 6. UWR stamp — builtin (default) persists builtin-value-identity. -------
-    // The tv/cpj records above were scored in the DEFAULT (builtin) mode.
+    // 6. UWR stamp — explicit builtin persists builtin-value-identity. -------
+    // The tv/cpj records above were scored under the explicitly selected
+    // builtin mode (the unset default is now registry, D-CFG-4(2)).
     for (const [label, rec] of [["tradingview", tvBack], ["cpj", cpjBack]]) {
       assert.ok(rec.uwrProfile, `${label}: record must carry the governed stamp`);
       assert.equal(
@@ -310,8 +316,8 @@ async function main() {
     );
     ok(`UWR stamp: failed registry resolution → no score record (honest ${failRes.status})`);
 
-    // Restore the default runtime source for the remaining checks.
-    delete process.env[UWR_PROFILE_SOURCE_ENV];
+    // Restore the explicit builtin selection for the remaining checks.
+    process.env[UWR_PROFILE_SOURCE_ENV] = "builtin";
     __resetUwrRuntimeConfigForTests();
 
     // 9. No dual-write: legacy collection never created. ---------------------

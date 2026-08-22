@@ -84,7 +84,7 @@ afterAll(() => {
   shutdownDedupeCache();
   restoreNet();
   restoreEnv();
-  delete process.env[UWR_PROFILE_SOURCE_ENV];
+  process.env[UWR_PROFILE_SOURCE_ENV] = "builtin"; // unset now means registry (D-CFG-4(2))
   __resetUwrRuntimeConfigForTests();
 });
 
@@ -274,7 +274,7 @@ describe("oracle error table — configuration fail-closed (500)", () => {
       expect(res.body.error).toBe("internal_error");
       expect(store.submissions).toHaveLength(0); // nothing was ever submitted
     } finally {
-      delete process.env[UWR_PROFILE_SOURCE_ENV];
+      process.env[UWR_PROFILE_SOURCE_ENV] = "builtin"; // explicit; unset now means registry
       __resetUwrRuntimeConfigForTests();
     }
   });
