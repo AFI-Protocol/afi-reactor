@@ -104,7 +104,9 @@ afterAll(() => {
   shutdownDedupeCache();
   restoreNet();
   restoreEnv();
-  delete process.env[UWR_PROFILE_SOURCE_ENV];
+  // Explicit builtin (not deletion): process.env is shared across suites in a
+  // jest worker, and the unset default is now "registry" (D-CFG-4(2)).
+  process.env[UWR_PROFILE_SOURCE_ENV] = "builtin";
   __resetUwrRuntimeConfigForTests();
 });
 
@@ -126,8 +128,9 @@ describe.each(UWR_MODES)(
   "oracle goldens (recorded providers, UWR $mode mode)",
   ({ mode, stampSource }) => {
     beforeAll(() => {
-      if (mode === "builtin") delete process.env[UWR_PROFILE_SOURCE_ENV];
-      else process.env[UWR_PROFILE_SOURCE_ENV] = mode;
+      // D-CFG-4(2): the unset default is now "registry", so BOTH modes are
+      // selected explicitly. Goldens stay byte-stable in both.
+      process.env[UWR_PROFILE_SOURCE_ENV] = mode;
       __resetUwrRuntimeConfigForTests();
     });
 

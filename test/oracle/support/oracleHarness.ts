@@ -214,6 +214,9 @@ export function installOracleEnv(): () => void {
   for (const k of KEYS) saved.set(k, process.env[k]);
 
   for (const k of KEYS) delete process.env[k];
+  // D-CFG-4(2): the unset default is now "registry"; the oracle env pins
+  // builtin explicitly so recorded fixtures stay byte-stable.
+  process.env["AFI_UWR_PROFILE_SOURCE"] = "builtin";
   // The synthetic feed no longer exists in production source: inject the
   // byte-stable deterministic adapter through the guarded test seam and
   // select it explicitly (same id — goldens stay byte-identical).

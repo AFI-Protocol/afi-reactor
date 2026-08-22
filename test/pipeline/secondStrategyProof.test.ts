@@ -95,6 +95,9 @@ beforeAll(() => {
     savedEnv.set(k, process.env[k]);
     delete process.env[k];
   }
+  // D-CFG-4(2): the unset default is now "registry"; select builtin
+  // explicitly so this proof suite keeps its recorded baseline.
+  process.env["AFI_UWR_PROFILE_SOURCE"] = "builtin";
   // Inject the deterministic feed through the guarded test seam and select
   // it explicitly (production source registers no synthetic feed).
   unregisterDemoFeed = registerPriceFeedAdapterForTests(demoPriceFeedAdapter);

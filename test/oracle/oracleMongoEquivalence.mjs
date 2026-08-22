@@ -79,6 +79,9 @@ for (const k of [
 ]) {
   delete process.env[k];
 }
+// D-CFG-4(2): the unset default is now "registry"; pin builtin explicitly so
+// the builtin-mode goldens keep their recorded baseline.
+process.env.AFI_UWR_PROFILE_SOURCE = "builtin";
 
 const EVIDENCE_COLLECTION = process.env.AFI_EVIDENCE_COLLECTION ?? "scored_signal_evidence";
 const ROOT = process.cwd();
@@ -246,8 +249,9 @@ async function main() {
   });
 
   try {
-    // Builtin (default) mode — all six enriched fixtures.
-    delete process.env[UWR_PROFILE_SOURCE_ENV];
+    // Builtin mode (explicitly selected; unset now means registry) — all six
+    // enriched fixtures.
+    process.env[UWR_PROFILE_SOURCE_ENV] = "builtin";
     __resetUwrRuntimeConfigForTests();
     for (const c of CASES) {
       await proveCase(app, store, client, c, "builtin");
@@ -259,7 +263,7 @@ async function main() {
     __resetUwrRuntimeConfigForTests();
     await proveCase(app, store, client, CASES[0], "registry");
 
-    delete process.env[UWR_PROFILE_SOURCE_ENV];
+    process.env[UWR_PROFILE_SOURCE_ENV] = "builtin";
     __resetUwrRuntimeConfigForTests();
 
     console.log(`\nPASS — ${passed} real-MongoDB oracle-equivalence checks green.`);

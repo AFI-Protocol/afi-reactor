@@ -28,12 +28,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
-  getUwrRuntimeConfigOnce,
-  resolveUwrRuntimeConfig,
+  getUwrRuntimeConfigForProfile,
+  resolveUwrRuntimeConfigForProfile,
   __resetUwrRuntimeConfigForTests,
   UwrRuntimeProfileError,
   UWR_PROFILE_SOURCE_ENV,
-  UWR_REGISTRY_RELATIVE_PATH,
+  UWR_REGISTRY_RELATIVE_DIR,
+  type ResolvedUwrRuntimeConfig,
 } from "../../src/config/uwrRuntimeProfile.js";
 import {
   UWR_PROFILE_ID,
@@ -51,7 +52,11 @@ import { SILENT_NODE_LOGGER, type NodeRunContext } from "../../src/pipeline/node
 
 // Repo idiom (see test/evidence/provenance/*.test.ts): jest runs from the repo root.
 const REPO_ROOT = process.cwd();
-const INSTALLED_REGISTRY = path.resolve(REPO_ROOT, UWR_REGISTRY_RELATIVE_PATH);
+const INSTALLED_REGISTRY = path.resolve(
+  REPO_ROOT,
+  UWR_REGISTRY_RELATIVE_DIR,
+  "uwr-weighted-lifts-v0.1.json"
+);
 
 const RECOGNIZED = {
   analystId: "froggy",
@@ -83,7 +88,7 @@ type ScoredEnvelope = FroggyEnrichedView & {
   uwrResolvedSource: "builtin" | "registry";
 };
 
-function nodeCtx(): NodeRunContext {
+function nodeCtx(uwr?: ResolvedUwrRuntimeConfig): NodeRunContext {
   return {
     signal: {
       schema: "afi.usignal.v1.1",
@@ -96,11 +101,16 @@ function nodeCtx(): NodeRunContext {
     config: {},
     logger: SILENT_NODE_LOGGER,
     abort: new AbortController().signal,
+    // CFG-GOV D-CFG-4(4): resolved per determination and handed down.
+    uwr: uwr ?? getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1"),
   };
 }
 
-async function runScorer(enriched: FroggyEnrichedView): Promise<ScoredEnvelope> {
-  const result = await scorerFroggyTrendPullbackNode.run(enriched, nodeCtx());
+async function runScorer(
+  enriched: FroggyEnrichedView,
+  uwr?: ResolvedUwrRuntimeConfig
+): Promise<ScoredEnvelope> {
+  const result = await scorerFroggyTrendPullbackNode.run(enriched, nodeCtx(uwr));
   return result.output as ScoredEnvelope;
 }
 
@@ -149,8 +159,10 @@ afterAll(() => {
 
 beforeEach(() => {
   // Hygiene both directions (same discipline as uwrRuntimeProfile.test.ts).
+  // D-CFG-4(2) flipped the unset default to "registry", so the builtin
+  // baseline these cases exercise must now be selected EXPLICITLY.
   __resetUwrRuntimeConfigForTests();
-  delete process.env[UWR_PROFILE_SOURCE_ENV];
+  process.env[UWR_PROFILE_SOURCE_ENV] = "builtin";
 });
 
 afterEach(() => {
@@ -160,7 +172,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-describe("PR-UWR-STAMP-SEMANTICS: builtin (default) mode stamps builtin-value-identity", () => {
+describe("PR-UWR-STAMP-SEMANTICS: builtin (explicit) mode stamps builtin-value-identity", () => {
   it("end-to-end: plugin scores with builtin and the stamp discriminates builtin", async () => {
     const analyzed = await runScorer(enrichedFixture());
     expect(analyzed.uwrResolvedSource).toBe("builtin");
@@ -187,7 +199,8 @@ describe("PR-UWR-STAMP-SEMANTICS: registry mode stamps registry-consumed only af
   maybeRegistryIt(
     "end-to-end: successful registry resolution flows to a registry-consumed stamp",
     async () => {
-      // Baseline: the SAME fixture scored under builtin (default).
+      // Baseline: the SAME fixture scored under builtin (explicitly selected;
+      // the unset default is now registry per D-CFG-4(2)).
       const builtinAnalyzed = await runScorer(enrichedFixture());
       expect(builtinAnalyzed.uwrResolvedSource).toBe("builtin");
 
@@ -266,7 +279,7 @@ describe("PR-UWR-STAMP-SEMANTICS: failed resolution produces NO stamp (RC-4 × R
       process.chdir(REPO_ROOT);
     }
 
-    delete process.env[UWR_PROFILE_SOURCE_ENV];
+    process.env[UWR_PROFILE_SOURCE_ENV] = "builtin";
     __resetUwrRuntimeConfigForTests();
     const analyzed = await runScorer(enrichedFixture());
     const stamp = stampFromPluginOutput(analyzed);
@@ -278,7 +291,7 @@ describe("PR-UWR-STAMP-SEMANTICS: failed resolution produces NO stamp (RC-4 × R
     // throws rather than returning any { source } — so no stamp path can
     // ever observe a "registry" source from a failed read.
     expect(() =>
-      resolveUwrRuntimeConfig({
+      resolveUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1", {
         env: { [UWR_PROFILE_SOURCE_ENV]: "registry" },
         registryPath: path.join(tempDir, "does-not-exist.json"),
       })
@@ -292,8 +305,8 @@ describe("PR-UWR-STAMP-SEMANTICS: failed resolution produces NO stamp (RC-4 × R
     () => {
       process.env[UWR_PROFILE_SOURCE_ENV] = "registry";
       __resetUwrRuntimeConfigForTests();
-      expect(() => getUwrRuntimeConfigOnce()).not.toThrow();
-      expect(getUwrRuntimeConfigOnce().source).toBe("registry");
+      expect(() => getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1")).not.toThrow();
+      expect(getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1").source).toBe("registry");
     }
   );
 });
