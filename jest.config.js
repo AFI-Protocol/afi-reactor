@@ -57,6 +57,10 @@ export default {
     // per-strategy, the per-process singleton is retired, the stamp records the
     // resolved profile identity, and builtin-mode value identity is enforced.
     "**/test/guardrails/uwrPerStrategyResolution.test.ts",
+    // DEM-GOV DEM-BIND (c): fail-closed mapping resolution at boot, the
+    // bounded ctx.mapping carrier (scorer node sole reader), and the seam's
+    // byte-equivalence with recorded fired-default degradations.
+    "**/test/guardrails/mappingPerStrategyResolution.test.ts",
     "**/test/guardrails/no-legacy-ingest.test.ts",
     "**/test/guardrails/no-legacy-reactor-vault.test.ts",
     // SLOT-FCP-REACTOR stage B: no hardcoded composition identity in the

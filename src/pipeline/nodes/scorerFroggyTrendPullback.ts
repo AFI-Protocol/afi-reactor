@@ -15,8 +15,14 @@ import type { FroggyEnrichedView } from "afi-core/analysts/froggy.enrichment_ada
 import { buildFroggyTrendPullbackInputFromEnriched } from "afi-core/analysts/froggy.enrichment_adapter.js";
 import { scoreFroggyTrendPullback } from "afi-core/analysts/froggy.trend_pullback_v1.js";
 import {
+  buildFroggyResidualInput,
+  composeFroggyTrendPullbackInput,
+} from "afi-core/analysts/froggy.residual_builder.js";
+import { interpretEnrichmentMapping } from "afi-core/validators/EnrichmentMappingInterpreter.js";
+import {
   ok,
   type AnalysisNodePlugin,
+  type NodeDegradation,
   type NodeRunContext,
   type NodeResult,
 } from "../nodeSdk.js";
@@ -50,20 +56,49 @@ export function createScorerFroggyTrendPullbackNode(): AnalysisNodePlugin {
         );
       }
 
-      const scorerInput = buildFroggyTrendPullbackInputFromEnriched(enriched);
+      // DEM-GOV D-DEM-2(6): when the determination carries a resolved
+      // mapping, the interpreter fragment is unconditionally authoritative
+      // for the expressible inputs — an interpreter refusal throws, so no
+      // determination exists (D-DEM-5(7)); the residual (unexpressible) half
+      // rides the untouched legacy adapter via the residual builder. The
+      // legacy full-adapter branch survives only while mappingRef is
+      // optional and is removed at the final bounded step.
+      let scorerInput: ReturnType<typeof buildFroggyTrendPullbackInputFromEnriched>;
+      let degradations: NodeDegradation[] = [];
+      if (ctx.mapping) {
+        const { fragment, firedDefaults } = interpretEnrichmentMapping(
+          ctx.mapping.doc,
+          enriched
+        );
+        const residual = buildFroggyResidualInput(enriched);
+        scorerInput = composeFroggyTrendPullbackInput(fragment, residual);
+        // D-DEM-5(3): a fired declared default is a RECORDED degradation —
+        // it flips the node's summary status, which is inside the
+        // executionSummaryHash preimage. Never silent.
+        degradations = firedDefaults.map((target) => ({
+          class: "declared-default-fired",
+          detail: target,
+        }));
+      } else {
+        scorerInput = buildFroggyTrendPullbackInputFromEnriched(enriched);
+      }
       const analysis = scoreFroggyTrendPullback(scorerInput, uwrRuntime.config, enriched);
 
       ctx.logger.info("froggy trend-pullback scored", {
         uwrResolvedSource: uwrRuntime.source,
+        mappingApplied: Boolean(ctx.mapping),
       });
 
       // Identical envelope to the live plugin: enriched view + analysis +
       // the resolved config source, propagated verbatim (RC-6).
-      return ok({
-        ...enriched,
-        analysis,
-        uwrResolvedSource: uwrRuntime.source,
-      });
+      return ok(
+        {
+          ...enriched,
+          analysis,
+          uwrResolvedSource: uwrRuntime.source,
+        },
+        degradations
+      );
     },
   };
 }

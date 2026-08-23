@@ -124,6 +124,10 @@ export interface AnalystStrategyConfig {
   };
   scorerRef: { pluginId: string; pluginVersion: string };
   uwrProfileRef: { profileId: string };
+  /** OPTIONAL in DEM-BIND step (c); declared required at the final bounded
+   * step (DEM-GOV D-DEM-2(3)/(5)). No hash member — identity rides
+   * analystConfigHash (D-DEM-6(2)). */
+  mappingRef?: { mappingId: string; version: string };
   decayConfig:
     | { ref: { templateId: string } }
     | Record<string, unknown>;

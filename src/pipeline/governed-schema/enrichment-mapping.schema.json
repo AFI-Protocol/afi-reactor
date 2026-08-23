@@ -1,0 +1,341 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afi-protocol.org/schemas/enrichment-mapping/v1/enrichment-mapping.schema.json",
+  "title": "AFI Enrichment Mapping v1 (FACTORY-CONTRACT \u2014 declarative lane-fact-to-strategy-input bindings)",
+  "description": "(afi.enrichment-mapping.v1) A mapping document declares bindings from facts projected into the enriched view onto a strategy's declared inputs, and nothing else. The complete operator vocabulary is five forms \u2014 bind, default (inside optionality only), band, recode, namespace-default \u2014 each total and each decidable from the document alone (DEM-GOV D-DEM-3(1)). A mapping may never express computation (D-DEM-3(2)); anything computational is a registered analysis-plugin producer whose projected fact a binding then reads (D-DEM-3(3)). Mapping documents are registry records at registries/enrichment-mappings/<mappingId>--<version>.json (D-DEM-2(2)); the deterministic interpreter is an afi-core validator surface (D-DEM-2(4)).",
+  "$comment": "BOUNDARY (FACTORY-CONTRACT): schema only. This file defines the mapping-document contract; it fixes no band edge, no recode entry, no default literal, and no source path \u2014 those are mapping content, registered per strategy (D-DEM-3 scope-guard). The name afi.enrichment-mapping.v1 sits outside the afi.enrichment.<category>.v1 lane namespace and confers no category identity (D-DEM-2(1)).",
+  "x-afiStatus": "governed-contract",
+  "x-afiPartOf": "AFI Factory \u2014 Analyst-Configurable Pipelines V1 (FACTORY-CONTRACT)",
+  "x-afiDoctrineRefs": [
+    "afi-governance/decisions/declarative-enrichment-mapping-v0.1.md (DEM-GOV: D-DEM-2(1)(2)(4), D-DEM-3, D-DEM-5(3)(4), D-DEM-6)",
+    "afi-governance/decisions/factory-configurable-pipelines-v1.md (FCP-GOV: D-FCP-2(5) no-eval restated; D-FCP-3 family list amended per its own change-control sentence; D-FCP-4 layer roles)",
+    "afi-governance/decisions/atr-regime-v0.1.md (AR-GOV: D-AR-3 recode form; D-AR-1 merge-seam derivation rejected)",
+    "afi-governance/decisions/math-authority-v0.1.md (MATH-GOV: interpreter is an SDK/validator kernel, redefines no afi-math kernel)"
+  ],
+  "x-afiConstraints": {
+    "noComputation": "Expressly prohibited in any mapping document: arithmetic of any kind; composition of two or more source facts into one target; series, window, or time-based derivation; conditionals other than the band and recode tables; I/O, network, clock, or randomness; no eval, no arbitrary code, no user-supplied executable expressions (D-DEM-3(2), restating FCP-GOV D-FCP-2(5)). Enforced structurally by the closed oneOf and additionalProperties:false; nothing outside the three binding operators is expressible.",
+    "singleSource": "Every binding reads exactly one declared source path. No operator combines facts across paths or lanes; the named residue liquiditySwept (two-lane read) is inexpressible by construction and stays outside the mapping (D-DEM-3(5)).",
+    "registrationTimePathResolution": "A path that does not resolve to a declared projected field is invalid at registration, not at runtime (D-DEM-3(2)). Enforced by the registration semantic layer (DEM-BIND), not by this draft-07 document.",
+    "absenceSemantics": "A source resolves ABSENT iff its lane namespace is absent from the enriched view (or is null, or resolves as the declared empty object via namespaceDefaults), the path's own key is missing, or the resolved value is undefined or null \u2014 exactly the retired adapter's ?? and != null semantics (froggy.enrichment_adapter.ts:225-226,:232-235,:250-255; null namespaces default via ?? {} at :221-223). A PRESENT non-null value of the wrong declared type is refused fail-closed (source-type-mismatch), and a non-finite number is refused (non-finite-number) \u2014 two deliberate, declared divergences from the untyped adapter domain; the DEM-BIND byte-for-byte obligation is hereby pinned to the typed, finite reachable domain.",
+    "bandTableDiscipline": "Band rows form an ordered, exhaustive, non-overlapping threshold table (EQ-GOV D-EQ-2 form): thresholds strictly decreasing top-to-bottom, exhaustiveness via the required otherwise member, absent source via the required absent member (D-DEM-3(1)(c)). Ordering/non-overlap are enforced by the family test's semantic layer and by the interpreter and its tests.",
+    "recodeTableDiscipline": "Recode is an explicit total table onto a closed target union with a declared fallback member for unrecognized source values and a declared absent member for the absent source (D-DEM-3(1)(d), AR-GOV D-AR-3 form).",
+    "optionalityGrounds": "A binding may be declared optional only on: (a) ground 'composition' \u2014 a lane the analyst did not select (CFG-GOV D-CFG-3); (b) ground 'producer-declared' \u2014 an absence the selected lane's registered producer declares in its own contract, enumerated here via producerRef; (c) ground 'grandfather' \u2014 D-DEM-5(4) verbatim: 'Grandfather (exhaustive, non-extensible): the four absent-source defaults the retired seam already applies \u2014 technical.emaDistancePct ?? 0 (froggy.enrichment_adapter.ts:225), technical.isInValueSweetSpot ?? false (:226), the patternConfidence absent branch (:232-235), and the atrRegime default-to-\"normal\" fallback (:250-255, the form AR-GOV D-AR-3 fixed) \u2014 are admitted as declared optional bindings with their existing literals so that DEM-BIND reproduces today's scored values exactly.' CARRIAGE: grandfathers #1/#2 are the only lawful ground:'grandfather' optionality declarations, pinned to exactly the pairs (technical, emaDistancePct, 0) and (technical, isInValueSweetSpot, false); grandfathers #3/#4 are carried structurally by the band form's required absent member and the recode form's fallback/absent members (D-DEM-3(1)(c)/(d)) and appear in no optionality object \u2014 so the visible contract surface accounts for exactly four. Also D-DEM-5(4) verbatim: 'a fact whose producer merely does not exist yet is never optional; it is a defect. No slot may satisfy its gate by declaring a placeholder optional.' Grandfather membership is enforced by the family test's semantic layer; grounds (a)/(b) legitimacy is registration review (DEM-BIND).",
+    "defaultLiteralIdentity": "Default literals are part of the hashed mapping identity under canonical-json-hashing.v1 (D-DEM-6(1)); numeric literals must be finite. A fired default is committed to the executionSummaryHash preimage by the runtime seam (D-DEM-5(3)) \u2014 a DEM-BIND concern this schema only anticipates. Fired-default semantics: bind-optionality default firings and band/recode absent-member firings (absent-source cases) are fired defaults; recode fallback on a PRESENT unrecognized value is not (it is AR-GOV D-AR-3's total-table law, not an absence degradation).",
+    "immutability": "One file per identity at registries/enrichment-mappings/<mappingId>--<version>.json; a version any signal has been scored under is never edited; changes register a new version; the registry pins the canonical-json hash (D-DEM-2(2), D-DEM-6(1))."
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "mappingId",
+    "version",
+    "bindings"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "afi.enrichment-mapping.v1"
+    },
+    "mappingId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 64
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "namespaceDefaults": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/lane"
+      },
+      "$comment": "Operator (e) namespace-default (D-DEM-3(1)(e)): each listed lane namespace, when absent or null in the enriched view, resolves as the declared empty object so bindings beneath it resolve as absent rather than throwing."
+    },
+    "bindings": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/binding"
+      },
+      "$comment": "Keyed by target input name \u2014 object keying makes target collision structurally impossible."
+    }
+  },
+  "definitions": {
+    "lane": {
+      "type": "string",
+      "enum": [
+        "technical",
+        "pattern",
+        "sentiment",
+        "news",
+        "aiMl"
+      ]
+    },
+    "sourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "path"
+      ],
+      "properties": {
+        "lane": {
+          "$ref": "#/definitions/lane"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$",
+          "maxLength": 128
+        },
+        "producedBy": {
+          "$ref": "#/definitions/producerRef"
+        }
+      }
+    },
+    "producerRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pluginId",
+        "pluginVersion"
+      ],
+      "properties": {
+        "pluginId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 64
+        },
+        "pluginVersion": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        }
+      },
+      "$comment": "The only escape hatch (D-DEM-3(3)): a reference to a registered analysis-plugin producer running inside its lane, whose projected fact the binding reads. A reference, never code."
+    },
+    "literal": {
+      "type": [
+        "string",
+        "number",
+        "boolean"
+      ]
+    },
+    "ordinalMember": {
+      "type": [
+        "integer",
+        "string"
+      ]
+    },
+    "optionality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ground",
+        "default"
+      ],
+      "properties": {
+        "ground": {
+          "type": "string",
+          "enum": [
+            "composition",
+            "producer-declared",
+            "grandfather"
+          ]
+        },
+        "default": {
+          "$ref": "#/definitions/literal"
+        },
+        "producerRef": {
+          "$ref": "#/definitions/producerRef"
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "ground": {
+              "const": "producer-declared"
+            }
+          },
+          "required": [
+            "producerRef"
+          ]
+        },
+        {
+          "properties": {
+            "ground": {
+              "enum": [
+                "composition",
+                "grandfather"
+              ]
+            }
+          },
+          "not": {
+            "required": [
+              "producerRef"
+            ]
+          }
+        }
+      ]
+    },
+    "bandRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "when",
+        "value"
+      ],
+      "properties": {
+        "when": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "maxProperties": 1,
+          "properties": {
+            "gte": {
+              "type": "number"
+            },
+            "gt": {
+              "type": "number"
+            }
+          }
+        },
+        "value": {
+          "$ref": "#/definitions/ordinalMember"
+        }
+      }
+    },
+    "binding": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/bindBinding"
+        },
+        {
+          "$ref": "#/definitions/bandBinding"
+        },
+        {
+          "$ref": "#/definitions/recodeBinding"
+        }
+      ]
+    },
+    "bindBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator",
+        "source",
+        "type"
+      ],
+      "properties": {
+        "operator": {
+          "type": "string",
+          "const": "bind"
+        },
+        "source": {
+          "$ref": "#/definitions/sourceRef"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "number",
+            "integer",
+            "boolean",
+            "string"
+          ]
+        },
+        "optionality": {
+          "$ref": "#/definitions/optionality"
+        }
+      },
+      "$comment": "Operators (a) bind and (b) default: a bind without optionality is required \u2014 an absent source is a refusal; a bind with optionality carries the declared default literal (D-DEM-3(1)(a)(b), D-DEM-5(3)/(4))."
+    },
+    "bandBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator",
+        "source",
+        "rows",
+        "otherwise",
+        "absent"
+      ],
+      "properties": {
+        "operator": {
+          "type": "string",
+          "const": "band"
+        },
+        "source": {
+          "$ref": "#/definitions/sourceRef"
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/bandRow"
+          }
+        },
+        "otherwise": {
+          "$ref": "#/definitions/ordinalMember"
+        },
+        "absent": {
+          "$ref": "#/definitions/ordinalMember"
+        }
+      }
+    },
+    "recodeBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator",
+        "source",
+        "table",
+        "fallback",
+        "absent"
+      ],
+      "properties": {
+        "operator": {
+          "type": "string",
+          "const": "recode"
+        },
+        "source": {
+          "$ref": "#/definitions/sourceRef"
+        },
+        "table": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "maxLength": 128
+          },
+          "additionalProperties": {
+            "type": [
+              "string",
+              "integer",
+              "boolean"
+            ]
+          }
+        },
+        "fallback": {
+          "type": [
+            "string",
+            "integer",
+            "boolean"
+          ]
+        },
+        "absent": {
+          "type": [
+            "string",
+            "integer",
+            "boolean"
+          ]
+        }
+      }
+    }
+  }
+}

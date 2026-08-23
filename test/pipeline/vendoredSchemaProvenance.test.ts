@@ -22,14 +22,16 @@ function sha256(relPath: string): string {
 
 describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   it("pins the authorizing afi-config commit", () => {
-    // CFG-GOV re-vendor (D-CFG-3, slot CFG-PROOF-SCOPE): the evidence
-    // contract's providerInvocations binder becomes composition-scoped — a
-    // oneOf enumerating all 31 ascending subsets of the unchanged
-    // five-category namespace (this follows the D-CFG-2 CFG-IMMUTABILITY
-    // re-vendor at 4f8f5ef…, which amended the finalized binding). Every
-    // other closure member is byte-unchanged between the prior pin and this
-    // commit.
-    expect(manifest.afiConfigCommit).toBe("d7896461f3f51fb3992d119f1e7c820ae8523297");
+    // DEM-BIND step-(c) re-vendor (D-DEM-2(5)(c), slot DEM-BIND): the
+    // analyst-strategy-config schema gains the OPTIONAL mappingRef
+    // (D-DEM-2(3)), and the closure GAINS enrichment-mapping.schema.json —
+    // mandated by D-DEM-2(6)'s fail-closed law: a schema-invalid mapping
+    // must refuse at resolution, and the loader validates only against
+    // vendored schemas; the interpreter's structural refusals are a
+    // backstop, not the governed schema. Every other closure member is
+    // byte-unchanged between the prior pin (d7896461, CFG-GOV
+    // CFG-PROOF-SCOPE era) and this commit.
+    expect(manifest.afiConfigCommit).toBe("a53c0a48cc81ad3021f9a1d95abe92f0f73b0352");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {
@@ -44,6 +46,9 @@ describe("vendored governed schema provenance (MANIFEST integrity)", () => {
       "pipeline.schema.json",
       "analysis-plugin.schema.json",
       "analyst-strategy-config.schema.json",
+      // DEM-GOV D-DEM-2(6): governed fail-closed mapping resolution requires
+      // the mapping contract in the vendored closure.
+      "enrichment-mapping.schema.json",
       "analyst-strategy-registration.schema.json",
       "provider-strategy-binding.schema.json",
       "composition-ref.schema.json",
