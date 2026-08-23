@@ -78,6 +78,25 @@ export interface NodeRunContext {
    * receive it refuses to score (fail-closed, RC-4).
    */
   uwr?: ResolvedUwrRuntimeConfig;
+
+  /**
+   * OPTIONAL resolved enrichment mapping for the determination in scope
+   * (DEM-GOV D-DEM-2(6)): resolved fail-closed at boot from the strategy
+   * registration's mappingRef, never re-resolved or defaulted here. Carries
+   * the AJV-validated registered document ONLY — not a general node-parameter
+   * channel (node params remain schema-validated under FCP-GOV D-FCP-2(7));
+   * a guardrail asserts the scorer node is its sole reader. Authorized by the
+   * DEM-BIND scope item "the resolution seam", exactly as CFG-GOV's resolved
+   * UWR carrier above.
+   */
+  mapping?: ResolvedMappingCarrier;
+}
+
+/** The bounded per-determination mapping carrier (DEM-GOV D-DEM-2(6)). */
+export interface ResolvedMappingCarrier {
+  mappingId: string;
+  version: string;
+  doc: Record<string, unknown>;
 }
 
 /** One recorded degradation — never silent, never fabricated data. */

@@ -39,6 +39,7 @@
  */
 import type { CanonicalUss } from "../types/canonicalUss.js";
 import type { ResolvedUwrRuntimeConfig } from "../config/uwrRuntimeProfile.js";
+import type { ResolvedMappingCarrier } from "./nodeSdk.js";
 import { evaluatePredicate, type ConditionEnv } from "./conditions.js";
 import {
   buildExecutionSummary,
@@ -269,6 +270,8 @@ export interface ExecuteRequest {
   signal: CanonicalUss;
   /** Resolved UWR configuration for this determination (CFG-GOV D-CFG-4(4)). */
   uwr?: ResolvedUwrRuntimeConfig;
+  /** Resolved enrichment mapping for this determination (DEM-GOV D-DEM-2(6)). */
+  mapping?: ResolvedMappingCarrier;
   /** Pipeline context addressable by predicates under /context/... */
   context?: Record<string, unknown>;
   /** External cancellation. */
@@ -718,6 +721,10 @@ export class GraphExecutor {
             // CFG-GOV D-CFG-4(4): per-determination UWR config, resolved above
             // the executor from the registration in scope. Never resolved here.
             uwr: request.uwr,
+            // DEM-GOV D-DEM-2(6): per-determination enrichment mapping,
+            // resolved at boot from the registration's mappingRef. Never
+            // resolved or defaulted here.
+            mapping: request.mapping,
           }),
           racer.promise,
         ]);

@@ -1,7 +1,7 @@
 {
   "$comment": "Provenance of the vendored governed FACTORY-CONTRACT closure consumed by src/pipeline/ (canonical hashing + registry/composition schemas + the governed hashing KAT vectors + the enrichment category-result contracts). Each vendored file is a byte-identical copy of afi-config@afiConfigCommit at afiConfigPath (the afi-infra governed-schema vendoring discipline). Enforced by test/pipeline/vendoredSchemaProvenance.test.ts. Do not hand-edit; regenerate only from an owner-approved afi-config commit.",
   "afiConfigRepo": "https://github.com/AFI-Protocol/afi-config",
-  "afiConfigCommit": "d7896461f3f51fb3992d119f1e7c820ae8523297",
+  "afiConfigCommit": "a53c0a48cc81ad3021f9a1d95abe92f0f73b0352",
   "sources": {
     "src/pipeline/governed-schema/pipeline.schema.json": {
       "afiConfigPath": "schemas/pipeline/v1/pipeline.schema.json",
@@ -37,7 +37,7 @@
     },
     "src/pipeline/governed-schema/analyst-strategy-config.schema.json": {
       "afiConfigPath": "schemas/analyst-strategy-config/v1/analyst-strategy-config.schema.json",
-      "sha256": "879ebbc0c2760947f209a85608c64e3731771713b111fe8659f5e4e7dd0a6b0d"
+      "sha256": "e119454426fa313a6b4e94524263030890b861d5501eeedbd5f44120f6ce692a"
     },
     "src/pipeline/governed-schema/analyst-strategy-registration.schema.json": {
       "afiConfigPath": "schemas/analyst-strategy-registration/v1/analyst-strategy-registration.schema.json",
@@ -82,6 +82,10 @@
     "src/pipeline/governed-schema/aiml-invocation-proof.schema.json": {
       "afiConfigPath": "schemas/aiml-invocation-proof/v1/aiml-invocation-proof.schema.json",
       "sha256": "227bea36909189cc821f9307c90b5bea74959c5586127e8e962d0f44af91df7a"
+    },
+    "src/pipeline/governed-schema/enrichment-mapping.schema.json": {
+      "afiConfigPath": "schemas/enrichment-mapping/v1/enrichment-mapping.schema.json",
+      "sha256": "68b9f42a10736c9c19f7eb4ff4f049bc7a96b2fcb4e8ab5a1e1eb07ff5a7c8ba"
     }
   }
 }

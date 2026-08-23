@@ -214,6 +214,17 @@ export async function scoreRegisteredStrategyFromCanonicalUss(
     input: {},
     signal: canonicalUss,
     uwr,
+    // DEM-GOV D-DEM-2(6): the mapping resolved fail-closed at boot from the
+    // registration's mappingRef (absent only while mappingRef is optional).
+    ...(resolved.mapping
+      ? {
+          mapping: {
+            mappingId: resolved.mapping.mappingId,
+            version: resolved.mapping.version,
+            doc: resolved.mapping.doc,
+          },
+        }
+      : {}),
   });
 
   const scorerOutput = execution.result as ScorerOutput;

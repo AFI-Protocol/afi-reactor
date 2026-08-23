@@ -98,6 +98,14 @@ export interface ResolvedStrategy {
     | { kind: "template"; templateId: string }
     | { kind: "inline"; config: Record<string, unknown> }
     | { kind: "ratio"; barsPerHalfLife: number; unknownTimeframeMinutes?: number };
+  /**
+   * DEM-GOV D-DEM-2(6): the registered enrichment mapping this strategy's
+   * config selected via mappingRef, loaded LAZILY per ref (the family joins
+   * no mandatory registry-dir enumeration) and AJV-validated against the
+   * vendored governed contract at boot. Absent iff the config carries no
+   * mappingRef (tolerated in step (c); refused at the final bounded step).
+   */
+  mapping?: { mappingId: string; version: string; doc: Record<string, unknown> };
 }
 
 export interface ValidatedRuntimeConfig {
@@ -154,6 +162,8 @@ interface CompiledValidators {
   config: ValidateFunction;
   registration: ValidateFunction;
   binding: ValidateFunction;
+  /** DEM-GOV D-DEM-2(6): the governed mapping contract, vendored. */
+  mapping: ValidateFunction;
   fragmentAjv: Ajv;
 }
 
@@ -185,6 +195,7 @@ function compileValidators(governedSchemaDir: string): CompiledValidators {
     "analyst-strategy-registration.schema.json",
     "provider-strategy-binding.schema.json",
     "composition-ref.schema.json",
+    "enrichment-mapping.schema.json",
   ].map(load);
   for (const schema of schemas) ajv.addSchema(schema);
 
@@ -209,6 +220,9 @@ function compileValidators(governedSchemaDir: string): CompiledValidators {
     ),
     binding: byId(
       "https://afi-protocol.org/schemas/provider-strategy-binding/v1/provider-strategy-binding.schema.json"
+    ),
+    mapping: byId(
+      "https://afi-protocol.org/schemas/enrichment-mapping/v1/enrichment-mapping.schema.json"
     ),
     fragmentAjv,
   };
@@ -925,6 +939,45 @@ export function validateRuntimeConfig(
     }
     const setHash = computePluginSetHash([...boundPlugins.values()]);
 
+    // DEM-GOV D-DEM-2(6): fail-closed mapping resolution at boot. Loaded
+    // LAZILY per mappingRef — registries/enrichment-mappings joins no
+    // mandatory directory enumeration (no fixture tree carries it until the
+    // registration wave), and cross-resolution to the registry directory is
+    // the house pattern (no hardcoded allowlist).
+    let mapping: ResolvedStrategy["mapping"];
+    if (config.mappingRef) {
+      const { mappingId, version } = config.mappingRef;
+      const mappingPath = join(
+        configRoot,
+        "registries/enrichment-mappings",
+        `${mappingId}--${version}.json`
+      );
+      let mappingDoc: Record<string, unknown> | undefined;
+      try {
+        mappingDoc = readJson(mappingPath) as Record<string, unknown>;
+      } catch (error) {
+        issues.push(
+          `registration ${key}: mappingRef '${mappingId}--${version}' does not resolve — ` +
+            `${error instanceof Error ? error.message : String(error)} (fail-closed, D-DEM-2(6))`
+        );
+        continue;
+      }
+      if (!validators.mapping(mappingDoc)) {
+        issues.push(
+          ...ajvIssues(`registration ${key}: enrichment mapping ${mappingPath}`, validators.mapping)
+        );
+        continue;
+      }
+      if (mappingDoc.mappingId !== mappingId || mappingDoc.version !== version) {
+        issues.push(
+          `registration ${key}: mapping document identity ${String(mappingDoc.mappingId)}--${String(mappingDoc.version)} ` +
+            `does not match mappingRef ${mappingId}--${version} (fail-closed, D-DEM-2(6))`
+        );
+        continue;
+      }
+      mapping = { mappingId, version, doc: mappingDoc };
+    }
+
     strategies.set(key, {
       registration,
       config,
@@ -934,6 +987,7 @@ export function validateRuntimeConfig(
       pluginSetHash: setHash,
       plugins: boundPlugins,
       decay,
+      ...(mapping ? { mapping } : {}),
     });
   }
 
