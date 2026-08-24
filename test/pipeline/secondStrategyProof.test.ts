@@ -71,7 +71,7 @@ const TV = "/api/webhooks/tradingview";
 // the same canonical-json-hashing.v1 rules the boot loader recomputes with —
 // a divergence refuses boot, so these assertions double as hash-rule pins).
 const ATLAS_MANIFEST_HASH = "474b2daa714b116d977858dfbf1e04be6a36e4f09613d0b72f65ff62db4a13d2";
-const ATLAS_CONFIG_HASH = "45dc692b004bb8623eed418c815df2f608d3272cc493984687cd7f444c321567";
+const ATLAS_CONFIG_HASH = "b3e02720c47781f69637509b86d41c677125e348a181db7f69a87742896cbabb";
 
 const ENV_KEYS = [
   "AFI_PRICE_FEED_SOURCE",

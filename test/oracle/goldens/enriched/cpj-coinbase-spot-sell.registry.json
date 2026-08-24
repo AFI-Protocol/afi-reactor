@@ -65,7 +65,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "1172e5da91dfd9ac6e65a060b628c5a4f1bbdd41545904a7a6a59e15fc0fe705"
+        "value": "aa8cf5cfd918ae9a80532b735db3236b708ce0cb82778d845b35220627dab479"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
@@ -91,7 +91,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "f63c6f21beb20834c76bc392373746db520828802e7797e84085a831572629d5"
+        "value": "220c004ed615c58bd3f4187256568bfcc6ea375e49ce467ff06a2467b405c0b6"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -430,14 +430,14 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "04d49be077ac0620e3378aa6f06a7d36dde9164b2d051cef9832418f990f0146"
+      "value": "8499d1f7a7b6b7b91ed0bcf8eb889f3cae3312b2bfef7dfb821337c4e73b44d0"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "f90bbdd4d7c8abfd15cbbbb1f9ae179384120cf1b7f897adb176f5e4bc8294fd"
+      "value": "9f4bebc69e8f2685b80b14a7ee5b45756b20e8601a1741617d7b9a49440eeed2"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
