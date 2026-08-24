@@ -175,6 +175,20 @@ async function main() {
     const tv = await request(app).post("/api/webhooks/tradingview").send(tvPayload);
     assert.equal(tv.status, 200, `tradingview 200 (got ${tv.status}: ${JSON.stringify(tv.body)})`);
     assert.equal(tv.body.persistence?.outcome, "inserted", "tradingview inserted");
+    // DLC-GOV D-DLC-3: the serving surface carries the DERIVED decay block,
+    // labeled derived, seeded from the stamped decayParams — and the sealed
+    // score is untouched (elapsed ≈ 0 here, so derived ≤ sealed and ~equal).
+    assert.equal(tv.body.decay?.derived, true, "tradingview response carries derived decay");
+    assert.equal(
+      tv.body.decay?.halfLifeMinutes,
+      tv.body.decayParams?.halfLifeMinutes,
+      "derived block rides the stamped half-life"
+    );
+    assert.ok(
+      tv.body.decay?.decayedScore <= tv.body.analystScore?.uwrScore &&
+        tv.body.decay?.decayedScore > 0.999 * tv.body.analystScore?.uwrScore,
+      "derived decayedScore is the sealed score decayed by ~0 elapsed minutes"
+    );
     ok("POST /api/webhooks/tradingview → 200, persistence.outcome=inserted");
 
     const tvBack = await store.getBySignalId(tvSignalId);
@@ -198,6 +212,8 @@ async function main() {
     const cpj = await request(app).post("/api/ingest/cpj").send(cpjPayload);
     assert.equal(cpj.status, 200, `cpj 200 (got ${cpj.status}: ${JSON.stringify(cpj.body)})`);
     assert.equal(cpj.body.persistence?.outcome, "inserted", "cpj inserted");
+    // DLC-GOV D-DLC-3: derived decay on the CPJ serving surface too.
+    assert.equal(cpj.body.decay?.derived, true, "cpj response carries derived decay");
     const cpjSignalId = cpj.body.signalId;
     assert.ok(cpjSignalId, "cpj signalId present");
     const cpjBack = await store.getBySignalId(cpjSignalId);

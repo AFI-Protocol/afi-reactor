@@ -57,6 +57,7 @@ import {
   resolveWebhookProviderId,
   StrategyResolutionError,
 } from "./config/strategyResolution.js";
+import { buildDerivedDecayBlock } from "./services/decayDerivation.js";
 import { scoreRegisteredStrategyFromCanonicalUss } from "./services/graphScoringService.js";
 import type { Server as HttpServer } from "http";
 import {
@@ -338,7 +339,11 @@ app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
     // Operational analytics capture — fail-open, never awaited (D-MONGO-4).
     void captureScoringContext(run.scored, persistence, "tradingview-webhook", run.composition);
 
-    return res.status(200).json({ ...run.scored, persistence });
+    // DLC-GOV D-DLC-3: response-layer derived decay — never persisted,
+    // never hashed; the scored payload above is byte-untouched.
+    return res
+      .status(200)
+      .json({ ...run.scored, decay: buildDerivedDecayBlock(run.scored), persistence });
   } catch (err: any) {
     return respondWithFailure(res, err, "Error processing TradingView webhook");
   }
@@ -511,6 +516,8 @@ app.post("/api/webhooks/tradingview/markittick", async (req: Request, res: Respo
 
     return res.status(200).json({
       ...run.scored,
+      // DLC-GOV D-DLC-3: response-layer derived decay — never persisted.
+      decay: buildDerivedDecayBlock(run.scored),
       persistence,
       // `origin` (not `source`) — ReactorScoredSignalV1 already reserves a
       // top-level optional `source` (UwrProfileStampSource); this block is the
@@ -757,6 +764,8 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
       ingestHash: canonicalUss.provenance.ingestHash,
       uss: canonicalUss,
       pipelineResult,
+      // DLC-GOV D-DLC-3: response-layer derived decay — never persisted.
+      decay: buildDerivedDecayBlock(pipelineResult),
       persistence,
     });
   } catch (err: any) {
