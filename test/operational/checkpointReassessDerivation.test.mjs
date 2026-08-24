@@ -138,7 +138,7 @@ eq(horizonMinutes("12h"), 720, "12h");
 eq(horizonMinutes("12hours"), null, "bad label → null");
 
 console.log("buildReassessment — the sealed artifact:");
-const artifact = buildReassessment(ctxFixture(), rowsFixture(), NOW);
+const artifact = buildReassessment(ctxFixture(), rowsFixture(), NOW, { direction: "long" });
 eq(artifact.schema, REASSESSMENT_SCHEMA_ID, "schema id");
 eq(
   Object.keys(artifact).sort(),
@@ -172,24 +172,44 @@ eq(sealReassessment(artifact).seal.value, artifact.seal.value, "sealing is deter
 
 console.log("neutral assertion:");
 const neutralRows = rowsFixture().map((r) => ({ ...r, signedReturnPct: null }));
-const neutralArtifact = buildReassessment(ctxFixture({ meta: { direction: "neutral" } }), neutralRows, NOW);
+const neutralArtifact = buildReassessment(ctxFixture({ meta: { direction: "neutral" } }), neutralRows, NOW, { direction: "neutral" });
 eq(neutralArtifact.reassessmentReading.perHorizon.every((p) => p.outcome === "indeterminate"), true, "neutral → all indeterminate");
 eq(neutralArtifact.reassessmentReading.overall, "indeterminate", "neutral → overall indeterminate");
-eq(neutralArtifact.reassessmentReading.direction, "neutral", "missing/neutral direction recorded as neutral");
+eq(neutralArtifact.reassessmentReading.direction, "neutral", "neutral sealed direction recorded verbatim");
 
 console.log("refusals (log-and-skip at the caller; never a guessed artifact):");
-throws(() => buildReassessment(ctxFixture(), [], NOW), /no captured outcome rows/, "zero rows refuses");
-throws(() => buildReassessment(ctxFixture(), rowsFixture(), "2026-08-24T06:00:00.000Z"), /not checkpoint-eligible/, "pre-half-life refuses");
-throws(() => buildReassessment(ctxFixture({ decayParams: null }), rowsFixture(), NOW), /not checkpoint-eligible/, "stampless refuses (fail-closed)");
+throws(() => buildReassessment(ctxFixture(), [], NOW, { direction: "long" }), /no captured outcome rows/, "zero rows refuses");
+throws(() => buildReassessment(ctxFixture(), rowsFixture(), "2026-08-24T06:00:00.000Z", { direction: "long" }), /not checkpoint-eligible/, "pre-half-life refuses");
+throws(() => buildReassessment(ctxFixture({ decayParams: null }), rowsFixture(), NOW, { direction: "long" }), /not checkpoint-eligible/, "stampless refuses (fail-closed)");
 throws(
-  () => buildReassessment(ctxFixture(), [{ ...rowsFixture()[0], horizon: "12hours" }], NOW),
+  () => buildReassessment(ctxFixture(), [{ ...rowsFixture()[0], horizon: "12hours" }], NOW, { direction: "long" }),
   /unrecognized horizon label/,
   "bad horizon label refuses"
+);
+throws(
+  () => buildReassessment(ctxFixture(), rowsFixture(), NOW, {}),
+  /no recognized asserted direction/,
+  "absent sealed direction refuses — never substituted (D-DLC-4(2))"
+);
+throws(
+  () => buildReassessment(ctxFixture(), rowsFixture(), NOW, { direction: "sideways" }),
+  /no recognized asserted direction/,
+  "unrecognized sealed direction refuses"
+);
+throws(
+  () => buildReassessment(ctxFixture(), rowsFixture().map(({ horizonBasis, ...r }) => r), NOW, { direction: "long" }),
+  /no governed horizonBasis/,
+  "legacy pre-DH rows (no horizonBasis) refuse — never a schema-invalid sealed artifact"
+);
+throws(
+  () => buildReassessment(ctxFixture(), [rowsFixture()[0], rowsFixture()[0]], NOW, { direction: "long" }),
+  /duplicate horizon labels/,
+  "duplicate horizon labels refuse"
 );
 
 console.log("operator-override rows:");
 const overrideRows = rowsFixture().map(({ decayRef, ...r }) => ({ ...r, horizonBasis: "operator-override" }));
-const overrideArtifact = buildReassessment(ctxFixture(), overrideRows, NOW);
+const overrideArtifact = buildReassessment(ctxFixture(), overrideRows, NOW, { direction: "long" });
 eq(
   Object.keys(overrideArtifact.horizonsRead[0]).sort(),
   ["horizon", "horizonBasis"],

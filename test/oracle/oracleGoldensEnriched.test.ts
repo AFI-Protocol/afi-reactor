@@ -83,6 +83,7 @@ import {
   disableNetwork,
   loadFixture,
   normalizeVolatile,
+  stripDerivedDecay,
 } from "./support/oracleHarness.js";
 
 let restoreEnv: () => void;
@@ -178,7 +179,9 @@ describe.each(UWR_MODES)(
         inputHash: record.provenanceRecord.inputHash,
         outputHash: record.provenanceRecord.outputHash,
         evidenceRecord: normalizeVolatile(record),
-        httpResponse: normalizeVolatile(res.body),
+        // The derived decay block is stripped ONLY here (response site) —
+        // sealed surfaces above stay strip-free (DLC-GOV D-DLC-3(3)).
+        httpResponse: normalizeVolatile(stripDerivedDecay(res.body)),
       });
     });
   }

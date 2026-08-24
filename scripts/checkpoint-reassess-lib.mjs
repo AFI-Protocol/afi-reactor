@@ -115,14 +115,23 @@ export function horizonMinutes(label) {
   return Number(m[1]) * (m[2] === "h" ? 60 : 1);
 }
 
+const GOVERNED_HORIZON_BASES = new Set(["decay-derived", "operator-override"]);
+
 /**
- * Build the sealed reassessment artifact from the scoring-context doc and
- * that signal's outcome rows (sorted by horizon length). Throws on
- * malformed inputs — the caller's log-and-skip arm decides; a partial or
- * guessed artifact is never built (D-DLC-4(2): the reading reads what was
- * captured, nothing else).
+ * Build the sealed reassessment artifact from the scoring-context doc
+ * (the decay clock's TDR-GOV stamp surface), that signal's outcome rows
+ * (sorted by horizon length), and the SEALED assertion members read from
+ * the canonical evidence record (D-DLC-4(2): the checkpoint reads the
+ * sealed record — `sealedAssertion.direction` comes from
+ * evidenceRecord.scoredSignal.direction, never from the analytics copy).
+ * Throws on malformed inputs — the caller's log-and-skip arm decides; a
+ * partial, guessed, or defaulted artifact is never built. In particular:
+ * no direction is ever substituted (the D-DLC-3(2) doctrine), a legacy
+ * row without a governed horizonBasis refuses (a sealed artifact must
+ * validate against afi.signal-reassessment.v1 — never seal what the
+ * schema would reject), and duplicate horizon labels refuse.
  */
-export function buildReassessment(ctx, outcomeRows, nowIso) {
+export function buildReassessment(ctx, outcomeRows, nowIso, sealedAssertion) {
   const nowMs = Date.parse(nowIso);
   if (!Number.isFinite(nowMs)) throw new Error(`unparseable checkpoint instant: ${nowIso}`);
   const elig = checkpointEligibility(ctx, nowMs);
@@ -130,9 +139,12 @@ export function buildReassessment(ctx, outcomeRows, nowIso) {
   if (!Array.isArray(outcomeRows) || outcomeRows.length === 0) {
     throw new Error("no captured outcome rows — capture incomplete, nothing to read");
   }
-  const direction = ctx?.meta?.direction ?? "neutral";
+  const direction = sealedAssertion?.direction;
   if (!["long", "short", "neutral"].includes(direction)) {
-    throw new Error(`unrecognized asserted direction: ${String(direction)}`);
+    throw new Error(
+      `sealed record carries no recognized asserted direction (got ${String(direction)}) — ` +
+        "never substituted (D-DLC-4(2))"
+    );
   }
 
   const rows = [...outcomeRows].sort(
@@ -142,6 +154,16 @@ export function buildReassessment(ctx, outcomeRows, nowIso) {
     if (horizonMinutes(r.horizon) === null) {
       throw new Error(`outcome row with unrecognized horizon label: ${String(r.horizon)}`);
     }
+    if (!GOVERNED_HORIZON_BASES.has(r.horizonBasis)) {
+      throw new Error(
+        `outcome row ${r.horizon} carries no governed horizonBasis ` +
+          `(got ${String(r.horizonBasis)}) — legacy pre-DH rows are not checkpoint material`
+      );
+    }
+  }
+  const labels = rows.map((r) => r.horizon);
+  if (new Set(labels).size !== labels.length) {
+    throw new Error(`duplicate horizon labels in outcome rows: ${labels.join(",")}`);
   }
 
   const horizonsRead = rows.map((r) => ({
