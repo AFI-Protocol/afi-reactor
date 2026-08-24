@@ -92,6 +92,9 @@ export default {
     // Operational analytics plane (fail-open capture; NEVER evidence code —
     // MONGO-GOV D-MONGO-4).
     "**/test/analytics/*.test.ts",
+    // DLC-GOV DLC-APPLY (D-DLC-3): the read-side decay derivation — governed
+    // 32-vector KAT reproduction, fail-closed on the stamp, labeled derived.
+    "**/test/services/decayDerivation.test.ts",
   ],
   testPathIgnorePatterns: [
     "<rootDir>/dist/",
