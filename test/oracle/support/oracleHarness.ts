@@ -71,24 +71,31 @@ export const CLOCK_TOKEN = "<CLOCK>";
  * functions/undefined via JSON semantics). scoredAt is NOT injectable in the
  * live path — normalizing it out is the governed way to freeze everything
  * else byte-exactly.
- *
- * The top-level `decay` response block is STRIPPED, not normalized: it is
- * the DLC-GOV D-DLC-3 read-side DERIVATION — labeled derived, a function of
- * the wall clock by definition, and expressly not a sealed byte (D-DLC-3(3):
- * it enters no evidence record, no hash preimage, no golden). The goldens
- * pin sealed behavior; the derived block is proven by its own suites
- * (decayDerivation.test.ts + the integration proofs).
  */
 export function normalizeVolatile<T>(value: T): unknown {
-  const stripped =
-    value && typeof value === "object" && !Array.isArray(value)
-      ? (({ decay: _derivedDecay, ...rest }) => rest)(value as Record<string, unknown>)
-      : value;
   return JSON.parse(
-    JSON.stringify(stripped, (key, v) =>
+    JSON.stringify(value, (key, v) =>
       VOLATILE_KEYS.has(key) && typeof v === "string" ? CLOCK_TOKEN : v
     )
   );
+}
+
+/**
+ * Strip the top-level `decay` block from an HTTP RESPONSE body before
+ * goldening — applied ONLY at the httpResponse site, never to evidence
+ * records, analystScore, or USS surfaces (those must stay strip-free so a
+ * derived-block leak INTO a sealed surface reds the goldens). The block is
+ * the DLC-GOV D-DLC-3 read-side DERIVATION — labeled derived, a function of
+ * the wall clock by definition, and expressly not a sealed byte
+ * (D-DLC-3(3)); it is proven by its own suites (decayDerivation.test.ts +
+ * the integration proofs).
+ */
+export function stripDerivedDecay<T>(responseBody: T): unknown {
+  if (responseBody && typeof responseBody === "object" && !Array.isArray(responseBody)) {
+    const { decay: _derivedDecay, ...rest } = responseBody as Record<string, unknown>;
+    return rest;
+  }
+  return responseBody;
 }
 
 /** Recursive key-sorted stringify — mirrors afi-infra's stableStringify, so the

@@ -104,8 +104,13 @@ describe("D-DLC-3: read-side derived decay", () => {
     });
   });
 
-  const skipIfNoKat = existsSync(GOVERNED_KAT) ? describe : describe.skip;
-  skipIfNoKat("the governed 32-vector KAT, reproduced value-exactly by the serving-path derivation", () => {
+  describe("the governed 32-vector KAT, reproduced value-exactly by the serving-path derivation", () => {
+    // HARD requirement, never a skip: the DLC-APPLY gate mandates this
+    // reproduction, so a missing KAT is a red suite, not a silent green.
+    it("the governed KAT is present in the installed afi-config dependency", () => {
+      expect(existsSync(GOVERNED_KAT)).toBe(true);
+    });
+
     const kat = JSON.parse(readFileSync(GOVERNED_KAT, "utf-8")) as {
       vectors: Array<{
         vectorId: string;
