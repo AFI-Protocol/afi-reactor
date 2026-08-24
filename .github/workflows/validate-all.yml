@@ -121,6 +121,19 @@ jobs:
           npm test
           echo "✅ Tests completed"
 
+      # DLC-GOV DLC-CHECKPOINT (D-DLC-4): the checkpoint derivation law —
+      # eligibility, deterministic reading, verbatim realization, sealing —
+      # plus governed-schema validation of the builder's output against the
+      # sibling afi-config afi.signal-reassessment.v1 contract. Pure node,
+      # no database.
+      - name: Checkpoint reassessment derivation law (no MongoDB)
+        working-directory: afi-reactor
+        timeout-minutes: 5
+        run: |
+          echo "🧪 Checkpoint derivation law (DLC-GOV D-DLC-4)..."
+          npm run test:checkpoint-reassess
+          echo "✅ Checkpoint derivation law holds"
+
       # Exercise the COMPILED build (dist/), not only Jest source mappings: prove
       # both scored endpoints construct + validate the governed record and then
       # fail HONESTLY with a 503 when the canonical store is unavailable (no

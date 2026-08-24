@@ -17,6 +17,7 @@
     "test": "jest && node test/operational/captureOutcomesDerivation.test.mjs",
     "oracle:regen": "UPDATE_ORACLE_GOLDENS=1 jest --testPathPattern 'test/oracle/'",
     "test:capture-outcomes": "node test/operational/captureOutcomesDerivation.test.mjs",
+    "test:checkpoint-reassess": "node test/operational/checkpointReassessDerivation.test.mjs",
     "test:oracle:mongo": "node test/oracle/oracleMongoEquivalence.mjs",
     "test:integration:unavailable": "node test/integration-mongo/reactorEvidenceUnavailable.mjs",
     "test:integration:mongo": "node test/integration-mongo/reactorEvidencePersistence.mjs",
