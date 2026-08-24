@@ -1,6 +1,8 @@
 /**
- * DEM-BIND (c): per-strategy enrichment-mapping resolution — fail-closed boot,
- * the bounded ctx.mapping carrier, and the seam's byte-equivalence.
+ * DEM-BIND (c), reworked at (e2): per-strategy enrichment-mapping resolution —
+ * fail-closed boot, the bounded ctx.mapping carrier, and the seam's
+ * byte-equivalence against the adapter export (the sanctioned test-side
+ * oracle, ruling R1 — the legacy in-node branch is gone).
  *
  * DEM-GOV §9 slot DEM-BIND (owner-authorized 2026-08-22), clauses D-DEM-2(6)
  * (fail-closed resolution; no built-in mapping, no code-path fallback) and
@@ -37,6 +39,13 @@ import {
   type ResolvedMappingCarrier,
 } from "../../src/pipeline/nodeSdk.js";
 import type { FroggyEnrichedView } from "../../node_modules/afi-core/analysts/froggy.enrichment_adapter.js";
+// DEM-BIND (e2) seam-test rework (ruling R1): the adapter's expressible half
+// survives as the TEST-SIDE byte-equivalence oracle — the export the FLPR
+// guards and the golden harness already sanction. The live path composes
+// fragment+residual only; equivalence is proven against the adapter export
+// imported directly here, never via a removed legacy branch.
+import { buildFroggyTrendPullbackInputFromEnriched } from "../../node_modules/afi-core/analysts/froggy.enrichment_adapter.js";
+import { scoreFroggyTrendPullback } from "../../node_modules/afi-core/analysts/froggy.trend_pullback_v1.js";
 
 const REPO_ROOT = process.cwd();
 const FIXTURE_CONFIG_ROOT = path.resolve(REPO_ROOT, "test/pipeline/fixtures/afi-config");
@@ -121,17 +130,11 @@ describe("D-DEM-2(6): fail-closed mapping resolution at boot", () => {
     expect(mapping.mappingId).toBe("froggy-trend-pullback");
   });
 
-  it("a config WITHOUT mappingRef still resolves (tolerated while optional)", () => {
-    const root = scratchRoot(removeMappingRef);
-    try {
-      const validated = validateRuntimeConfig({
-        pluginRegistry: testBuiltinRegistry(),
-        configRoot: root,
-      });
-      expect(validated.strategies.get(FROGGY_KEY)!.mapping).toBeUndefined();
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+  it("a config WITHOUT mappingRef refuses boot (required since the final bounded step)", () => {
+    // DEM-BIND (e2): the (c)-era optional-tolerance case, inverted — the
+    // re-vendored governed schema requires mappingRef, so absence is a
+    // schema-layer boot refusal (D-DEM-2(5)(e), fail-closed D-DEM-2(6)).
+    bootRefusal(scratchRoot(removeMappingRef), /mappingRef/);
   });
 
   it("mappingRef with NO registered document refuses boot — never a silent skip", () => {
@@ -268,12 +271,20 @@ describe("the seam: fragment+residual equals the legacy path; fired defaults are
       return clone;
     }
 
-    it("mapping path output is byte-identical to the legacy path (no fired defaults)", async () => {
+    /** The adapter export, applied as the sanctioned test-side oracle (R1). */
+    function adapterOracleAnalysis(enriched: FroggyEnrichedView) {
+      const uwr = getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1");
+      return scoreFroggyTrendPullback(
+        buildFroggyTrendPullbackInputFromEnriched(enriched),
+        uwr.config,
+        enriched
+      );
+    }
+
+    it("mapping path output is byte-identical to the adapter oracle (no fired defaults)", async () => {
       const withMapping = await scorerFroggyTrendPullbackNode.run(view(), ctx(true));
-      const legacy = await scorerFroggyTrendPullbackNode.run(view(), ctx(false));
       const a = withMapping.output as { analysis: unknown };
-      const b = legacy.output as { analysis: unknown };
-      expect(normalized(a.analysis)).toEqual(normalized(b.analysis));
+      expect(normalized(a.analysis)).toEqual(normalized(adapterOracleAnalysis(view())));
       expect(withMapping.degradations).toEqual([]);
     });
 
@@ -298,13 +309,19 @@ describe("the seam: fragment+residual equals the legacy path; fired defaults are
         "pulledBackIntoSweetSpot",
         "triggerPatternQuality",
       ]);
-      // The legacy path scores the same INPUT VALUES (the grandfather exists
-      // so DEM-BIND reproduces today's scored values exactly, D-DEM-5(4)).
-      const legacy = await scorerFroggyTrendPullbackNode.run(bare, ctx(false));
+      // The adapter oracle scores the same INPUT VALUES (the grandfather
+      // exists so DEM-BIND reproduces today's scored values exactly,
+      // D-DEM-5(4)).
       const a = result.output as { analysis: unknown };
-      const b = legacy.output as { analysis: unknown };
-      expect(normalized(a.analysis)).toEqual(normalized(b.analysis));
-      expect(legacy.degradations ?? []).toEqual([]);
+      expect(normalized(a.analysis)).toEqual(normalized(adapterOracleAnalysis(bare)));
+    });
+
+    it("an absent resolved mapping yields NO determination (D-DEM-2(6), D-DEM-5(7))", async () => {
+      // DEM-BIND (e2): the legacy branch is gone — the node refuses exactly
+      // as it refuses without the resolved UWR config. No fallback exists.
+      await expect(scorerFroggyTrendPullbackNode.run(view(), ctx(false))).rejects.toThrow(
+        /no resolved enrichment mapping.*fail-closed/
+      );
     });
   });
 });

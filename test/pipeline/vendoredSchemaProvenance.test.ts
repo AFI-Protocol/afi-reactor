@@ -22,16 +22,20 @@ function sha256(relPath: string): string {
 
 describe("vendored governed schema provenance (MANIFEST integrity)", () => {
   it("pins the authorizing afi-config commit", () => {
-    // DEM-BIND step-(c) re-vendor (D-DEM-2(5)(c), slot DEM-BIND): the
-    // analyst-strategy-config schema gains the OPTIONAL mappingRef
-    // (D-DEM-2(3)), and the closure GAINS enrichment-mapping.schema.json —
-    // mandated by D-DEM-2(6)'s fail-closed law: a schema-invalid mapping
-    // must refuse at resolution, and the loader validates only against
-    // vendored schemas; the interpreter's structural refusals are a
-    // backstop, not the governed schema. Every other closure member is
-    // byte-unchanged between the prior pin (d7896461, CFG-GOV
-    // CFG-PROOF-SCOPE era) and this commit.
-    expect(manifest.afiConfigCommit).toBe("a53c0a48cc81ad3021f9a1d95abe92f0f73b0352");
+    // Change log:
+    // - d7896461 → a53c0a4: DEM-BIND step-(c) re-vendor (D-DEM-2(5)(c)) —
+    //   the analyst-strategy-config schema gained the OPTIONAL mappingRef
+    //   (D-DEM-2(3)), and the closure GAINED enrichment-mapping.schema.json,
+    //   mandated by D-DEM-2(6)'s fail-closed law (the loader validates only
+    //   against vendored schemas; the interpreter's structural refusals are
+    //   a backstop, not the governed schema).
+    // - a53c0a4 → 30d701a: DEM-BIND step-(e2) re-vendor (D-DEM-2(5)(e)) —
+    //   mappingRef became REQUIRED in the analyst-strategy-config schema,
+    //   and the hashing KAT's analyst-config-excludes example-anchor vector
+    //   moved in lockstep with the governed example it pins (lawful under
+    //   DKA-GOV D-DKA-1, accepted e8afda0; the four hash-LAW vectors are
+    //   byte-identical). Every other closure member is byte-unchanged.
+    expect(manifest.afiConfigCommit).toBe("30d701ad3ba353d16aca00646bae9c7e4348a4a9");
   });
 
   it("every vendored file matches its recorded sha256 (drift guard)", () => {
