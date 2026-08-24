@@ -48,7 +48,31 @@ import {
 import type { UwrProfileStamp } from "../../src/types/ReactorScoredSignalV1.js";
 import type { FroggyEnrichedView } from "../../node_modules/afi-core/analysts/froggy.enrichment_adapter.js";
 import { scorerFroggyTrendPullbackNode } from "../../src/pipeline/nodes/scorerFroggyTrendPullback.js";
-import { SILENT_NODE_LOGGER, type NodeRunContext } from "../../src/pipeline/nodeSdk.js";
+import {
+  SILENT_NODE_LOGGER,
+  type NodeRunContext,
+  type ResolvedMappingCarrier,
+} from "../../src/pipeline/nodeSdk.js";
+
+// DEM-BIND (e2): the scorer node refuses without a resolved mapping — these
+// semantics probes hand down the canonical registered froggy mapping
+// (D-DEM-2(6); its interpreter fragment is byte-equivalent to the adapter
+// over the full non-refusal domain, so every equivalence below is unmoved).
+function froggyMappingCarrier(): ResolvedMappingCarrier {
+  return {
+    mappingId: "froggy-trend-pullback",
+    version: "1.0.0",
+    doc: JSON.parse(
+      readFileSync(
+        path.resolve(
+          process.cwd(),
+          "node_modules/afi-config/examples/enrichment-mapping/v1/enrichment-mapping.example.json"
+        ),
+        "utf-8"
+      )
+    ) as Record<string, unknown>,
+  };
+}
 
 // Repo idiom (see test/evidence/provenance/*.test.ts): jest runs from the repo root.
 const REPO_ROOT = process.cwd();
@@ -103,6 +127,8 @@ function nodeCtx(uwr?: ResolvedUwrRuntimeConfig): NodeRunContext {
     abort: new AbortController().signal,
     // CFG-GOV D-CFG-4(4): resolved per determination and handed down.
     uwr: uwr ?? getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1"),
+    // DEM-GOV D-DEM-2(6): likewise resolved above the executor and handed down.
+    mapping: froggyMappingCarrier(),
   };
 }
 

@@ -231,6 +231,10 @@
         "uwrProfileRef": {
           "profileId": "uwr-weighted-lifts-v0.1"
         },
+        "mappingRef": {
+          "mappingId": "mean-reversion-enrichment",
+          "version": "1.0.0"
+        },
         "decayConfig": {
           "ref": {
             "templateId": "decay-swing-v1"
@@ -251,8 +255,8 @@
           "note": "non-authoritative annotation; excluded from canonical hash material (analystConfigHash)"
         }
       },
-      "expectedCanonicalForm": "{\"analystId\":\"kestrel\",\"decayConfig\":{\"ref\":{\"templateId\":\"decay-swing-v1\"}},\"nodeOverrides\":{\"ai-ml\":{\"enabled\":false},\"market-news\":{\"config\":{\"windowHours\":12},\"enabled\":true}},\"pipelineRef\":{\"manifestHash\":{\"algorithm\":\"sha256\",\"canonicalizationVersion\":\"afi.hash.v1\",\"domainTag\":\"afi.factory.pipeline-manifest\",\"value\":\"b82f1c35766575cd2e111a447dc5bfc5e3ea6699894f064d287e8748e8992285\"},\"pipelineId\":\"mean-reversion-core\",\"pipelineVersion\":\"v1.0.0\"},\"schema\":\"afi.analyst-strategy-config.v1\",\"scorerRef\":{\"pluginId\":\"mean-reversion-scorer\",\"pluginVersion\":\"1.0.0\"},\"strategyId\":\"mean_reversion_v2\",\"strategyVersion\":\"2.1.0\",\"uwrProfileRef\":{\"profileId\":\"uwr-weighted-lifts-v0.1\"}}",
-      "expectedSha256": "ea988ce85d1102ce17174bfdf8eb3d1530cefe7f0aae26b88be50f2fef7fb2a5"
+      "expectedCanonicalForm": "{\"analystId\":\"kestrel\",\"decayConfig\":{\"ref\":{\"templateId\":\"decay-swing-v1\"}},\"mappingRef\":{\"mappingId\":\"mean-reversion-enrichment\",\"version\":\"1.0.0\"},\"nodeOverrides\":{\"ai-ml\":{\"enabled\":false},\"market-news\":{\"config\":{\"windowHours\":12},\"enabled\":true}},\"pipelineRef\":{\"manifestHash\":{\"algorithm\":\"sha256\",\"canonicalizationVersion\":\"afi.hash.v1\",\"domainTag\":\"afi.factory.pipeline-manifest\",\"value\":\"b82f1c35766575cd2e111a447dc5bfc5e3ea6699894f064d287e8748e8992285\"},\"pipelineId\":\"mean-reversion-core\",\"pipelineVersion\":\"v1.0.0\"},\"schema\":\"afi.analyst-strategy-config.v1\",\"scorerRef\":{\"pluginId\":\"mean-reversion-scorer\",\"pluginVersion\":\"1.0.0\"},\"strategyId\":\"mean_reversion_v2\",\"strategyVersion\":\"2.1.0\",\"uwrProfileRef\":{\"profileId\":\"uwr-weighted-lifts-v0.1\"}}",
+      "expectedSha256": "3969cfe352fa6f45ba2ee8f1189c28d59b95b442799648cbdcdd7d230cdf84ce"
     },
     {
       "name": "exclusion-is-top-level-only",

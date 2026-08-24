@@ -49,7 +49,31 @@ import {
 import { scoreFroggyTrendPullbackFromEnriched } from "../../node_modules/afi-core/analysts/froggy.trend_pullback_v1.js";
 import type { FroggyEnrichedView } from "../../node_modules/afi-core/analysts/froggy.enrichment_adapter.js";
 import { scorerFroggyTrendPullbackNode } from "../../src/pipeline/nodes/scorerFroggyTrendPullback.js";
-import { SILENT_NODE_LOGGER, type NodeRunContext } from "../../src/pipeline/nodeSdk.js";
+import {
+  SILENT_NODE_LOGGER,
+  type NodeRunContext,
+  type ResolvedMappingCarrier,
+} from "../../src/pipeline/nodeSdk.js";
+
+// DEM-BIND (e2): the scorer node refuses without a resolved mapping — these
+// equivalence probes hand down the canonical registered froggy mapping
+// (D-DEM-2(6); its interpreter fragment is byte-equivalent to the adapter
+// over the full non-refusal domain, so plugin-vs-kernel equality is unmoved).
+function froggyMappingCarrier(): ResolvedMappingCarrier {
+  return {
+    mappingId: "froggy-trend-pullback",
+    version: "1.0.0",
+    doc: JSON.parse(
+      readFileSync(
+        path.resolve(
+          process.cwd(),
+          "node_modules/afi-config/examples/enrichment-mapping/v1/enrichment-mapping.example.json"
+        ),
+        "utf-8"
+      )
+    ) as Record<string, unknown>,
+  };
+}
 
 /** The LIVE scoring seam (D-FCP-9: the old froggy analyst plugin is deleted;
  * the scorer node composes the identical afi-core kernels and emits the
@@ -76,6 +100,8 @@ function nodeCtx(uwr?: ResolvedUwrRuntimeConfig): NodeRunContext {
     // resolved config and refuses without one; the default mirrors what the
     // composition root resolves for the froggy registration.
     uwr: uwr ?? getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1"),
+    // DEM-GOV D-DEM-2(6): likewise resolved above the executor and handed down.
+    mapping: froggyMappingCarrier(),
   };
 }
 

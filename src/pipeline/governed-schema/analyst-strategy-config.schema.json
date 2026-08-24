@@ -30,7 +30,8 @@
     "pipelineRef",
     "scorerRef",
     "uwrProfileRef",
-    "decayConfig"
+    "decayConfig",
+    "mappingRef"
   ],
   "properties": {
     "schema": {

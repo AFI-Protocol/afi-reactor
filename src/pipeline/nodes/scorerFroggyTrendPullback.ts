@@ -2,17 +2,18 @@
  * afi-scorer-froggy-trend-pullback@1.0.0 — the single scoring seam (scorer
  * category node; LIFE-GOV D-LIFE-1 transition monopoly).
  *
- * Composes afi-core's public exports EXACTLY like the live
- * plugins/froggy.trend_pullback_v1.plugin.ts does:
- * buildFroggyTrendPullbackInputFromEnriched + scoreFroggyTrendPullback with
- * the UWR config resolved PER DETERMINATION above the executor and handed
- * down as ctx.uwr (CFG-GOV D-CFG-4(4) — fail-closed, no fallback; RC-4:
- * this node refuses to score without it and never resolves or defaults), and
- * emits analysis + uwrResolvedSource VERBATIM (RC-6: the stamp site never
- * re-reads the environment or infers the source later).
+ * Composes afi-core's public exports: the interpreter fragment (from the
+ * strategy's registered enrichment mapping, DEM-GOV D-DEM-2) + the residual
+ * builder's unexpressible half, with the UWR config resolved PER
+ * DETERMINATION above the executor and handed down as ctx.uwr (CFG-GOV
+ * D-CFG-4(4) — fail-closed, no fallback; RC-4: this node refuses to score
+ * without it and never resolves or defaults), and emits analysis +
+ * uwrResolvedSource VERBATIM (RC-6: the stamp site never re-reads the
+ * environment or infers the source later). Since DEM-BIND's final bounded
+ * step there is no bespoke-adapter path here: no resolved mapping on the
+ * determination means no score and no record (D-DEM-2(6), D-DEM-5(7)).
  */
 import type { FroggyEnrichedView } from "afi-core/analysts/froggy.enrichment_adapter.js";
-import { buildFroggyTrendPullbackInputFromEnriched } from "afi-core/analysts/froggy.enrichment_adapter.js";
 import { scoreFroggyTrendPullback } from "afi-core/analysts/froggy.trend_pullback_v1.js";
 import {
   buildFroggyResidualInput,
@@ -56,32 +57,34 @@ export function createScorerFroggyTrendPullbackNode(): AnalysisNodePlugin {
         );
       }
 
-      // DEM-GOV D-DEM-2(6): when the determination carries a resolved
-      // mapping, the interpreter fragment is unconditionally authoritative
-      // for the expressible inputs — an interpreter refusal throws, so no
-      // determination exists (D-DEM-5(7)); the residual (unexpressible) half
-      // rides the untouched legacy adapter via the residual builder. The
-      // legacy full-adapter branch survives only while mappingRef is
-      // optional and is removed at the final bounded step.
-      let scorerInput: ReturnType<typeof buildFroggyTrendPullbackInputFromEnriched>;
-      let degradations: NodeDegradation[] = [];
-      if (ctx.mapping) {
-        const { fragment, firedDefaults } = interpretEnrichmentMapping(
-          ctx.mapping.doc,
-          enriched
+      // DEM-GOV D-DEM-2(6): the interpreter fragment is unconditionally
+      // authoritative for the expressible inputs — an interpreter refusal
+      // throws, so no determination exists (D-DEM-5(7)); the residual
+      // (unexpressible) half rides the untouched legacy adapter via the
+      // residual builder. There is no built-in mapping, no default mapping,
+      // and no code-path fallback to the retired bespoke code: absent a
+      // resolved mapping this node refuses exactly as it refuses without
+      // the resolved UWR config above.
+      const mappingCarrier = ctx.mapping;
+      if (!mappingCarrier) {
+        throw new Error(
+          "scorer node received no resolved enrichment mapping (DEM-GOV D-DEM-2(6)) — " +
+            "refusing to score (fail-closed, no fallback; no determination, D-DEM-5(7))."
         );
-        const residual = buildFroggyResidualInput(enriched);
-        scorerInput = composeFroggyTrendPullbackInput(fragment, residual);
-        // D-DEM-5(3): a fired declared default is a RECORDED degradation —
-        // it flips the node's summary status, which is inside the
-        // executionSummaryHash preimage. Never silent.
-        degradations = firedDefaults.map((target) => ({
-          class: "declared-default-fired",
-          detail: target,
-        }));
-      } else {
-        scorerInput = buildFroggyTrendPullbackInputFromEnriched(enriched);
       }
+      const { fragment, firedDefaults } = interpretEnrichmentMapping(
+        mappingCarrier.doc,
+        enriched
+      );
+      const residual = buildFroggyResidualInput(enriched);
+      const scorerInput = composeFroggyTrendPullbackInput(fragment, residual);
+      // D-DEM-5(3): a fired declared default is a RECORDED degradation —
+      // it flips the node's summary status, which is inside the
+      // executionSummaryHash preimage. Never silent.
+      const degradations: NodeDegradation[] = firedDefaults.map((target) => ({
+        class: "declared-default-fired",
+        detail: target,
+      }));
       const analysis = scoreFroggyTrendPullback(scorerInput, uwrRuntime.config, enriched);
 
       ctx.logger.info("froggy trend-pullback scored", {

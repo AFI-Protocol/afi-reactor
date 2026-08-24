@@ -102,8 +102,10 @@ export interface ResolvedStrategy {
    * DEM-GOV D-DEM-2(6): the registered enrichment mapping this strategy's
    * config selected via mappingRef, loaded LAZILY per ref (the family joins
    * no mandatory registry-dir enumeration) and AJV-validated against the
-   * vendored governed contract at boot. Absent iff the config carries no
-   * mappingRef (tolerated in step (c); refused at the final bounded step).
+   * vendored governed contract at boot. Since DEM-BIND's final bounded step
+   * the vendored config schema REQUIRES mappingRef, so a config lacking it
+   * refuses boot and this member is always populated on a validated runtime;
+   * it stays optional in type because population happens post-validation.
    */
   mapping?: { mappingId: string; version: string; doc: Record<string, unknown> };
 }
@@ -941,9 +943,11 @@ export function validateRuntimeConfig(
 
     // DEM-GOV D-DEM-2(6): fail-closed mapping resolution at boot. Loaded
     // LAZILY per mappingRef — registries/enrichment-mappings joins no
-    // mandatory directory enumeration (no fixture tree carries it until the
-    // registration wave), and cross-resolution to the registry directory is
-    // the house pattern (no hardcoded allowlist).
+    // mandatory directory enumeration, and cross-resolution to the registry
+    // directory is the house pattern (no hardcoded allowlist). mappingRef is
+    // REQUIRED by the vendored config schema since DEM-BIND's final bounded
+    // step (a config without it never reaches this point); the guard below
+    // is the type narrowing, not a tolerance.
     let mapping: ResolvedStrategy["mapping"];
     if (config.mappingRef) {
       const { mappingId, version } = config.mappingRef;
