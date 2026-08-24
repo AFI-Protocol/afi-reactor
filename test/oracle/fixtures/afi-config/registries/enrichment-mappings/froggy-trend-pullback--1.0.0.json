@@ -1,0 +1,79 @@
+{
+  "schema": "afi.enrichment-mapping.v1",
+  "mappingId": "froggy-trend-pullback",
+  "version": "1.0.0",
+  "description": "The expressible half of the froggy trend_pullback_v1 enrichment adapter, exactly as performed today (froggy.enrichment_adapter.ts:218-276 at afi-core 1be76cd). The D-DEM-5(4) grandfather \u2014 four absent-source defaults, exhaustive and non-extensible \u2014 is carried as two optionality declarations (ground 'grandfather') plus the band's declared absent member and the recode's fallback/absent members.",
+  "namespaceDefaults": [
+    "technical",
+    "pattern"
+  ],
+  "bindings": {
+    "distanceFromDailyEmaPct": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "emaDistancePct"
+      },
+      "type": "number",
+      "optionality": {
+        "ground": "grandfather",
+        "default": 0
+      }
+    },
+    "pulledBackIntoSweetSpot": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "isInValueSweetSpot"
+      },
+      "type": "boolean",
+      "optionality": {
+        "ground": "grandfather",
+        "default": false
+      }
+    },
+    "triggerPatternQuality": {
+      "operator": "band",
+      "source": {
+        "lane": "pattern",
+        "path": "patternConfidence"
+      },
+      "rows": [
+        {
+          "when": {
+            "gte": 75
+          },
+          "value": 3
+        },
+        {
+          "when": {
+            "gte": 65
+          },
+          "value": 2
+        },
+        {
+          "when": {
+            "gt": 0
+          },
+          "value": 1
+        }
+      ],
+      "otherwise": 0,
+      "absent": 0
+    },
+    "atrRegime": {
+      "operator": "recode",
+      "source": {
+        "lane": "technical",
+        "path": "atrRegime"
+      },
+      "table": {
+        "low": "low",
+        "high": "high",
+        "extreme": "extreme"
+      },
+      "fallback": "normal",
+      "absent": "normal"
+    }
+  }
+}

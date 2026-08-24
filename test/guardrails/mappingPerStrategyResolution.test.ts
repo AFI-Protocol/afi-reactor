@@ -81,6 +81,15 @@ function addMappingRef(root: string): void {
   repinConfigHash(root);
 }
 
+/** DEM-BIND (d′): the fixture tree now SHIPS with mappingRef + the registered
+ * mapping — absence cases are exercised by removal. */
+function removeMappingRef(root: string): void {
+  editJson(root, CONFIG_REL, (config) => {
+    delete config.mappingRef;
+  });
+  repinConfigHash(root);
+}
+
 function registerFroggyMapping(root: string, mutateDoc?: (doc: any) => void): void {
   const dir = join(root, "registries/enrichment-mappings");
   mkdirSync(dir, { recursive: true });
@@ -103,16 +112,35 @@ function bootRefusal(root: string, pattern: RegExp): void {
 }
 
 describe("D-DEM-2(6): fail-closed mapping resolution at boot", () => {
-  it("a config WITHOUT mappingRef still resolves (tolerated while optional)", () => {
+  it("the SHIPPED fixture tree resolves froggy's registered mapping (d′ state)", () => {
     const validated = validateRuntimeConfig({
       pluginRegistry: testBuiltinRegistry(),
       configRoot: FIXTURE_CONFIG_ROOT,
     });
-    expect(validated.strategies.get(FROGGY_KEY)!.mapping).toBeUndefined();
+    const mapping = validated.strategies.get(FROGGY_KEY)!.mapping!;
+    expect(mapping.mappingId).toBe("froggy-trend-pullback");
+  });
+
+  it("a config WITHOUT mappingRef still resolves (tolerated while optional)", () => {
+    const root = scratchRoot(removeMappingRef);
+    try {
+      const validated = validateRuntimeConfig({
+        pluginRegistry: testBuiltinRegistry(),
+        configRoot: root,
+      });
+      expect(validated.strategies.get(FROGGY_KEY)!.mapping).toBeUndefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("mappingRef with NO registered document refuses boot — never a silent skip", () => {
-    bootRefusal(scratchRoot(addMappingRef), /does not resolve.*fail-closed, D-DEM-2\(6\)/);
+    bootRefusal(
+      scratchRoot((r) => {
+        rmSync(join(r, "registries/enrichment-mappings/froggy-trend-pullback--1.0.0.json"));
+      }),
+      /does not resolve.*fail-closed, D-DEM-2\(6\)/
+    );
   });
 
   it("a schema-invalid mapping document refuses boot", () => {

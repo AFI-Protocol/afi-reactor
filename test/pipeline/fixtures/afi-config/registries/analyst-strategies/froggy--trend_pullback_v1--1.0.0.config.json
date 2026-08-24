@@ -20,6 +20,10 @@
   "uwrProfileRef": {
     "profileId": "uwr-weighted-lifts-v0.1"
   },
+  "mappingRef": {
+    "mappingId": "froggy-trend-pullback",
+    "version": "1.0.0"
+  },
   "decayConfig": {
     "ratio": {
       "barsPerHalfLife": 12,
