@@ -8,8 +8,9 @@
  * D-DLC-4(1)) and has no reassessment yet, this job reads the SEALED
  * RECORD from the canonical evidence plane (D-DLC-4(2): the assertion —
  * direction — comes from evidenceRecord.scoredSignal, read-only, and the
- * analytics copy is VERIFIED against it, refusing on mismatch or
- * record-not-found; the decay clock comes from the scoring-context doc,
+ * analytics copy is VERIFIED against it — a mismatch is a run FAILURE;
+ * record-not-found is a terminal per-signal SKIP (that signal can never
+ * be checkpointed); the decay clock comes from the scoring-context doc,
  * TDR-GOV's recorded stamp surface) plus that signal's captured
  * signal_outcomes rows (DH-GOV {H/4, H/2, H} law — CONSUMED, never
  * changed), and appends ONE sealed afi.signal-reassessment.v1 artifact —
@@ -120,6 +121,7 @@ let written = 0;
 let skippedExisting = 0;
 let skippedIneligible = 0;
 let skippedNoRows = 0;
+let noSealedRecord = 0;
 let failed = 0;
 
 const cursor = contexts.find({}, { sort: { capturedAt: 1 } });
@@ -154,7 +156,13 @@ for await (const ctx of cursor) {
       { projection: { "scoredSignal.direction": 1, signalId: 1 } }
     );
     if (!sealed) {
-      throw new Error("no sealed evidence record for this signalId — refusing to checkpoint");
+      // A signal with no sealed record can NEVER be checkpointed (e.g. the
+      // latency-floor era scored with persistence excluded by config — the
+      // analytics copy exists, the sealed record never did). The refusal is
+      // the correct TERMINAL outcome, not a run failure: counting it as one
+      // would keep the cron permanently red and mask real failures.
+      noSealedRecord++;
+      continue;
     }
     const sealedDirection = sealed?.scoredSignal?.direction;
     const copyDirection = ctx?.meta?.direction;
@@ -208,7 +216,8 @@ for await (const ctx of cursor) {
 
 console.log(
   `checkpoint-reassess done: eligible=${eligible} written=${written} ` +
-    `existing=${skippedExisting} preHalfLife=${skippedIneligible} noRows=${skippedNoRows} failed=${failed}${DRY ? " (dry-run)" : ""}`
+    `existing=${skippedExisting} preHalfLife=${skippedIneligible} noRows=${skippedNoRows} ` +
+    `noSealedRecord=${noSealedRecord} failed=${failed}${DRY ? " (dry-run)" : ""}`
 );
 await client.close();
 // Exit codes are trusted over summary text (workspace law): ANY per-signal
