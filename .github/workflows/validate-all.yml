@@ -134,6 +134,19 @@ jobs:
           npm run test:checkpoint-reassess
           echo "✅ Checkpoint derivation law holds"
 
+      # CAL-GOV CAL-BUILDER (D-CAL-1 … D-CAL-4): the calibration derivation law —
+      # verify-on-read, grouping key, pinned cluster-robust estimators, the
+      # supersession rules, sealing — on the 2026-08-24 corpus fixture, plus
+      # governed-schema validation against the sibling afi-config
+      # afi.analyst-calibration.v1 contract. Pure node, no database.
+      - name: Calibration derivation law (no MongoDB)
+        working-directory: afi-reactor
+        timeout-minutes: 5
+        run: |
+          echo "🧪 Calibration derivation law (CAL-GOV D-CAL-1 … D-CAL-4)..."
+          npm run test:calibration-build
+          echo "✅ Calibration derivation law holds"
+
       # Exercise the COMPILED build (dist/), not only Jest source mappings: prove
       # both scored endpoints construct + validate the governed record and then
       # fail HONESTLY with a 503 when the canonical store is unavailable (no
