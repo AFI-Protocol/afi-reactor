@@ -70,13 +70,13 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "5cb9b7a4652f3cfaa31d8a069c14c3282bbdf9354443badb033b05b01fd01e22"
+        "value": "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.enrichment-bundle",
-        "value": "9d0d44f58de79c7bf48176dbb5a5096ec4b8d06b9ea882a5ce5aea73f9a8f067"
+        "value": "32e190db3f5a539ef718b3dfbfad0949236ae4e3fdfdc70c6cb9dde1ab0bad13"
       },
       "executionSummaryHash": {
         "algorithm": "sha256",
@@ -96,7 +96,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "36f911f4fd37eb0d161ab4df7a9650fd1c477bf6dbd71de4a82e0f73c71c4c93"
+        "value": "5eef1faf93d0a1fd5f616fd19a98a10da514afa73141aaddd77e308290a72471"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -178,7 +178,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "37de5af583b33c5c9e21370b19f7770d3ae5ef2fffcde02804079f3f97d6351c"
+          "value": "27f4e9cf35f58cb89e06c2fb5b6f9d7e527748c919617b745ed28b2ef2da40a3"
         },
         "provider": {
           "deterministic": false,
@@ -386,7 +386,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.lane-output",
-          "value": "16a53244cb29945932a6d4cb9154ae5bea77c32f19db320eecb729bf196b04ad"
+          "value": "f3dbeede7f9fec7ef2e7b718dde0427a15c3e095e91fad3f58ebaeba3cea5e2e"
         },
         "credential": {
           "mode": "keyless"
@@ -424,7 +424,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-result",
-          "value": "2b53c11e84f553e9b832c200b0a2e175117e324b3744e18831b3760243b4d26c"
+          "value": "d5702421d230b0143a3448026367a4cef6078abb02fc2de104c1ce8bab85b1c2"
         },
         "resultSchema": "afi.enrichment.technical.v1",
         "schema": "afi.provider-invocation-proof.v1",
@@ -435,14 +435,14 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "2d3c61dc5d15cce19420deb2174801228d38291a94cd437578c3c09c0e65fcff"
+      "value": "86faf6d12c3de1340b71b50550620fefcf2b7f7257f0f96376b3292c3d610004"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "562068cd1d9b3015249bc7982c80863e05297591994d5c959ce98e924a650cdc"
+      "value": "a48e72b91affc90e1f16c2fe19acb280ec866db9017107aad64fd9f1fb8cbfe0"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
@@ -502,9 +502,12 @@
           "atr14": 1.1685809655298571,
           "atrPercentile": 94.8,
           "atrRegime": "high",
+          "brokeEmaWithBody": false,
           "ema20": 100.01045172807879,
           "ema50": 100.03568834253537,
           "emaDistancePct": 0.2503722265458551,
+          "haFlatBack": "none",
+          "haFlatBackConfirmed": false,
           "isInValueSweetSpot": true,
           "rsi14": 51.22203250518938,
           "trendBias": "range",
@@ -558,9 +561,12 @@
             "atr14": 1.1685809655298571,
             "atrPercentile": 94.8,
             "atrRegime": "high",
+            "brokeEmaWithBody": false,
             "ema20": 100.01045172807879,
             "ema50": 100.03568834253537,
             "emaDistancePct": 0.2503722265458551,
+            "haFlatBack": "none",
+            "haFlatBackConfirmed": false,
             "isInValueSweetSpot": true,
             "rsi14": 51.22203250518938,
             "trendBias": "range",

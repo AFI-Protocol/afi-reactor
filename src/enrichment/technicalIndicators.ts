@@ -15,6 +15,7 @@
 import type { TechnicalLensV1 } from "../types/UssLenses.js";
 import type { AfiCandle } from "../types/AfiCandle.js";
 import { computeFroggyBundle } from "../indicator/froggyProfile.js";
+import { computeCandleStructure } from "./candleStructure.js";
 
 /**
  * Compute technical enrichment from OHLCV candles.
@@ -123,6 +124,12 @@ export function computeTechnicalEnrichment(
     // too thin, never a guess.
     const regime = computeAtrRegime(bundle.atrSeries14);
 
+    // DEM-PRODUCER-CANDLE: the candle-structure facts over the SAME window
+    // (no new fetch): brokeEmaWithBody (the body closed on the counter-trend
+    // side of EMA20) and the Heikin-Ashi flat-back confirmation, both read
+    // against the lane's own trend law — never a submitted direction.
+    const structure = computeCandleStructure(candles, ema20, trendBias);
+
     return {
       ema20,
       ema50,
@@ -135,6 +142,9 @@ export function computeTechnicalEnrichment(
       ...(regime !== null
         ? { atrRegime: regime.atrRegime, atrPercentile: regime.atrPercentile }
         : {}),
+      brokeEmaWithBody: structure.brokeEmaWithBody,
+      haFlatBack: structure.haFlatBack,
+      haFlatBackConfirmed: structure.haFlatBackConfirmed,
     };
   } catch (error) {
     console.error("❌ Technical enrichment failed:", error);

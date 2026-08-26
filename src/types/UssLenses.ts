@@ -68,6 +68,16 @@ export interface TechnicalLensV1 extends UssLens {
      * the determination instead of producing this block.
      */
     plan?: TechnicalPlanFacts;
+    /**
+     * DEM-PRODUCER-CANDLE: the latest bar's body closed on the counter-trend
+     * side of EMA20 (range: the body crossed it). Always emitted with the
+     * bundle (the D5-GOV stub is retired).
+     */
+    brokeEmaWithBody?: boolean;
+    /** Heikin-Ashi flat-back side of the latest HA bar (epsilon 0). */
+    haFlatBack?: "bullish" | "bearish" | "none";
+    /** The flat-back agrees with the lane's trend law; range → false. */
+    haFlatBackConfirmed?: boolean;
   };
 }
 

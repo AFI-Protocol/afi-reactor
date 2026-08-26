@@ -4,16 +4,17 @@
     "assetClass": "crypto",
     "axisNotes": {
       "execution": "Trigger pattern quality is low for this setup.",
-      "insight": "Liquidity or volatility context is weak."
+      "insight": "Liquidity or volatility context is weak.",
+      "structure": "Weak HTF structure or EMA context."
     },
     "baseAsset": "BTC",
-    "conviction": 0.22500000000000003,
+    "conviction": 0.11249999999999999,
     "direction": "neutral",
     "holdingHorizon": "swing",
     "instrumentType": "linear-perp",
     "marketType": "perp",
     "quoteAsset": "USDT",
-    "rationale": "Trigger pattern quality is low for this setup. Liquidity or volatility context is weak.",
+    "rationale": "Weak HTF structure or EMA context. Trigger pattern quality is low for this setup. Liquidity or volatility context is weak.",
     "riskBucket": "high",
     "scoredAt": "<CLOCK>",
     "signalTimeframe": "15m",
@@ -27,10 +28,10 @@
     "uwrAxes": {
       "execution": 0,
       "insight": 0.3,
-      "risk": 0.2,
-      "structure": 0.4
+      "risk": 0,
+      "structure": 0.15
     },
-    "uwrScore": 0.22500000000000003
+    "uwrScore": 0.11249999999999999
   },
   "canonicalUss": {
     "facts": {
@@ -67,13 +68,13 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "5cb9b7a4652f3cfaa31d8a069c14c3282bbdf9354443badb033b05b01fd01e22"
+        "value": "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.enrichment-bundle",
-        "value": "930cacbd347c16a5b3238f6c65dc4efbfe3fc5a4d91bac7e4ef0d44be39d2919"
+        "value": "cfb5c348c4452c3aa8a9f8896ae6cdc06f53b1a73147a142c751300fa6aa49e4"
       },
       "executionSummaryHash": {
         "algorithm": "sha256",
@@ -93,7 +94,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "36f911f4fd37eb0d161ab4df7a9650fd1c477bf6dbd71de4a82e0f73c71c4c93"
+        "value": "5eef1faf93d0a1fd5f616fd19a98a10da514afa73141aaddd77e308290a72471"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -117,7 +118,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.scored-output",
-        "value": "d042a5fa7ba5ccd0a58bfc5ac267f8c5e0cc3c33fc4770ce75e979513c18097b"
+        "value": "e2ed9f66d5758fbc392f408dc93e41e2af326e015bd4c02716197dce8d806f20"
       },
       "schema": "afi.provenance-record.v1",
       "schemaVersions": {
@@ -175,7 +176,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "a3e03897b25fa26305c4a5ad2b5e256f152c7ed2f8c90dd3cd94e45d65db8eef"
+          "value": "b79d3b1c17058895eb2bff5aad85cc8b1f4dcc35fb8e1d056944055fcc91829e"
         },
         "provider": {
           "deterministic": false,
@@ -383,7 +384,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.lane-output",
-          "value": "a858f4010da9cc3a87336ad2ac86ec2b63f1597cdc235fee05ff7e7afca40433"
+          "value": "137adc643c56ad6cc9bef935a428966de9d026469c4622a221056ad747b9c2b1"
         },
         "credential": {
           "mode": "keyless"
@@ -421,7 +422,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-result",
-          "value": "7b6da09bad1a1f6c227077a3b4cb7f9e12ffaebe088511e732a5ca737a47cc4a"
+          "value": "c96a3ce4e9bcab948c56421e43a45c368f372a40911981b26ba323bf5586ec72"
         },
         "resultSchema": "afi.enrichment.technical.v1",
         "schema": "afi.provider-invocation-proof.v1",
@@ -432,19 +433,19 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "eda306ba90a6044983f85e587e50483315d9369b1d5510c80a77960f9de00c84"
+      "value": "d11f22bbde3f5e653716dbdb6450e32c3de1063ab1a201507cd83e18aba0ddd4"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "3c41aae7db36f10475805e59fd171cd7ad19769dd60b7fa8170c4b3c4c731c60"
+      "value": "ba08fb62f47dc15d7bce1392b5b0ee1e54d0c90a4725af62fea2c6124101f595"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
       "analystId": "froggy",
-      "conviction": 0.22500000000000003,
+      "conviction": 0.11249999999999999,
       "direction": "neutral",
       "provenanceRecordRef": "provenance-record:oracle-tv-neutral-0001",
       "providerId": "oracle-provider-tv",
@@ -456,10 +457,10 @@
       "uwrAxes": {
         "execution": 0,
         "insight": 0.3,
-        "risk": 0.2,
-        "structure": 0.4
+        "risk": 0,
+        "structure": 0.15
       },
-      "uwrScore": 0.22500000000000003
+      "uwrScore": 0.11249999999999999
     },
     "signalId": "oracle-tv-neutral-0001",
     "strategyId": "trend_pullback_v1",
@@ -490,9 +491,12 @@
         "atr14": 1.152376597395163,
         "atrPercentile": 86.8,
         "atrRegime": "high",
+        "brokeEmaWithBody": true,
         "ema20": 99.88197044251669,
         "ema50": 99.9447608232299,
         "emaDistancePct": -0.32435456034904336,
+        "haFlatBack": "none",
+        "haFlatBackConfirmed": false,
         "isInValueSweetSpot": true,
         "rsi14": 47.95287622391937,
         "trendBias": "range",
@@ -505,16 +509,17 @@
       "assetClass": "crypto",
       "axisNotes": {
         "execution": "Trigger pattern quality is low for this setup.",
-        "insight": "Liquidity or volatility context is weak."
+        "insight": "Liquidity or volatility context is weak.",
+        "structure": "Weak HTF structure or EMA context."
       },
       "baseAsset": "BTC",
-      "conviction": 0.22500000000000003,
+      "conviction": 0.11249999999999999,
       "direction": "neutral",
       "holdingHorizon": "swing",
       "instrumentType": "linear-perp",
       "marketType": "perp",
       "quoteAsset": "USDT",
-      "rationale": "Trigger pattern quality is low for this setup. Liquidity or volatility context is weak.",
+      "rationale": "Weak HTF structure or EMA context. Trigger pattern quality is low for this setup. Liquidity or volatility context is weak.",
       "riskBucket": "high",
       "scoredAt": "<CLOCK>",
       "signalTimeframe": "15m",
@@ -528,10 +533,10 @@
       "uwrAxes": {
         "execution": 0,
         "insight": 0.3,
-        "risk": 0.2,
-        "structure": 0.4
+        "risk": 0,
+        "structure": 0.15
       },
-      "uwrScore": 0.22500000000000003
+      "uwrScore": 0.11249999999999999
     },
     "decayParams": {
       "barsPerHalfLife": 12,
@@ -546,9 +551,12 @@
           "atr14": 1.152376597395163,
           "atrPercentile": 86.8,
           "atrRegime": "high",
+          "brokeEmaWithBody": true,
           "ema20": 99.88197044251669,
           "ema50": 99.9447608232299,
           "emaDistancePct": -0.32435456034904336,
+          "haFlatBack": "none",
+          "haFlatBackConfirmed": false,
           "isInValueSweetSpot": true,
           "rsi14": 47.95287622391937,
           "trendBias": "range",
@@ -648,11 +656,11 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.scored-output",
-    "value": "d042a5fa7ba5ccd0a58bfc5ac267f8c5e0cc3c33fc4770ce75e979513c18097b"
+    "value": "e2ed9f66d5758fbc392f408dc93e41e2af326e015bd4c02716197dce8d806f20"
   },
   "scorerInput": {
     "atrRegime": "high",
-    "brokeEmaWithBody": false,
+    "brokeEmaWithBody": true,
     "dailyBias": "neutral",
     "distanceFromDailyEmaPct": -0.32435456034904336,
     "haFlatBackConfirmed": false,

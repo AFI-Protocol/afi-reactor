@@ -140,6 +140,8 @@ function enrichedFixture(): FroggyEnrichedView {
       emaDistancePct: 1.5,
       isInValueSweetSpot: true,
       brokeEmaWithBody: false,
+      haFlatBack: "none",
+      haFlatBackConfirmed: false,
     },
     pattern: { patternName: "bull flag", patternConfidence: 80 },
     sentiment: { score: 0.4, tags: ["liquidity sweep"] },

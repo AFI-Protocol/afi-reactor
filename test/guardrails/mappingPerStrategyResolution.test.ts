@@ -257,7 +257,15 @@ describe("the seam: fragment+residual equals the legacy path; fired defaults are
         symbol: "BTCUSDT",
         market: "crypto",
         timeframe: "4h",
-        technical: { emaDistancePct: 1.5, isInValueSweetSpot: true, atrRegime: "low" },
+        technical: {
+          emaDistancePct: 1.5,
+          isInValueSweetSpot: true,
+          atrRegime: "low",
+          // DEM-PRODUCER-CANDLE: computed lane facts, bound as REQUIRED.
+          brokeEmaWithBody: false,
+          haFlatBack: "none",
+          haFlatBackConfirmed: false,
+        },
         pattern: { patternName: "bull flag", patternConfidence: 80 },
         sentiment: { score: 0.4, tags: ["liquidity sweep"] },
       };
@@ -306,9 +314,12 @@ describe("the seam: fragment+residual equals the legacy path; fired defaults are
     });
 
     it("a fired grandfathered default is a RECORDED degradation (D-DEM-5(3)), never silent", async () => {
+      // DEM-PRODUCER-CANDLE: the candle facts are REQUIRED binds, so a bare
+      // technical namespace refuses; the grandfather/floor firings are probed
+      // with the lane's computed facts present and everything else absent.
       const bare = {
         ...view(),
-        technical: {},
+        technical: { brokeEmaWithBody: false, haFlatBack: "none" as const, haFlatBackConfirmed: false },
         pattern: { patternName: "bull flag" },
       };
       const result = await scorerFroggyTrendPullbackNode.run(bare, ctx(true));

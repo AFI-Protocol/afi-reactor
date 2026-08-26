@@ -593,3 +593,43 @@ Goldens regenerated ONCE via `npm run oracle:regen`; audited with the committed 
 ## D-DEM-5(5) residual, recorded honestly
 
 On the CPJ route with a complete plan the risk axis is now a function of the provider's verified R:R and `brokeEmaWithBody` — the Evidence-§3 collinearity is **resolved** there. On every plan-less submission (all TradingView/MarkitTick traffic today, and CPJ submissions without a stop or target) the risk axis reads the declared floor and varies only through `brokeEmaWithBody`: **residual** until a plan carrier exists on that route (§9 determination D-5). The R:R is verified-plausible but submitter-chosen; a stop-placement validity rule would be a new threshold (§8) — a modelling filing.
+
+---
+
+# DEM-PRODUCER-CANDLE reconciliation — brokeEmaWithBody and haFlatBackConfirmed become computed facts (DEM-GOV §9, owner-authorized 2026-08-25)
+
+**Authority.** DEM-GOV §9 `DEM-PRODUCER-CANDLE` — the act D5-GOV D-D5-1 expressly reserved — with §9 determinations D-2/D-3. D-DEM-7(2) authorizes the movement in class (the structure and risk axes fed by the named inputs); this section is the D-DEM-7(3) itemization. Baseline for every row below is the **`DEM-PRODUCER-PLAN` state** (the wave that merged immediately before), not the pre-slot main.
+
+**What changed on the path.** The technical kernel computes, over the window it already fetches (no new fetch, no new provider, no new parameter): `brokeEmaWithBody` (the latest bar's body closed on the counter-trend side of EMA20; in a range regime, the body crossed EMA20 on that bar), `haFlatBack` (the Heikin-Ashi flat-back side of the latest HA bar — recurrence over the whole window, seed `(o+c)/2`, epsilon 0) and `haFlatBackConfirmed` (the flat-back agrees with the lane's own EMA20/EMA50 trend law; range → false). `viewTechnical` projects all three; mapping **1.2.0** binds `brokeEmaWithBody` and `haFlatBackConfirmed` as **required** binds (no optionality: a window below the 50-candle kernel floor emits no technical payload and the determination refuses, D-DEM-5(2)). afi-core deletes `BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB`, its `??` read, and the `haFlatBackConfirmed: false` literal; the residual shrinks to the HTF bias placeholders + `liquiditySwept`. `implementationVersion`: technical `2.1.0 → 2.2.0`, merge `1.2.0 → 1.3.0`, scorer `1.4.0 → 1.5.0`; `pluginSetHash` `36f911f4… → 5eef1faf…`; `analystConfigHash` `5cb9b7a4… → 300783e4…` (mappingRef 1.2.0).
+
+Goldens regenerated ONCE via `npm run oracle:regen`; audited with `node test/oracle/support/goldenDiff.mjs --ref dem/plan-reactor`.
+
+## Per-golden scored-value movement — **the structure axis stops being a constant**
+
+| golden | `brokeEmaWithBody` | `haFlatBackConfirmed` | `uwrAxes.structure` | `uwrAxes.risk` | `uwrScore` = `conviction` |
+|---|---|---|---|---|---|
+| `tv-neutral.{builtin,registry}` (SOL/USDT 15m) | false → **true** | false (unmoved) | **0.4 → 0.15** | 0.2 → **0.0** | 0.225 → 0.1125 |
+| the other ten goldens | false → false (now computed) | false → false (now computed) | 0.4 (unmoved) | unmoved | unmoved |
+
+On the SOL 15m seed the latest demo bar's body crosses EMA20 in a `range` regime, so the producer returns **true**: structure loses its `+0.15` no-break credit and takes the `−0.10` penalty (0.4 → 0.15), and risk takes the rubric's `−0.2` break penalty on top of the PLAN floor (0.2 → 0.0, clamped). **Both axes are therefore non-constant over the fixture corpus** — structure ∈ (0.4, 0.15), risk ∈ (0.5, 0.2, 0.0) — which is this slot's gate. `haFlatBackConfirmed` is `false` on all twelve **by construction**, not by literal: every demo seed's `trendBias` is `range` (the i.i.d. demo feed keeps EMA20 within 0.5% of EMA50), and a range regime has no side to confirm against. The HA branch is therefore proven by the KATs in `test/pipeline/candleStructure.test.ts` (both flat-back sides, the no-wick edge at exact equality, the doji case, seed-independence at the 50-bar floor), not by the corpus.
+
+## Per-golden identity / payload movement
+
+| JSON path class | goldens | why |
+|---|---|---|
+| `…/lenses/0/payload/{brokeEmaWithBody,haFlatBack,haFlatBackConfirmed}` and the `_priceFeedMetadata.technicalIndicators` mirror (absent → value) | all 12 | the three computed facts join the technical payload |
+| `/evidenceRecord/composition/enrichmentHash/value` | all 12 | the technical lens payload gained three fields |
+| `/evidenceRecord/providerInvocations/4/{providerResultHash,categoryResultHash}/value` (technical) | all 12 | the validated technical CategoryResult gained them |
+| `/evidenceRecord/composition/analystConfigHash/value` | all 12 | mappingRef 1.1.0 → 1.2.0 |
+| `/evidenceRecord/composition/pluginSetHash/value` | all 12 | three implementationVersion moves |
+| `/scorerInput/{brokeEmaWithBody,haFlatBackConfirmed}` | 2 (`tv-neutral.*`, brokeEmaWithBody only) | the computed value differs from the retired stub on that seed alone |
+| scored-value class (`uwrAxes.structure`, `uwrAxes.risk`, `uwrScore`, `conviction`, `analystScore.rationale`, both `outputHash` copies) | 2 (`tv-neutral.*`) | the axes moved on that seed |
+| `/evidenceRecord/{recordHash,replayHash}/value` | all 12 | consequences of the above |
+
+## Explicitly byte-EQUAL (asserted by the differ)
+
+`manifestHash`; `inputHash`/`ingestHash`/`canonicalUss` on **all 12** (this slot touches no ingest surface); `executionSummaryHash` on all 12 (the fired-default set is unchanged — the candle binds are required, so they never fire a default); `decayParams`; `uwrProfile`; `riskBucket`; `scoredSignal.direction`/`meta.direction`; the `execution` and `insight` axes; the pattern/sentiment/news/aiMl lens payloads and their proofs; every other `scorerInput` field; the `312da118…126e06` provenance golden; `ATLAS_MANIFEST_HASH`. No scoring-law value moved.
+
+## D-DEM-5(5) residual after this slot
+
+The structure axis is no longer capped at `0.40`, but its two live terms are the sweet-spot credit and the EMA-break term; the **HTF-alignment `+0.4` term and the HA `+0.2` term remain unreachable** — the first because `weeklyBias`/`dailyBias` are still the literal `"neutral"` (that is `DEM-PRODUCER-HTF`), the second because a `range` regime cannot confirm a flat-back and the demo corpus is entirely `range`. Recorded, not hidden.

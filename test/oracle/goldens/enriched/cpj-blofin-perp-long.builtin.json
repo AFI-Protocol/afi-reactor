@@ -80,13 +80,13 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "5cb9b7a4652f3cfaa31d8a069c14c3282bbdf9354443badb033b05b01fd01e22"
+        "value": "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.enrichment-bundle",
-        "value": "18bb43eb7798b6bb32f1494e4e6e5aefe6b8c1a66db06f019469dbccc6e51efd"
+        "value": "82ba2acc2241f75e1df20c9dc8b3561de335278f2f360ec4e934c80fe01a42c6"
       },
       "executionSummaryHash": {
         "algorithm": "sha256",
@@ -106,7 +106,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "36f911f4fd37eb0d161ab4df7a9650fd1c477bf6dbd71de4a82e0f73c71c4c93"
+        "value": "5eef1faf93d0a1fd5f616fd19a98a10da514afa73141aaddd77e308290a72471"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -188,7 +188,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "f0adfe203a96427dc6df4fdeba3a2581b9b87a494ad05ef88adf19919e9729d9"
+          "value": "e4786a2a9dd4d3e1901b7722f89e3736bfbb2cb26478ef494f9e4a84327757ef"
         },
         "provider": {
           "deterministic": false,
@@ -396,7 +396,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.lane-output",
-          "value": "8e1b7f10070a10e5e594877f88251155c6d894c820008415b75767ba0db1aed6"
+          "value": "f46d7dcba4876cc7014641feede2ba53b4b3670a4c9b51d4ea39def36ccf9d15"
         },
         "credential": {
           "mode": "keyless"
@@ -434,7 +434,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-result",
-          "value": "c69857869e58c01bac4bc993681d1f4449de421d7c9ed8ddb029646f578f096c"
+          "value": "bcc698ee584268726060d93e5cb162a6348c115a2454a2aaf9a005b6f81e8bc9"
         },
         "resultSchema": "afi.enrichment.technical.v1",
         "schema": "afi.provider-invocation-proof.v1",
@@ -445,14 +445,14 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "872c97d513bc807761512571204cd8840265d9b9d8217208735fc0c345605a75"
+      "value": "664daadb030d1ebe06d034b69ca9686867c7a23729239cb4026c031379c6351f"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "ec9f4c5b3b41835ffff942e10611b33640fe8a483342a8461d9a28c0005e5d05"
+      "value": "16a659a94892e34ddafae4492feb7b74176eeedbab6c5cedd3f2a5f27d250cfd"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
@@ -524,9 +524,12 @@
           "atr14": 535.5148709456713,
           "atrPercentile": 30.5,
           "atrRegime": "normal",
+          "brokeEmaWithBody": false,
           "ema20": 50034.28297385388,
           "ema50": 50000.250065789325,
           "emaDistancePct": 0.6212694575958345,
+          "haFlatBack": "bullish",
+          "haFlatBackConfirmed": false,
           "isInValueSweetSpot": true,
           "plan": {
             "barCount": 100,
@@ -587,9 +590,12 @@
             "atr14": 535.5148709456713,
             "atrPercentile": 30.5,
             "atrRegime": "normal",
+            "brokeEmaWithBody": false,
             "ema20": 50034.28297385388,
             "ema50": 50000.250065789325,
             "emaDistancePct": 0.6212694575958345,
+            "haFlatBack": "bullish",
+            "haFlatBackConfirmed": false,
             "isInValueSweetSpot": true,
             "plan": {
               "barCount": 100,
