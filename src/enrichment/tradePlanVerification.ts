@@ -18,12 +18,12 @@
  *              entries below it are lawful; a level a full range-width away
  *              from anything the market printed is not verifiable;
  *   geometry   (only when a stop AND at least one target are submitted) every
- *              target lies on the same side of the stop; the entry lies
- *              strictly between the stop and every target. For an entry
- *              RANGE the conservative bound is used (nearest the targets —
- *              smallest reward, largest risk);
+ *              target lies on the same side of the stop, and the ENTIRE entry
+ *              — both bounds of a range — lies strictly between the stop and
+ *              every target. R:R is computed at the conservative bound
+ *              (nearest the targets: smallest reward, largest risk);
  *   R:R        |firstTarget − entry| / |entry − stop| where firstTarget is the
- *              target nearest the entry; rounded half-up to 4 decimals.
+ *              target nearest the entry, quantised to 4 decimals (see roundRr).
  * Any violation REFUSES the determination (TradePlanVerificationError — a
  * NodeConfigurationError: no retry, pipeline abort, no score, no record).
  *
@@ -63,13 +63,26 @@ function parsePrice(label: string, raw: unknown): number {
   return value;
 }
 
-/** Round half-up to 4 decimals (positive inputs only). */
+/**
+ * The R:R quantisation: `Math.round(value · 1e4) / 1e4` — IEEE-754 binary
+ * arithmetic, DETERMINISTIC for every input (what a sealed record needs), not
+ * exact decimal half-up: a decimal tie such as 0.00015 is not representable in
+ * binary and rounds by its stored value (0.00015 → 0.0001). R:R is a ratio of
+ * float prices, so an exact decimal tie is not reachable in practice.
+ */
 export function roundRr(value: number): number {
   return Math.round(value * 1e4) / 1e4;
 }
 
 export function verifyTradePlan(plan: TradePlanV1, candles: readonly AfiCandle[]): TechnicalPlanFacts {
-  if (!plan || typeof plan !== "object" || plan.schema !== "afi.trade-plan.v1" || !plan.levels) {
+  if (
+    !plan ||
+    typeof plan !== "object" ||
+    plan.schema !== "afi.trade-plan.v1" ||
+    !plan.levels ||
+    typeof plan.levels !== "object" ||
+    Array.isArray(plan.levels)
+  ) {
     refuse("plan is not an afi.trade-plan.v1 object");
   }
   if (candles.length === 0) refuse("no fetched candles to verify against");
@@ -87,11 +100,19 @@ export function verifyTradePlan(plan: TradePlanV1, candles: readonly AfiCandle[]
   if (!(width > 0)) refuse("fetched window is flat (zero observed range)");
   const bandLow = low - width;
   const bandHigh = high + width;
+  // The band is INCLUSIVE at both edges. `low - width` is computed in binary
+  // floating point, so a level submitted as the exact decimal edge can land a
+  // few ulps outside it; compare with a relative tolerance so the inclusive
+  // law holds for non-integer windows too (fail-closed direction unchanged:
+  // this only prevents a spurious refusal at the edge itself).
+  const EDGE_ULPS = 1e-12;
+  const tolerance = (bound: number): number => Math.abs(bound) * EDGE_ULPS;
+  const show = (value: number): string => Number(value.toPrecision(12)).toString();
   const inBand = (label: string, price: number): number => {
-    if (price < bandLow || price > bandHigh) {
+    if (price < bandLow - tolerance(bandLow) || price > bandHigh + tolerance(bandHigh)) {
       refuse(
-        `${label} ${price} lies outside the observed band [${bandLow}, ${bandHigh}] ` +
-          `(window low ${low}, high ${high}, ${candles.length} candles)`
+        `${label} ${show(price)} lies outside the observed band [${show(bandLow)}, ${show(bandHigh)}] ` +
+          `(window low ${show(low)}, high ${show(high)}, ${candles.length} candles)`
       );
     }
     return price;
@@ -116,8 +137,12 @@ export function verifyTradePlan(plan: TradePlanV1, candles: readonly AfiCandle[]
     plan.levels.stopLoss !== undefined
       ? inBand("stopLoss", parsePrice("stopLoss", plan.levels.stopLoss))
       : undefined;
+  const rawTargets = plan.levels.takeProfits;
+  if (rawTargets !== undefined && !Array.isArray(rawTargets)) {
+    refuse(`takeProfits is not an array (${typeof rawTargets})`);
+  }
   const targets: number[] = [];
-  for (const [i, tp] of (plan.levels.takeProfits ?? []).entries()) {
+  for (const [i, tp] of (rawTargets ?? []).entries()) {
     targets.push(inBand(`takeProfits[${i}].price`, parsePrice(`takeProfits[${i}].price`, tp?.price)));
   }
 
@@ -140,13 +165,29 @@ export function verifyTradePlan(plan: TradePlanV1, candles: readonly AfiCandle[]
   if (above > 0 && below > 0) refuse("targets lie on both sides of the stop");
   if (above === 0 && below === 0) refuse("a target equals the stop");
   const longGeometry = above > 0;
-  // Conservative entry bound: nearest the targets.
+  // Conservative entry bound: nearest the targets (smallest reward, largest
+  // risk). The stop is checked against the FAR bound as well, so an entry
+  // RANGE that contains — or sits the wrong side of — its own stop refuses
+  // rather than being verified at one end (review finding, 2026-08-25).
   const entryPrice = longGeometry ? entryHigh : entryLow;
+  const entryFar = longGeometry ? entryLow : entryHigh;
   if (longGeometry) {
-    if (!(stopPrice < entryPrice)) refuse(`stop ${stopPrice} is not below the entry ${entryPrice}`);
+    if (!(stopPrice < entryFar)) {
+      refuse(
+        entryFar === entryPrice
+          ? `stop ${stopPrice} is not below the entry ${entryPrice}`
+          : `stop ${stopPrice} is not below the whole entry range [${entryLow}, ${entryHigh}]`
+      );
+    }
     for (const t of targets) if (!(t > entryPrice)) refuse(`target ${t} is not above the entry ${entryPrice}`);
   } else {
-    if (!(stopPrice > entryPrice)) refuse(`stop ${stopPrice} is not above the entry ${entryPrice}`);
+    if (!(stopPrice > entryFar)) {
+      refuse(
+        entryFar === entryPrice
+          ? `stop ${stopPrice} is not above the entry ${entryPrice}`
+          : `stop ${stopPrice} is not above the whole entry range [${entryLow}, ${entryHigh}]`
+      );
+    }
     for (const t of targets) if (!(t < entryPrice)) refuse(`target ${t} is not below the entry ${entryPrice}`);
   }
   let firstTarget = targets[0];

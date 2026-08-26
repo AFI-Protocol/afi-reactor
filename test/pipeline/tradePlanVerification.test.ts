@@ -79,6 +79,21 @@ describe("verifyTradePlan — envelope band [L − W, H + W]", () => {
     expect(() => verifyTradePlan(plan({ entry: "100" }), window(100, 100))).toThrow(/flat/);
     expect(() => verifyTradePlan(plan({ entry: "100" }), [])).toThrow(/no fetched candles/);
   });
+
+  it("the inclusive edge holds on a NON-integer window too (binary-float tolerance; review finding)", () => {
+    const w = window(1.1, 1.3); // band [0.9, 1.5] in decimal; 1.1 − 0.2 is 0.9000000000000001 in binary
+    expect(verifyTradePlan(plan({ entry: "0.9" }), w).entryPrice).toBe(0.9);
+    expect(verifyTradePlan(plan({ entry: "1.5" }), w).entryPrice).toBe(1.5);
+    expect(() => verifyTradePlan(plan({ entry: "0.8999" }), w)).toThrow(/lies outside the observed band/);
+    expect(() => verifyTradePlan(plan({ entry: "1.5001" }), w)).toThrow(/lies outside the observed band/);
+  });
+
+  it("refuses a malformed candle window (NaN, non-positive low, inverted bar)", () => {
+    const bad = (c: Partial<AfiCandle>): AfiCandle[] => [{ timestamp: 0, open: 100, high: 101, low: 99, close: 100, volume: 1, ...c }, ...W.slice(1)];
+    expect(() => verifyTradePlan(plan({ entry: "100" }), bad({ low: Number.NaN }))).toThrow(/malformed candle/);
+    expect(() => verifyTradePlan(plan({ entry: "100" }), bad({ low: 0 }))).toThrow(/malformed candle/);
+    expect(() => verifyTradePlan(plan({ entry: "100" }), bad({ high: 98, low: 99 }))).toThrow(/malformed candle/);
+  });
 });
 
 describe("verifyTradePlan — plan geometry (from submitted prices only)", () => {
@@ -103,7 +118,12 @@ describe("verifyTradePlan — plan geometry (from submitted prices only)", () =>
     ["a target equal to the stop", { entry: "100", stopLoss: "95", takeProfits: [{ price: "95" }] }, /equals the stop/],
     ["stop not below the entry (long)", { entry: "100", stopLoss: "100", takeProfits: [{ price: "110" }] }, /stop 100 is not below the entry 100/],
     ["target not above the entry (long)", { entry: "100", stopLoss: "95", takeProfits: [{ price: "110" }, { price: "100" }] }, /target 100 is not above the entry 100/],
-    ["stop not above the entry (short)", { entry: "100", stopLoss: "99", takeProfits: [{ price: "90" }] }, /is not above the entry 100|is not below the entry 100/],
+    ["stop not above the entry (short)", { entry: "100", stopLoss: "99", takeProfits: [{ price: "90" }] }, /stop 99 is not above the entry 100/],
+    // Review finding 2026-08-25: an entry RANGE must clear the stop at BOTH
+    // bounds — a range containing its own stop is not a verifiable plan.
+    ["long entry range straddling its stop", { entry: { min: "90", max: "102" }, stopLoss: "94", takeProfits: [{ price: "110" }] }, /stop 94 is not below the whole entry range \[90, 102\]/],
+    ["short entry range straddling its stop", { entry: { min: "98", max: "110" }, stopLoss: "106", takeProfits: [{ price: "90" }] }, /stop 106 is not above the whole entry range \[98, 110\]/],
+    ["long entry range whose far bound EQUALS the stop", { entry: { min: "94", max: "102" }, stopLoss: "94", takeProfits: [{ price: "110" }] }, /stop 94 is not below the whole entry range/],
   ];
   it.each(GEOMETRY_REFUSALS)("refuses %s", (_label, levels, re) => {
     expect(() => verifyTradePlan(plan(levels), W)).toThrow(re);
@@ -120,8 +140,19 @@ describe("verifyTradePlan — plan geometry (from submitted prices only)", () =>
     expect(short.rrToFirstTarget).toBe(1);
   });
 
-  it("refuses an inverted entry range", () => {
+  it("accepts an entry range whose FAR bound clears the stop (the edge just outside)", () => {
+    const facts = verifyTradePlan(plan({ entry: { min: "94.0001", max: "102" }, stopLoss: "94", takeProfits: [{ price: "110" }] }), W);
+    expect(facts.entryPrice).toBe(102); // conservative bound
+    expect(facts.rrToFirstTarget).toBe(1);
+  });
+
+  it("refuses an inverted entry range; a degenerate range (min === max) is a single price", () => {
     expect(() => verifyTradePlan(plan({ entry: { min: "102", max: "98" } }), W)).toThrow(/inverted/);
+    const facts = verifyTradePlan(plan({ entry: { min: "100", max: "100" }, stopLoss: "95", takeProfits: [{ price: "110" }] }), W);
+    expect(facts.entryLow).toBe(100);
+    expect(facts.entryHigh).toBe(100);
+    expect(facts.entryPrice).toBe(100);
+    expect(facts.rrToFirstTarget).toBe(2);
   });
 });
 
@@ -145,6 +176,12 @@ describe("verifyTradePlan — declared producer absences (D-DEM-5(4)(b))", () =>
     expect(facts.rrToFirstTarget).toBeUndefined();
   });
 
+  it("an EMPTY takeProfits array is the no-target case (no R:R claim), not a refusal", () => {
+    const facts = verifyTradePlan(plan({ entry: "100", stopLoss: "95", takeProfits: [] }), W);
+    expect(facts.targetCount).toBe(0);
+    expect(facts.rrToFirstTarget).toBeUndefined();
+  });
+
   it("an entry-only plan outside the band is still refused (an emitted price is always a verified price)", () => {
     expect(() => verifyTradePlan(plan({ entry: "50" }), W)).toThrow(TradePlanVerificationError);
   });
@@ -159,8 +196,22 @@ describe("verifyTradePlan — contract discipline and error class", () => {
     expect(() => verifyTradePlan(plan({ entry: "1e3" }), W)).toThrow(/not a decimal-string/);
   });
 
-  it("refuses a non-plan object", () => {
+  it("refuses exotic numeric strings the contract pattern does not admit", () => {
+    for (const bad of ["NaN", "Infinity", ".5", "1.", " 100", "1_000", "0x64", ""]) {
+      expect(() => verifyTradePlan(plan({ entry: bad }), W)).toThrow(/not a decimal-string/);
+    }
+    // A syntactically valid decimal string that overflows to Infinity.
+    expect(() => verifyTradePlan(plan({ entry: "9".repeat(400) }), W)).toThrow(/not a positive finite/);
+  });
+
+  it("refuses a non-plan object, a non-object levels block, and a non-array takeProfits (never a TypeError)", () => {
     expect(() => verifyTradePlan({ schema: "other" } as unknown as TradePlanV1, W)).toThrow(/not an afi.trade-plan.v1/);
+    expect(() => verifyTradePlan({ schema: "afi.trade-plan.v1", levels: [] } as unknown as TradePlanV1, W)).toThrow(/not an afi.trade-plan.v1/);
+    for (const shape of [{}, "x", 5, true]) {
+      expect(() =>
+        verifyTradePlan(plan({ entry: "100", takeProfits: shape as never }), W)
+      ).toThrow(TradePlanVerificationError);
+    }
   });
 
   it("every refusal is a TradePlanVerificationError, i.e. a NodeConfigurationError (no retry, pipeline abort)", () => {
@@ -175,10 +226,15 @@ describe("verifyTradePlan — contract discipline and error class", () => {
     }
   });
 
-  it("R:R rounds half-up to 4 decimals", () => {
+  it("R:R is quantised to 4 decimals by Math.round(v·1e4)/1e4 — deterministic binary rounding, not exact decimal half-up", () => {
     expect(roundRr(1000 / 700)).toBe(1.4286);
     expect(roundRr(1.23445)).toBe(1.2345);
     expect(roundRr(2)).toBe(2);
+    // A decimal "tie" is not representable in binary: 0.00015 * 1e4 stores as
+    // 1.4999999999999998, so it rounds DOWN. Pinned so the record's law is the
+    // implementation's law (review finding 2026-08-25).
+    expect(roundRr(0.00015)).toBe(0.0001);
+    expect(roundRr(1.00005)).toBe(1.0001);
     const facts = verifyTradePlan(plan({ entry: "50000", stopLoss: "49300", takeProfits: [{ price: "51000" }] }), window(49000, 51000));
     expect(facts.rrToFirstTarget).toBe(1.4286);
   });
