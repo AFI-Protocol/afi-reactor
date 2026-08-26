@@ -22,7 +22,7 @@
   },
   "mappingRef": {
     "mappingId": "froggy-trend-pullback",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "decayConfig": {
     "ratio": {
@@ -34,6 +34,10 @@
     "note": "Non-authoritative, hash-excluded lineage of this configuration version (D-CFG-5(4): the version identity IS analystConfigHash; a superseded version survives on every record sealed under it and in git history).",
     "supersedes": [
       {
+        "analystConfigHash": "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99",
+        "act": "DEM-GOV DEM-PRODUCER-CANDLE — mappingRef froggy-trend-pullback 1.2.0 (2026-08-25)"
+      },
+      {
         "analystConfigHash": "5cb9b7a4652f3cfaa31d8a069c14c3282bbdf9354443badb033b05b01fd01e22",
         "act": "DEM-GOV DEM-PRODUCER-PLAN — mappingRef froggy-trend-pullback 1.1.0 (2026-08-25)"
       },
@@ -42,5 +46,16 @@
         "act": "DEM-GOV DEM-BIND step (d) — mappingRef froggy-trend-pullback 1.0.0 (2026-08-23)"
       }
     ]
+  },
+  "nodeOverrides": {
+    "technical": {
+      "config": {
+        "htf": {
+          "dailyTimeframe": "1d",
+          "weeklyTimeframe": "1w",
+          "htfCandleLimit": 100
+        }
+      }
+    }
   }
 }

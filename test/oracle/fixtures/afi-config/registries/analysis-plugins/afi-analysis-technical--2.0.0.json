@@ -2,9 +2,9 @@
   "schema": "afi.analysis-plugin.v1",
   "pluginId": "afi-analysis-technical",
   "pluginVersion": "2.0.0",
-  "implementationVersion": "2.2.0",
+  "implementationVersion": "2.3.0",
   "category": "technical",
-  "description": "Official technical lane plugin manifest (vendor-neutral, provider-instance-backed): the node reads its providerInstanceRef and the runtime resolves the registered technical adapter, which computes indicator features (EMA/RSI/ATR) over the candles it fetches for the validated signal. No vendor logic in the node; deterministic. PRODUCER CONTRACTS (DEM-GOV §9). PLAN: a submitted afi.trade-plan.v1 is verified against the fetched window (levels within one observed-range width; stop/targets opposite sides of entry) and emitted as technical.plan; unverifiable → refusal (D-DEM-5(6)). Declared absences (D-DEM-5(4)(b)): no plan → no block; no stop or target → no rrToFirstTarget. CANDLE: over the same window, technical.brokeEmaWithBody (latest body closed counter-trend of EMA20; range: crossed it) and haFlatBack/haFlatBackConfirmed (Heikin-Ashi flat-back, seed (o+c)/2, epsilon 0, agreeing with the lane's trend law). No absence beyond the 50-candle floor.",
+  "description": "Official technical lane manifest (vendor-neutral, provider-instance-backed): the node reads its providerInstanceRef; the runtime resolves the registered adapter, which computes EMA/RSI/ATR features over the candles it fetches. Deterministic. PRODUCER CONTRACTS (DEM-GOV §9). PLAN: a submitted afi.trade-plan.v1 is verified against the fetched window (levels within one observed-range width; stop/targets opposite sides of entry) and emitted as technical.plan; unverifiable → refusal (D-DEM-5(6)). Absences (D-DEM-5(4)(b)): no plan → no block; no stop or target → no rrToFirstTarget. CANDLE: technical.brokeEmaWithBody (latest body closed counter-trend of EMA20; range: crossed it) and haFlatBack/haFlatBackConfirmed (Heikin-Ashi flat-back, seed (o+c)/2, epsilon 0, agreeing with the lane trend law). HTF: with params.htf set, the declared daily/weekly windows are also fetched and technical.htf.{daily,weekly}.trendBias emitted by the same law; a window under the 50-candle floor emits no sub-block.",
   "inputSchemaRef": "afi.usignal.v1.1",
   "outputSchemaRef": "afi.enrichment.technical.v1",
   "deterministic": true,
@@ -30,6 +30,37 @@
         "minimum": 1,
         "maximum": 1000,
         "description": "Number of candles fetched from the price feed for indicator computation."
+      },
+      "htf": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "dailyTimeframe",
+          "weeklyTimeframe"
+        ],
+        "description": "OPTIONAL higher-timeframe selection (DEM-GOV §9 DEM-PRODUCER-HTF, owner determination D-1: an additive optional parameter within the identity of afi-analysis-technical@2.0.0). Absent means the lane fetches only the signal's own timeframe, exactly as before — every existing valid configuration remains valid. Closed vocabularies: the runtime fails closed at boot on anything else.",
+        "properties": {
+          "dailyTimeframe": {
+            "type": "string",
+            "enum": [
+              "1d"
+            ],
+            "description": "The daily-bias window's timeframe token."
+          },
+          "weeklyTimeframe": {
+            "type": "string",
+            "enum": [
+              "1w"
+            ],
+            "description": "The weekly-bias window's timeframe token."
+          },
+          "htfCandleLimit": {
+            "type": "integer",
+            "minimum": 50,
+            "maximum": 1000,
+            "description": "Candles fetched per higher-timeframe window (at or above the 50-candle kernel floor). Default 100."
+          }
+        }
       }
     }
   },

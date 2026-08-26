@@ -70,13 +70,13 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99"
+        "value": "71de40d255a22e50d9b353f05722f560fc03911c8bd2daffb974f068060aa4b1"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.enrichment-bundle",
-        "value": "32e190db3f5a539ef718b3dfbfad0949236ae4e3fdfdc70c6cb9dde1ab0bad13"
+        "value": "d6b3a3449a849669599b075415af22848a62f9b0423f89b13774575f5c0ec988"
       },
       "executionSummaryHash": {
         "algorithm": "sha256",
@@ -96,7 +96,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "5eef1faf93d0a1fd5f616fd19a98a10da514afa73141aaddd77e308290a72471"
+        "value": "59ff54379d44ec250d924a5000f3f85a2e041fb1b12bc5c424d877fb2e2aa419"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -178,7 +178,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "27f4e9cf35f58cb89e06c2fb5b6f9d7e527748c919617b745ed28b2ef2da40a3"
+          "value": "bd6df49372cfc7329703be77bd0e0d34692ad7d1593f992c3782146038ef8a2d"
         },
         "provider": {
           "deterministic": false,
@@ -386,7 +386,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.lane-output",
-          "value": "f3dbeede7f9fec7ef2e7b718dde0427a15c3e095e91fad3f58ebaeba3cea5e2e"
+          "value": "e9b8e4acaddca12e2f97eadeca54c73f2a80a30583562267be44ff7bdd260988"
         },
         "credential": {
           "mode": "keyless"
@@ -395,7 +395,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "31e0eb0c56634c4ec53de88d3c7972a9b1511493362e009676e6a4f333522ff2"
+          "value": "544d16d4ef3849a5191036094b3c00f92d7680e026227ddfbe806e775ca14a29"
         },
         "priceSource": "demo",
         "provider": {
@@ -424,7 +424,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-result",
-          "value": "d5702421d230b0143a3448026367a4cef6078abb02fc2de104c1ce8bab85b1c2"
+          "value": "b66a8e99a4e3075e6abfa052db7346c2b6bd2cbac752cf85cb2a58625679a3d1"
         },
         "resultSchema": "afi.enrichment.technical.v1",
         "schema": "afi.provider-invocation-proof.v1",
@@ -435,14 +435,14 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "86faf6d12c3de1340b71b50550620fefcf2b7f7257f0f96376b3292c3d610004"
+      "value": "00abf98d3544f4bdb0d92aaed3e3419c8692749a9d67098f9ab46cd26d61cded"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "a48e72b91affc90e1f16c2fe19acb280ec866db9017107aad64fd9f1fb8cbfe0"
+      "value": "1165ab0fc112d74c8913a633563677099997f8388789a84da119938de32e9ab2"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
@@ -508,6 +508,22 @@
           "emaDistancePct": 0.2503722265458551,
           "haFlatBack": "none",
           "haFlatBackConfirmed": false,
+          "htf": {
+            "daily": {
+              "barCount": 100,
+              "ema20": 100.11164929010108,
+              "ema50": 99.99258680396032,
+              "timeframe": "1d",
+              "trendBias": "range"
+            },
+            "weekly": {
+              "barCount": 100,
+              "ema20": 99.98779835286723,
+              "ema50": 99.96138735735582,
+              "timeframe": "1w",
+              "trendBias": "range"
+            }
+          },
           "isInValueSweetSpot": true,
           "rsi14": 51.22203250518938,
           "trendBias": "range",
@@ -567,6 +583,22 @@
             "emaDistancePct": 0.2503722265458551,
             "haFlatBack": "none",
             "haFlatBackConfirmed": false,
+            "htf": {
+              "daily": {
+                "barCount": 100,
+                "ema20": 100.11164929010108,
+                "ema50": 99.99258680396032,
+                "timeframe": "1d",
+                "trendBias": "range"
+              },
+              "weekly": {
+                "barCount": 100,
+                "ema20": 99.98779835286723,
+                "ema50": 99.96138735735582,
+                "timeframe": "1w",
+                "trendBias": "range"
+              }
+            },
             "isInValueSweetSpot": true,
             "rsi14": 51.22203250518938,
             "trendBias": "range",

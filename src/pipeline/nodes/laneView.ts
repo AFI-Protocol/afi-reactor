@@ -90,6 +90,10 @@ export function viewTechnical(
     // verbatim so the registered mapping can bind them (technical.plan.*);
     // omitted (not null) when the lane emitted none.
     ...(payload.plan !== undefined ? { plan: payload.plan } : {}),
+    // DEM-PRODUCER-HTF: the lane's higher-timeframe trend facts, projected
+    // verbatim for the registered mapping to recode into the rubric's bias
+    // vocabulary; omitted (not null) when the lane emitted none.
+    ...(payload.htf !== undefined ? { htf: payload.htf } : {}),
   };
 }
 

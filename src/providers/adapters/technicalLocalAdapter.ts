@@ -20,6 +20,58 @@ import { NodeConfigurationError } from "../../pipeline/nodeSdk.js";
 import type { CategoryResult, ProviderAdapter, ProviderAdapterContext } from "../types.js";
 import { TradePlanVerificationError, verifyTradePlan } from "../../enrichment/tradePlanVerification.js";
 import type { TradePlanV1 } from "../../types/TradePlan.js";
+import type { TechnicalLensV1 } from "../../types/UssLenses.js";
+
+/** The registered higher-timeframe selection, or undefined when unregistered. */
+interface HtfSelection {
+  dailyTimeframe: string;
+  weeklyTimeframe: string;
+  htfCandleLimit: number;
+}
+
+function readHtfConfig(raw: unknown): HtfSelection | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const cfg = raw as Record<string, unknown>;
+  const daily = cfg["dailyTimeframe"];
+  const weekly = cfg["weeklyTimeframe"];
+  if (typeof daily !== "string" || typeof weekly !== "string") {
+    // Boot validation against the plugin's closed paramsSchema makes this
+    // unreachable in a composed pipeline; fail closed rather than guess.
+    throw new NodeConfigurationError(
+      "technical adapter: params.htf must declare dailyTimeframe and weeklyTimeframe (DEM-PRODUCER-HTF)"
+    );
+  }
+  const limit = cfg["htfCandleLimit"];
+  return {
+    dailyTimeframe: daily,
+    weeklyTimeframe: weekly,
+    htfCandleLimit: typeof limit === "number" ? limit : 100,
+  };
+}
+
+/**
+ * The higher-timeframe bias fact: the SAME EMA20/EMA50 trend law the lane
+ * already applies to the signal's own window, run over a higher-timeframe
+ * window. Returns undefined when the window cannot be computed (below the
+ * 50-candle kernel floor) — a declared producer absence, never a guess.
+ */
+function htfBias(
+  computeTechnical: TechnicalLocalAdapterDeps["computeTechnical"],
+  raw: OHLCVCandle[] | undefined,
+  timeframe: string
+): { timeframe: string; trendBias: "bullish" | "bearish" | "range"; ema20: number; ema50: number; barCount: number } | undefined {
+  if (!raw || raw.length === 0) return undefined;
+  const candles = toAfiCandles(raw);
+  const computed = computeTechnical(candles);
+  if (!computed) return undefined;
+  return {
+    timeframe,
+    trendBias: computed.trendBias,
+    ema20: computed.ema20,
+    ema50: computed.ema50,
+    barCount: candles.length,
+  };
+}
 
 export interface TechnicalLocalAdapterDeps {
   resolvePriceSource: typeof getDefaultPriceSource;
@@ -77,10 +129,34 @@ export function createTechnicalLocalAdapter(deps?: TechnicalLocalAdapterDeps): P
       const limitRaw = ctx.config["candleLimit"];
       const limit = typeof limitRaw === "number" ? limitRaw : 100;
 
+      // DEM-PRODUCER-HTF: the higher-timeframe selection is a REGISTERED
+      // COMPOSITION VALUE (the analyst config's nodeOverrides.technical.config
+      // .htf, validated at boot against the plugin's paramsSchema) — never a
+      // code constant, and never derived from a submitted field.
+      const htfConfig = readHtfConfig(ctx.config["htf"]);
+
       const feed = d.getAdapter(priceSource as Parameters<typeof getPriceFeedAdapter>[0]);
-      const rawCandles = await feed.getOHLCV({ symbol, timeframe, limit });
+      // The signal window and both higher-timeframe windows are fetched
+      // CONCURRENTLY: this lane is the pipeline's entry node, so serial
+      // round-trips here delay every downstream wave (platform-floor rule).
+      const [rawCandles, rawDaily, rawWeekly] = await Promise.all([
+        feed.getOHLCV({ symbol, timeframe, limit }),
+        htfConfig ? feed.getOHLCV({ symbol, timeframe: htfConfig.dailyTimeframe, limit: htfConfig.htfCandleLimit }) : Promise.resolve(undefined),
+        htfConfig ? feed.getOHLCV({ symbol, timeframe: htfConfig.weeklyTimeframe, limit: htfConfig.htfCandleLimit }) : Promise.resolve(undefined),
+      ]);
       const candles = toAfiCandles(rawCandles);
       const technical = d.computeTechnical(candles);
+
+      if (htfConfig && technical) {
+        const htf: NonNullable<TechnicalLensV1["payload"]["htf"]> = {};
+        const daily = htfBias(d.computeTechnical, rawDaily, htfConfig.dailyTimeframe);
+        const weekly = htfBias(d.computeTechnical, rawWeekly, htfConfig.weeklyTimeframe);
+        // A window below the kernel floor emits NO sub-block — a declared
+        // producer absence (D-DEM-5(4)(b)), never a guessed bias.
+        if (daily) htf.daily = daily;
+        if (weekly) htf.weekly = weekly;
+        technical.htf = htf;
+      }
 
       // DEM-PRODUCER-PLAN (D-DEM-5(6)): a submitted trade plan is verified
       // against THIS fetched window by THIS producer before any of its

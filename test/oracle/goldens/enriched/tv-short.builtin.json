@@ -8,7 +8,7 @@
     },
     "baseAsset": "BTC",
     "conviction": 0.17500000000000002,
-    "direction": "neutral",
+    "direction": "unknown",
     "holdingHorizon": "swing",
     "instrumentType": "linear-perp",
     "marketType": "perp",
@@ -67,13 +67,13 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99"
+        "value": "71de40d255a22e50d9b353f05722f560fc03911c8bd2daffb974f068060aa4b1"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.enrichment-bundle",
-        "value": "6d71a67e34c67d35b7a07ee9344dd8828cbff409cac23fc795b4abf0c6615bd1"
+        "value": "c155c9e45c31d64d809af77cc13253bf30c61e0a27af921e60af7704a8c0de99"
       },
       "executionSummaryHash": {
         "algorithm": "sha256",
@@ -93,7 +93,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "5eef1faf93d0a1fd5f616fd19a98a10da514afa73141aaddd77e308290a72471"
+        "value": "59ff54379d44ec250d924a5000f3f85a2e041fb1b12bc5c424d877fb2e2aa419"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -175,7 +175,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "b144b16d61dae4e9403ed9ec0ab79acca23fe9837f23e03398309eea19b31015"
+          "value": "69ea0de1d3d1fccf1b9c5f8d9f4eefba8a7ef0c856ac6f14cbfe1515121c9209"
         },
         "provider": {
           "deterministic": false,
@@ -383,7 +383,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.lane-output",
-          "value": "5252fad0a334a2eaf7f0472a1e58a8ff7fa376cc7be72191ca3a2a24a47fea42"
+          "value": "070f8f716b98d6a33d9225266a099bae0917ecd6807bb49c5e3b41e057e323ab"
         },
         "credential": {
           "mode": "keyless"
@@ -392,7 +392,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "3fad8e48dee464d94dd050b5cf05675c9337b5a9fe37ea9cef86ebf09e97739c"
+          "value": "363161ae3f0c2a479d0af3f1e92a35a6b1f653fcf9c3be6d0ca6d3df1ac5342d"
         },
         "priceSource": "demo",
         "provider": {
@@ -421,7 +421,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-result",
-          "value": "3f89d32f09cbecfaf595cc879d1fe3d9dbb5fdd4f5b1491c48b8e13ceb128be1"
+          "value": "668255c429b7364ed8cac43cea40aa199812993682fb77d5e4719035422ee54f"
         },
         "resultSchema": "afi.enrichment.technical.v1",
         "schema": "afi.provider-invocation-proof.v1",
@@ -432,14 +432,14 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "43649bac3580c41221fdeb392a771047a0787928f82a7951f7fd74a9ad5dbf1b"
+      "value": "153e70a9c752e16c5d68f2d2b47824b102efd0e7827bdb2ba8121ac62dbdaee2"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "53f0a98fe4e6ee136a141bfdddf9aa851def2f00897cac2ad586e81e612a88ce"
+      "value": "364792642ebda7a4cc93508ea20de583ac5207e5fbd330fe6e5678dac84a68c9"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
@@ -496,6 +496,22 @@
         "emaDistancePct": 0.2706436977661548,
         "haFlatBack": "none",
         "haFlatBackConfirmed": false,
+        "htf": {
+          "daily": {
+            "barCount": 100,
+            "ema20": 3402.5132328947357,
+            "ema50": 3336.7325837338044,
+            "timeframe": "1d",
+            "trendBias": "bullish"
+          },
+          "weekly": {
+            "barCount": 100,
+            "ema20": 2598.260401414665,
+            "ema50": 2662.953004792269,
+            "timeframe": "1w",
+            "trendBias": "bearish"
+          }
+        },
         "isInValueSweetSpot": true,
         "rsi14": 51.5458437981575,
         "trendBias": "range",
@@ -512,7 +528,7 @@
       },
       "baseAsset": "BTC",
       "conviction": 0.17500000000000002,
-      "direction": "neutral",
+      "direction": "unknown",
       "holdingHorizon": "swing",
       "instrumentType": "linear-perp",
       "marketType": "perp",
@@ -555,6 +571,22 @@
           "emaDistancePct": 0.2706436977661548,
           "haFlatBack": "none",
           "haFlatBackConfirmed": false,
+          "htf": {
+            "daily": {
+              "barCount": 100,
+              "ema20": 3402.5132328947357,
+              "ema50": 3336.7325837338044,
+              "timeframe": "1d",
+              "trendBias": "bullish"
+            },
+            "weekly": {
+              "barCount": 100,
+              "ema20": 2598.260401414665,
+              "ema50": 2662.953004792269,
+              "timeframe": "1w",
+              "trendBias": "bearish"
+            }
+          },
           "isInValueSweetSpot": true,
           "rsi14": 51.5458437981575,
           "trendBias": "range",
@@ -683,14 +715,14 @@
   "scorerInput": {
     "atrRegime": "low",
     "brokeEmaWithBody": false,
-    "dailyBias": "neutral",
+    "dailyBias": "long",
     "distanceFromDailyEmaPct": 0.2706436977661548,
     "haFlatBackConfirmed": false,
     "liquiditySwept": false,
     "pulledBackIntoSweetSpot": true,
     "rrMultiplePlanned": 1,
     "triggerPatternQuality": 0,
-    "weeklyBias": "neutral"
+    "weeklyBias": "short"
   },
   "uwrMode": "builtin",
   "uwrResolvedSource": "builtin"
