@@ -79,6 +79,20 @@ export interface PriceFeedAdapter {
   
   /** Whether this adapter supports spot markets */
   supportsSpot: boolean;
+
+  /**
+   * The timeframe tokens this venue advertises (e.g. ["1m","5m","1h","1d"]).
+   * A CAPABILITY fact, known before any request is made — not an outcome.
+   *
+   * DEM-PRODUCER-HTF (DEM-GOV §9) reads it to distinguish two cases that must
+   * never be conflated: a timeframe this venue does not offer at all (the
+   * producer legitimately cannot emit that fact — a declared absence under
+   * D-DEM-5(4)(b)), and a fetch that FAILED for a timeframe the venue does
+   * offer (a real failure, which must refuse the determination — fail closed,
+   * never fall back). Absent means "unknown", and callers must then treat
+   * every timeframe as supported so nothing is silently skipped.
+   */
+  supportedTimeframes?: readonly string[];
   
   /**
    * Fetch OHLCV candles for a symbol
