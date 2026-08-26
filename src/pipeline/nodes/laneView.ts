@@ -88,6 +88,10 @@ export function viewTechnical(
     // AR-GOV D-AR-3: the regime is projected AND read by the adapter (unlike
     // the four context-only fields above/below it).
     atrRegime: payload.atrRegime,
+    // DEM-PRODUCER-PLAN: the lane's verified trade-plan facts ride the view
+    // verbatim so the registered mapping can bind them (technical.plan.*);
+    // omitted (not null) when the lane emitted none.
+    ...(payload.plan !== undefined ? { plan: payload.plan } : {}),
   };
 }
 

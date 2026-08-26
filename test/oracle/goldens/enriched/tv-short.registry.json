@@ -7,7 +7,7 @@
       "insight": "Liquidity or volatility context is weak."
     },
     "baseAsset": "BTC",
-    "conviction": 0.35000000000000003,
+    "conviction": 0.17500000000000002,
     "direction": "neutral",
     "holdingHorizon": "swing",
     "instrumentType": "linear-perp",
@@ -27,10 +27,10 @@
     "uwrAxes": {
       "execution": 0,
       "insight": 0.1,
-      "risk": 0.9,
+      "risk": 0.2,
       "structure": 0.4
     },
-    "uwrScore": 0.35000000000000003
+    "uwrScore": 0.17500000000000002
   },
   "canonicalUss": {
     "facts": {
@@ -67,7 +67,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "aa8cf5cfd918ae9a80532b735db3236b708ce0cb82778d845b35220627dab479"
+        "value": "5cb9b7a4652f3cfaa31d8a069c14c3282bbdf9354443badb033b05b01fd01e22"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
@@ -93,7 +93,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "220c004ed615c58bd3f4187256568bfcc6ea375e49ce467ff06a2467b405c0b6"
+        "value": "36f911f4fd37eb0d161ab4df7a9650fd1c477bf6dbd71de4a82e0f73c71c4c93"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -117,7 +117,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.scored-output",
-        "value": "81a258ce32bd25660b808d6404254a154d8208726851ed08809464a523282e53"
+        "value": "53510590e062dcbc12eaefbd5f14bdf2e3aad952ca6eb08a4a335a1e2ac7e7c7"
       },
       "schema": "afi.provenance-record.v1",
       "schemaVersions": {
@@ -432,19 +432,19 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "137ceca886e422a7accc4109bee6de71766accca2fc93b591ab6ca0268924f74"
+      "value": "f961f8367bf5298131a3832e862d041ff0b2b027746e152b71f4778d769e9966"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "45e924410c95665d7d579b8a9357fe7f3569a6be7bdde6bbfbf22543ef7f5f3f"
+      "value": "c7a83402f2891c326b5bbfbabadd5acdac02a4f39f61cd5c7b44ad5ae9d7d1e9"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
       "analystId": "froggy",
-      "conviction": 0.35000000000000003,
+      "conviction": 0.17500000000000002,
       "direction": "short",
       "provenanceRecordRef": "provenance-record:oracle-tv-short-0001",
       "providerId": "oracle-provider-tv",
@@ -456,10 +456,10 @@
       "uwrAxes": {
         "execution": 0,
         "insight": 0.1,
-        "risk": 0.9,
+        "risk": 0.2,
         "structure": 0.4
       },
-      "uwrScore": 0.35000000000000003
+      "uwrScore": 0.17500000000000002
     },
     "signalId": "oracle-tv-short-0001",
     "strategyId": "trend_pullback_v1",
@@ -508,7 +508,7 @@
         "insight": "Liquidity or volatility context is weak."
       },
       "baseAsset": "BTC",
-      "conviction": 0.35000000000000003,
+      "conviction": 0.17500000000000002,
       "direction": "neutral",
       "holdingHorizon": "swing",
       "instrumentType": "linear-perp",
@@ -528,10 +528,10 @@
       "uwrAxes": {
         "execution": 0,
         "insight": 0.1,
-        "risk": 0.9,
+        "risk": 0.2,
         "structure": 0.4
       },
-      "uwrScore": 0.35000000000000003
+      "uwrScore": 0.17500000000000002
     },
     "decayParams": {
       "barsPerHalfLife": 12,
@@ -672,7 +672,7 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.scored-output",
-    "value": "81a258ce32bd25660b808d6404254a154d8208726851ed08809464a523282e53"
+    "value": "53510590e062dcbc12eaefbd5f14bdf2e3aad952ca6eb08a4a335a1e2ac7e7c7"
   },
   "scorerInput": {
     "atrRegime": "low",
@@ -682,7 +682,7 @@
     "haFlatBackConfirmed": false,
     "liquiditySwept": false,
     "pulledBackIntoSweetSpot": true,
-    "rrMultiplePlanned": 2,
+    "rrMultiplePlanned": 1,
     "triggerPatternQuality": 0,
     "weeklyBias": "neutral"
   },

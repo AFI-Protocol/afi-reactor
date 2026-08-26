@@ -11,6 +11,7 @@
 import { Ajv } from "ajv";
 import * as ajvFormatsModule from "ajv-formats";
 import { readFileSync } from "fs";
+import type { TradePlanV1 } from "../types/TradePlan.js";
 import { join } from "path";
 
 import type { ValidateFunction } from "ajv";
@@ -57,6 +58,13 @@ export interface UssV11Payload {
   };
   core?: any;
   lens?: string;
+  /**
+   * DEM-PRODUCER-PLAN: the submitted trade plan (afi.trade-plan.v1, decimal
+   * strings), carried by the CPJ→USS mapper when a plan was submitted and
+   * verified by the technical lane against its fetched candles (D-DEM-5(6)).
+   * The TradingView/MarkitTick routes carry no plan today.
+   */
+  plan?: TradePlanV1;
   [key: string]: any;
 }
 

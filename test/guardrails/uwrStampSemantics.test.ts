@@ -53,26 +53,15 @@ import {
   type NodeRunContext,
   type ResolvedMappingCarrier,
 } from "../../src/pipeline/nodeSdk.js";
+import { froggyMappingCarrier } from "../pipeline/support/froggyMapping.js";
 
 // DEM-BIND (e2): the scorer node refuses without a resolved mapping — these
 // semantics probes hand down the canonical registered froggy mapping
 // (D-DEM-2(6); its interpreter fragment is byte-equivalent to the adapter
 // over the full non-refusal domain, so every equivalence below is unmoved).
-function froggyMappingCarrier(): ResolvedMappingCarrier {
-  return {
-    mappingId: "froggy-trend-pullback",
-    version: "1.0.0",
-    doc: JSON.parse(
-      readFileSync(
-        path.resolve(
-          process.cwd(),
-          "node_modules/afi-config/examples/enrichment-mapping/v1/enrichment-mapping.example.json"
-        ),
-        "utf-8"
-      )
-    ) as Record<string, unknown>,
-  };
-}
+// DEM-PRODUCER-PLAN: the registered mapping is resolved from the fixture
+// registry by the fixture registration's mappingRef (test/pipeline/support/
+// froggyMapping.ts) — never the afi-config example (the immutable 1.0.0 vector).
 
 // Repo idiom (see test/evidence/provenance/*.test.ts): jest runs from the repo root.
 const REPO_ROOT = process.cwd();

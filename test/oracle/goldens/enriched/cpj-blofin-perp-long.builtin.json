@@ -3,7 +3,7 @@
     "analystId": "froggy",
     "assetClass": "crypto",
     "baseAsset": "BTC",
-    "conviction": 0.5916666666666667,
+    "conviction": 0.4916666666666667,
     "direction": "neutral",
     "holdingHorizon": "swing",
     "instrumentType": "linear-perp",
@@ -22,10 +22,10 @@
     "uwrAxes": {
       "execution": 0.6666666666666666,
       "insight": 0.4,
-      "risk": 0.9,
+      "risk": 0.5,
       "structure": 0.4
     },
-    "uwrScore": 0.5916666666666667
+    "uwrScore": 0.4916666666666667
   },
   "canonicalUss": {
     "facts": {
@@ -35,11 +35,26 @@
       "symbol": "BTC/USDT",
       "timeframe": "4h"
     },
+    "plan": {
+      "levels": {
+        "entry": "50000",
+        "stopLoss": "49300",
+        "takeProfits": [
+          {
+            "price": "51000"
+          }
+        ]
+      },
+      "marketTypeHint": "perp",
+      "schema": "afi.trade-plan.v1",
+      "signalId": "cpj-telegram-oracle-telegram-channel-1-oracle-cpj-msg-0001",
+      "venueHint": "blofin"
+    },
     "provenance": {
       "cpjMessageId": "oracle-cpj-msg-0001",
       "cpjParseConfidence": 0.87,
       "cpjPostedAt": "2026-01-15T10:00:00Z",
-      "ingestHash": "30e3b29854aca4c1e2d7883ab07ccec5ac9f914f390d18f4a4633f7e0e8cc979",
+      "ingestHash": "d5f4b7bb3d26facb9797a2ba2bd45b16446af4be0b29731b33aa334d3a7294c4",
       "ingestedAt": "<CLOCK>",
       "providerId": "oracle-telegram-channel-1",
       "providerRef": "Oracle Fixture Channel",
@@ -65,13 +80,13 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "aa8cf5cfd918ae9a80532b735db3236b708ce0cb82778d845b35220627dab479"
+        "value": "5cb9b7a4652f3cfaa31d8a069c14c3282bbdf9354443badb033b05b01fd01e22"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.enrichment-bundle",
-        "value": "76c5d51aaf4fd3e88cc60cd11af4c8adc92d8180b41e8fa9ad0b09221c32fbdf"
+        "value": "18bb43eb7798b6bb32f1494e4e6e5aefe6b8c1a66db06f019469dbccc6e51efd"
       },
       "executionSummaryHash": {
         "algorithm": "sha256",
@@ -91,7 +106,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "220c004ed615c58bd3f4187256568bfcc6ea375e49ce467ff06a2467b405c0b6"
+        "value": "36f911f4fd37eb0d161ab4df7a9650fd1c477bf6dbd71de4a82e0f73c71c4c93"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -109,13 +124,13 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.signal-input",
-        "value": "28c6017db962f2fc5c0b2bc60aeae40cbbda930766383be79bdc3cdfcd38dae7"
+        "value": "a80523bb6aac8e5073ce0247e87b2bfca55f4567fca4d42e0c15eeacc0321665"
       },
       "outputHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.scored-output",
-        "value": "d53f0adf4a948a2e7a30033c4c8d3d4e8e31a31b9032c51ec6d397049958019a"
+        "value": "7d962cc8629632253a8e3f8f236ea1983a5c87d37cf10d26bcd12717ddd627da"
       },
       "schema": "afi.provenance-record.v1",
       "schemaVersions": {
@@ -173,7 +188,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "8702b8a1556f2dd0159dbee32706858c8f316b8e277d9ba6180f2cbb7d831bda"
+          "value": "f0adfe203a96427dc6df4fdeba3a2581b9b87a494ad05ef88adf19919e9729d9"
         },
         "provider": {
           "deterministic": false,
@@ -228,7 +243,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "9d1d5fd4c9d8a4ec2737391a557f35ad90ec9e55a9665db929d9b31c3e8ebacc"
+          "value": "2514cfe04fce4ed88f32a88ed3c1390154d0cceee919475c522739a257db2bd0"
         },
         "provider": {
           "deterministic": false,
@@ -282,7 +297,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "c8eb5ca2494e8cab6cb6ea3d854112bec5361b1f450193298c64770de41fbe99"
+          "value": "326e37a3560b0990a7c41317e884054cb80a6ea4d2a6193ef8f9b2ac7fd80b31"
         },
         "provider": {
           "deterministic": true,
@@ -336,7 +351,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "e863ed9d44ce95ad0ade8846209e39e2d412ba2985195d672626f9e98494f32d"
+          "value": "302c40bf06714992fdfe3b90567d9d8fc5113e8da49300e0dba187176be60325"
         },
         "provider": {
           "deterministic": false,
@@ -381,7 +396,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.lane-output",
-          "value": "d700b9e2221bfc867533d62aefe1657405022153852e0662fe0ed9089ae24b10"
+          "value": "8e1b7f10070a10e5e594877f88251155c6d894c820008415b75767ba0db1aed6"
         },
         "credential": {
           "mode": "keyless"
@@ -390,7 +405,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "d89aedc4c0c2d1b09900b195690be54707af0acd6bff8dd669a86ce05e15b6ee"
+          "value": "d26929d750140bfee0eca63136a490c4c3be3a93fcbb7bec8d1182be0b0eed7c"
         },
         "priceSource": "demo",
         "provider": {
@@ -419,7 +434,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-result",
-          "value": "92f5e94a04420fec5d91efd38fe07273edaa5870a37a4cde58747f5369094f8c"
+          "value": "c69857869e58c01bac4bc993681d1f4449de421d7c9ed8ddb029646f578f096c"
         },
         "resultSchema": "afi.enrichment.technical.v1",
         "schema": "afi.provider-invocation-proof.v1",
@@ -430,19 +445,19 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "a8f27363728fdcc5d2079f6eccf4494279fdfeb3984159340cf41a548c3e6d52"
+      "value": "872c97d513bc807761512571204cd8840265d9b9d8217208735fc0c345605a75"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "5867dc5ab1bb27eb4517e73ffd0f54cb25833bcfccfb54c74310ecf7bc547311"
+      "value": "ec9f4c5b3b41835ffff942e10611b33640fe8a483342a8461d9a28c0005e5d05"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
       "analystId": "froggy",
-      "conviction": 0.5916666666666667,
+      "conviction": 0.4916666666666667,
       "direction": "long",
       "provenanceRecordRef": "provenance-record:cpj-telegram-oracle-telegram-channel-1-oracle-cpj-msg-0001",
       "providerId": "oracle-telegram-channel-1",
@@ -454,10 +469,10 @@
       "uwrAxes": {
         "execution": 0.6666666666666666,
         "insight": 0.4,
-        "risk": 0.9,
+        "risk": 0.5,
         "structure": 0.4
       },
-      "uwrScore": 0.5916666666666667
+      "uwrScore": 0.4916666666666667
     },
     "signalId": "cpj-telegram-oracle-telegram-channel-1-oracle-cpj-msg-0001",
     "strategyId": "trend_pullback_v1",
@@ -470,7 +485,7 @@
     }
   },
   "httpResponse": {
-    "ingestHash": "30e3b29854aca4c1e2d7883ab07ccec5ac9f914f390d18f4a4633f7e0e8cc979",
+    "ingestHash": "d5f4b7bb3d26facb9797a2ba2bd45b16446af4be0b29731b33aa334d3a7294c4",
     "ok": true,
     "persistence": {
       "lifecycleState": "SCORED",
@@ -513,6 +528,18 @@
           "ema50": 50000.250065789325,
           "emaDistancePct": 0.6212694575958345,
           "isInValueSweetSpot": true,
+          "plan": {
+            "barCount": 100,
+            "entryHigh": 50000,
+            "entryLow": 50000,
+            "entryPrice": 50000,
+            "envelopeHigh": 50821.013653806585,
+            "envelopeLow": 49146.90317099503,
+            "firstTargetPrice": 51000,
+            "rrToFirstTarget": 1.4286,
+            "stopPrice": 49300,
+            "targetCount": 1
+          },
           "rsi14": 53.96469980585331,
           "trendBias": "range",
           "volumeRatio": 1.49681802597411
@@ -523,7 +550,7 @@
         "analystId": "froggy",
         "assetClass": "crypto",
         "baseAsset": "BTC",
-        "conviction": 0.5916666666666667,
+        "conviction": 0.4916666666666667,
         "direction": "neutral",
         "holdingHorizon": "swing",
         "instrumentType": "linear-perp",
@@ -542,10 +569,10 @@
         "uwrAxes": {
           "execution": 0.6666666666666666,
           "insight": 0.4,
-          "risk": 0.9,
+          "risk": 0.5,
           "structure": 0.4
         },
-        "uwrScore": 0.5916666666666667
+        "uwrScore": 0.4916666666666667
       },
       "decayParams": {
         "barsPerHalfLife": 12,
@@ -564,6 +591,18 @@
             "ema50": 50000.250065789325,
             "emaDistancePct": 0.6212694575958345,
             "isInValueSweetSpot": true,
+            "plan": {
+              "barCount": 100,
+              "entryHigh": 50000,
+              "entryLow": 50000,
+              "entryPrice": 50000,
+              "envelopeHigh": 50821.013653806585,
+              "envelopeLow": 49146.90317099503,
+              "firstTargetPrice": 51000,
+              "rrToFirstTarget": 1.4286,
+              "stopPrice": 49300,
+              "targetCount": 1
+            },
             "rsi14": 53.96469980585331,
             "trendBias": "range",
             "volumeRatio": 1.49681802597411
@@ -667,11 +706,26 @@
           "symbol": "BTC/USDT",
           "timeframe": "4h"
         },
+        "plan": {
+          "levels": {
+            "entry": "50000",
+            "stopLoss": "49300",
+            "takeProfits": [
+              {
+                "price": "51000"
+              }
+            ]
+          },
+          "marketTypeHint": "perp",
+          "schema": "afi.trade-plan.v1",
+          "signalId": "cpj-telegram-oracle-telegram-channel-1-oracle-cpj-msg-0001",
+          "venueHint": "blofin"
+        },
         "provenance": {
           "cpjMessageId": "oracle-cpj-msg-0001",
           "cpjParseConfidence": 0.87,
           "cpjPostedAt": "2026-01-15T10:00:00Z",
-          "ingestHash": "30e3b29854aca4c1e2d7883ab07ccec5ac9f914f390d18f4a4633f7e0e8cc979",
+          "ingestHash": "d5f4b7bb3d26facb9797a2ba2bd45b16446af4be0b29731b33aa334d3a7294c4",
           "ingestedAt": "<CLOCK>",
           "providerId": "oracle-telegram-channel-1",
           "providerRef": "Oracle Fixture Channel",
@@ -695,11 +749,26 @@
         "symbol": "BTC/USDT",
         "timeframe": "4h"
       },
+      "plan": {
+        "levels": {
+          "entry": "50000",
+          "stopLoss": "49300",
+          "takeProfits": [
+            {
+              "price": "51000"
+            }
+          ]
+        },
+        "marketTypeHint": "perp",
+        "schema": "afi.trade-plan.v1",
+        "signalId": "cpj-telegram-oracle-telegram-channel-1-oracle-cpj-msg-0001",
+        "venueHint": "blofin"
+      },
       "provenance": {
         "cpjMessageId": "oracle-cpj-msg-0001",
         "cpjParseConfidence": 0.87,
         "cpjPostedAt": "2026-01-15T10:00:00Z",
-        "ingestHash": "30e3b29854aca4c1e2d7883ab07ccec5ac9f914f390d18f4a4633f7e0e8cc979",
+        "ingestHash": "d5f4b7bb3d26facb9797a2ba2bd45b16446af4be0b29731b33aa334d3a7294c4",
         "ingestedAt": "<CLOCK>",
         "providerId": "oracle-telegram-channel-1",
         "providerRef": "Oracle Fixture Channel",
@@ -714,13 +783,13 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.signal-input",
-    "value": "28c6017db962f2fc5c0b2bc60aeae40cbbda930766383be79bdc3cdfcd38dae7"
+    "value": "a80523bb6aac8e5073ce0247e87b2bfca55f4567fca4d42e0c15eeacc0321665"
   },
   "outputHash": {
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.scored-output",
-    "value": "d53f0adf4a948a2e7a30033c4c8d3d4e8e31a31b9032c51ec6d397049958019a"
+    "value": "7d962cc8629632253a8e3f8f236ea1983a5c87d37cf10d26bcd12717ddd627da"
   },
   "scorerInput": {
     "atrRegime": "normal",
@@ -730,7 +799,7 @@
     "haFlatBackConfirmed": false,
     "liquiditySwept": false,
     "pulledBackIntoSweetSpot": true,
-    "rrMultiplePlanned": 2,
+    "rrMultiplePlanned": 1.4286,
     "triggerPatternQuality": 2,
     "weeklyBias": "neutral"
   },

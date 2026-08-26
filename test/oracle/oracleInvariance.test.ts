@@ -60,7 +60,9 @@ import { setEvidenceStore, resetEvidenceStore } from "../../src/evidence/index.j
 import { shutdownDedupeCache } from "../../src/services/ingestDedupeService.js";
 import { scorerFroggyTrendPullbackNode } from "../../src/pipeline/nodes/scorerFroggyTrendPullback.js";
 // @ts-ignore — afi-core subpath types resolve via package exports; jest maps to source
-import { buildFroggyTrendPullbackInputFromEnriched } from "afi-core/analysts/froggy.enrichment_adapter.js";
+// DEM-PRODUCER-PLAN: the scorer input is captured at the rubric call (what
+// the live node actually scored), not recomputed adapter-side.
+import * as froggyRubric from "afi-core/analysts/froggy.trend_pullback_v1.js";
 import {
   OracleEvidenceStore,
   installOracleEnv,
@@ -76,6 +78,7 @@ let restoreNet: () => void;
 // path now scores through the registered scorer category node. The node's
 // input IS the (aiMl-augmented) enriched view — same capture semantics.
 const analystSpy = jest.spyOn(scorerFroggyTrendPullbackNode, "run");
+const rubricSpy = jest.spyOn(froggyRubric, "scoreFroggyTrendPullback");
 
 beforeAll(() => {
   restoreEnv = installOracleEnv();
@@ -85,6 +88,7 @@ beforeAll(() => {
 
 afterAll(() => {
   analystSpy.mockRestore();
+  rubricSpy.mockRestore();
   resetEvidenceStore();
   shutdownDedupeCache();
   restoreNet();
@@ -113,19 +117,19 @@ describe.each([
       const store = new OracleEvidenceStore();
       setEvidenceStore(store); // fresh store: every run is a first write
       analystSpy.mockClear();
+      rubricSpy.mockClear();
 
       const res = await request(app).post(endpoint).send(payload);
       expect(res.status).toBe(200);
       expect(store.submissions).toHaveLength(1);
       const record = store.submissions[0];
-      const enrichedView = analystSpy.mock.calls[0][0];
+      expect(analystSpy).toHaveBeenCalledTimes(1);
+      expect(rubricSpy).toHaveBeenCalledTimes(1);
 
       captures.push({
         inputHash: stableStringify(record.provenanceRecord.inputHash),
         outputHash: stableStringify(record.provenanceRecord.outputHash),
-        scorerInput: stableStringify(
-          buildFroggyTrendPullbackInputFromEnriched(enrichedView as never)
-        ),
+        scorerInput: stableStringify(rubricSpy.mock.calls[0][0]),
         record: stableStringify(normalizeVolatile(record)),
         // EV3-GOV D-EV3-4(7): identical canonical inputs → identical
         // record-level commitments run-over-run (the replay separation).

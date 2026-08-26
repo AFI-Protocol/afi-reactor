@@ -74,8 +74,11 @@ import {
   UWR_PROFILE_SOURCE_ENV,
 } from "../../src/config/uwrRuntimeProfile.js";
 import { scorerFroggyTrendPullbackNode } from "../../src/pipeline/nodes/scorerFroggyTrendPullback.js";
+// DEM-PRODUCER-PLAN: the golden's scorerInput is the input the LIVE scorer
+// node actually handed the rubric (captured at the rubric call), not an
+// adapter-side recomputation — the retired adapter no longer yields one.
 // @ts-ignore — afi-core subpath types resolve via package exports; jest maps to source
-import { buildFroggyTrendPullbackInputFromEnriched } from "afi-core/analysts/froggy.enrichment_adapter.js";
+import * as froggyRubric from "afi-core/analysts/froggy.trend_pullback_v1.js";
 import {
   OracleEvidenceStore,
   expectGolden,
@@ -92,6 +95,7 @@ let restoreNet: () => void;
 // path now scores through the registered scorer category node. The node's
 // input IS the (aiMl-augmented) enriched view — same capture semantics.
 const analystSpy = jest.spyOn(scorerFroggyTrendPullbackNode, "run");
+const rubricSpy = jest.spyOn(froggyRubric, "scoreFroggyTrendPullback");
 
 beforeAll(() => {
   restoreEnv = installOracleEnv();
@@ -101,6 +105,7 @@ beforeAll(() => {
 
 afterAll(() => {
   analystSpy.mockRestore();
+  rubricSpy.mockRestore();
   resetEvidenceStore();
   shutdownDedupeCache();
   restoreNet();
@@ -139,6 +144,7 @@ describe.each(UWR_MODES)(
       const store = new OracleEvidenceStore();
       setEvidenceStore(store);
       analystSpy.mockClear();
+      rubricSpy.mockClear();
 
       const res = await request(app).post(endpoint).send(loadFixture(file));
       expect(res.status).toBe(200);
@@ -161,7 +167,8 @@ describe.each(UWR_MODES)(
       expect(enrichedView.news).toBeDefined();
       expect(enrichedView.aiMl).toBeDefined();
 
-      const scorerInput = buildFroggyTrendPullbackInputFromEnriched(enrichedView as never);
+      expect(rubricSpy).toHaveBeenCalledTimes(1);
+      const scorerInput = rubricSpy.mock.calls[0][0];
       expect(store.submissions).toHaveLength(1);
       const record = store.submissions[0];
       expect(record.uwrProfile.source).toBe(stampSource);

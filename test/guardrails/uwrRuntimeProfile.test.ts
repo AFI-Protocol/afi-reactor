@@ -46,7 +46,7 @@ import {
 // reason the analysts moduleNameMapper exists for runtime); the relative
 // path lets TypeScript check the file:-linked source directly while jest's
 // relative mapper resolves the identical module at runtime.
-import { scoreFroggyTrendPullbackFromEnriched } from "../../node_modules/afi-core/analysts/froggy.trend_pullback_v1.js";
+import { compositionReference, froggyMappingCarrier } from "../pipeline/support/froggyMapping.js";
 import type { FroggyEnrichedView } from "../../node_modules/afi-core/analysts/froggy.enrichment_adapter.js";
 import { scorerFroggyTrendPullbackNode } from "../../src/pipeline/nodes/scorerFroggyTrendPullback.js";
 import {
@@ -59,21 +59,9 @@ import {
 // equivalence probes hand down the canonical registered froggy mapping
 // (D-DEM-2(6); its interpreter fragment is byte-equivalent to the adapter
 // over the full non-refusal domain, so plugin-vs-kernel equality is unmoved).
-function froggyMappingCarrier(): ResolvedMappingCarrier {
-  return {
-    mappingId: "froggy-trend-pullback",
-    version: "1.0.0",
-    doc: JSON.parse(
-      readFileSync(
-        path.resolve(
-          process.cwd(),
-          "node_modules/afi-config/examples/enrichment-mapping/v1/enrichment-mapping.example.json"
-        ),
-        "utf-8"
-      )
-    ) as Record<string, unknown>,
-  };
-}
+// DEM-PRODUCER-PLAN: the registered mapping is resolved from the fixture
+// registry by the fixture registration's mappingRef (test/pipeline/support/
+// froggyMapping.ts) — never the afi-config example (the immutable 1.0.0 vector).
 
 /** The LIVE scoring seam (D-FCP-9: the old froggy analyst plugin is deleted;
  * the scorer node composes the identical afi-core kernels and emits the
@@ -530,12 +518,15 @@ describe("PR-UWR-RUNTIME-READ: plugin call-site equivalence (the changed consume
     return clone;
   }
 
-  it("builtin (explicit): plugin run() output is identical to scoreFroggyTrendPullbackFromEnriched", async () => {
+  it("builtin (explicit): plugin run() output is identical to the composition reference", async () => {
     process.env[UWR_PROFILE_SOURCE_ENV] = "builtin";
     __resetUwrRuntimeConfigForTests();
     const enriched = enrichedFixture();
     const viaPlugin = await runScorer(enriched);
-    const reference = scoreFroggyTrendPullbackFromEnriched(enrichedFixture());
+    const reference = compositionReference(
+      enrichedFixture(),
+      getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1").config
+    ).analysis;
     expect(normalized(viaPlugin.analysis)).toEqual(normalized(reference));
     // No response-contract leakage: output shape = enriched + analysis +
     // uwrResolvedSource only. (uwrResolvedSource was added by
@@ -561,7 +552,10 @@ describe("PR-UWR-RUNTIME-READ: plugin call-site equivalence (the changed consume
       process.env[UWR_PROFILE_SOURCE_ENV] = "registry";
       __resetUwrRuntimeConfigForTests();
       const viaPlugin = await runScorer(enrichedFixture());
-      const reference = scoreFroggyTrendPullbackFromEnriched(enrichedFixture());
+      const reference = compositionReference(
+        enrichedFixture(),
+        getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1").config
+      ).analysis;
       expect(normalized(viaPlugin.analysis)).toEqual(normalized(reference));
       // RC-6 propagation: a successful registry resolution — and only a
       // successful one; failure throws before scoring — flows to the stamp.

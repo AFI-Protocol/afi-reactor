@@ -545,3 +545,51 @@ retired seam byte-for-byte, incl. the grandfathered defaults — D-DEM-5(4)),
 both direction surfaces, and the full `httpResponse` family. No scored-value
 field moved. Anything else diffing would have been a defect to fix in code,
 never absorbed into a golden.
+
+---
+
+# DEM-PRODUCER-PLAN reconciliation — the planned R:R becomes a provider fact (DEM-GOV §9, owner-authorized 2026-08-25)
+
+**Authority.** DEM-GOV §9 `DEM-PRODUCER-PLAN` (founder instruction of 2026-08-25 recorded verbatim in the DEM-GOV Status line + §9; afi-governance #55) with §9 determinations D-2/D-4/D-5 (afi-governance #56). D-DEM-7(2) authorizes the movement in class (the risk axis fed by `rrMultiplePlanned`, hence `uwrScore`/`conviction`); this section is the D-DEM-7(3) itemization. **A slot whose diff exceeds its own itemization must not merge.**
+
+**What changed on the path.** (1) `cpjMapper` carries the submitted trade plan as `uss.plan` (`afi.trade-plan.v1`, decimal strings) or refuses at ingest (422 `trade_plan_invalid`); TV/MarkitTick untouched. (2) The technical lane verifies every submitted level against the candles it fetched (band `[L − W, H + W]`, plan geometry from prices only) and emits `technical.plan` (`entryLow/entryHigh/entryPrice/stopPrice/firstTargetPrice/targetCount/rrToFirstTarget/envelopeLow/envelopeHigh/barCount`) or refuses the determination (422 `trade_plan_unverifiable`, no record). (3) `viewTechnical` projects `plan` verbatim. (4) Mapping **1.1.0** binds `rrMultiplePlanned ← technical.plan.rrToFirstTarget` (producer-declared optional, default **1** = the rubric floor; the firing is a recorded degradation). (5) afi-core deletes the `pulledBackIntoSweetSpot && !brokeEmaWithBody ? 2 : 1` synthesis; the composer partitions the ten fields exactly. (6) `implementationVersion`: technical `2.0.0 → 2.1.0`, merge `1.1.0 → 1.2.0`, scorer `1.3.0 → 1.4.0`; `pluginSetHash` `220c004e… → 36f911f4…`; `analystConfigHash` `aa8cf5cf… → 5cb9b7a4…` (mappingRef 1.0.0 → 1.1.0). (7) The two plan-bearing CPJ **fixtures were re-authored inside the demo feed's price envelope** (BTC: entry 42500/SL 41800/TP 43500 → 50000/49300/51000; ETH: entry 2280.5 → 3001.5) — the old levels lay thousands of dollars outside every window the demo feed can print and would have been refused by the law this slot lands; a test now proves the envelope contains every committed fixture plan.
+
+Goldens regenerated ONCE via `npm run oracle:regen`; audited with the committed differ `node test/oracle/support/goldenDiff.mjs` (all 12 changed; 0 byte-equal).
+
+## Per-golden scored-value movement (the class D-DEM-7(2) authorizes: the risk axis and its derivatives)
+
+| golden | `scorerInput.rrMultiplePlanned` | `uwrAxes.risk` | `uwrScore` = `conviction` | `structure` | plan on USS | `executionSummaryHash` |
+|---|---|---|---|---|---|---|
+| `cpj-blofin-perp-long.{builtin,registry}` | 2 → 1.4286 | 0.9 → 0.5 | 0.59167 → 0.49167 | 0.4 (unmoved) | yes (verified; rr 1000/700) | byte-equal (already degraded by a grandfather firing) |
+| `cpj-blofin-perp-neutral.{builtin,registry}` | 2 → 1 | 0.9 → 0.2 | 0.4 → 0.225 | 0.4 | no → floor default fired | byte-equal (already degraded) |
+| `cpj-coinbase-spot-sell.{builtin,registry}` | 2 → 1 | 0.9 → 0.2 | 0.59167 → 0.41667 | 0.4 | yes, entry-only → no R:R claim → floor default fired | **moved** (`executed` → `degraded`) |
+| `tv-long.{builtin,registry}` | 2 → 1 | 0.9 → 0.2 | 0.59167 → 0.41667 | 0.4 | no → floor default fired | **moved** (`executed` → `degraded`) |
+| `tv-neutral.{builtin,registry}` | 2 → 1 | 0.9 → 0.2 | 0.4 → 0.225 | 0.4 | no → floor default fired | byte-equal (already degraded) |
+| `tv-short.{builtin,registry}` | 2 → 1 | 0.9 → 0.2 | 0.35 → 0.175 | 0.4 | no → floor default fired | byte-equal (already degraded) |
+
+`riskBucket` is unmoved on all 12 (it reads `atrRegime`, not the risk axis). `rationale`/`axisNotes` unmoved (the rubric emits no risk note). The risk axis is now **non-constant over the corpus** ({0.2, 0.5}) — via the provider's plan on the plan-bearing CPJ fixture and the declared floor elsewhere.
+
+## Per-golden identity-hash / input-surface movement
+
+| JSON path class | goldens | why |
+|---|---|---|
+| `/canonicalUss/plan`, `/httpResponse/uss/plan`, `/httpResponse/pipelineResult/rawUss/plan` (absent → object) | 4: the two plan-bearing CPJ fixtures × 2 modes | the carried `afi.trade-plan.v1` block |
+| `/canonicalUss/provenance/ingestHash` (+ the two response echoes, `/httpResponse/ingestHash`) | same 4 | the CPJ fixture bytes changed (levels re-authored) — ingestHash hashes the CPJ payload |
+| `/inputHash/value`, `/evidenceRecord/provenanceRecord/inputHash/value` | same 4 | the canonical USS gained `plan` (decimal strings; afi.hash.v1 admits them verbatim) |
+| `/httpResponse/pipelineResult/lenses/0/payload/plan`, `…/_priceFeedMetadata/technicalIndicators/plan` | same 4 | the lane's verified plan facts ride the technical payload |
+| `/evidenceRecord/composition/enrichmentHash/value` | same 4 | the technical lens payload gained `plan` |
+| `/evidenceRecord/providerInvocations/4/{providerResultHash,categoryResultHash}/value` (technical) | same 4 | the validated technical CategoryResult gained `technical.plan` |
+| `/evidenceRecord/providerInvocations/0..4/invocationInputHash/value` (all five lanes) | same 4 | every lane's proof commits to the canonical signal, which gained `plan` |
+| `/evidenceRecord/composition/executionSummaryHash/value` | 4: `cpj-coinbase-spot-sell.*`, `tv-long.*` | the scorer node's status flips `executed → degraded` where the floor default is the FIRST fired default (D-DEM-5(3)); the other 8 were already `degraded` by a grandfather firing |
+| `/evidenceRecord/composition/analystConfigHash/value` | all 12 | `aa8cf5cf… → 5cb9b7a4…` (mappingRef 1.1.0) |
+| `/evidenceRecord/composition/pluginSetHash/value` | all 12 | `220c004e… → 36f911f4…` (three implementationVersion moves) |
+| `/outputHash/value`, `/evidenceRecord/provenanceRecord/outputHash/value` | all 12 | the scored output moved (risk axis) |
+| `/evidenceRecord/recordHash/value`, `/evidenceRecord/replayHash/value` | all 12 | consequences of the above |
+
+## Explicitly byte-EQUAL (asserted by the differ across all 12)
+
+`manifestHash` (the pipeline manifest is untouched), `decayParams`, `uwrProfile`, `scoredSignal.direction`/`meta.direction` (DIR-GOV D-DIR-3: the submitted side is untouched and unread by the producer), every axis other than `risk` (`structure` 0.4, `execution`, `insight` — byte-equal), `riskBucket`, `rationale`/`axisNotes`, the pattern/sentiment/news/aiMl lens payloads, the pattern/sentiment/news/aiMl `providerResultHash`/`categoryResultHash`, every `scorerInput` field other than `rrMultiplePlanned`, `canonicalUss.facts` (still exactly five keys), all six TV goldens' `canonicalUss`/`inputHash`/`ingestHash` (the TV route carries no plan), the `312da118…126e06` provenance golden and `ATLAS_MANIFEST_HASH`. No scoring-law value moved (weights, clamps, rr bands, riskBucket map untouched).
+
+## D-DEM-5(5) residual, recorded honestly
+
+On the CPJ route with a complete plan the risk axis is now a function of the provider's verified R:R and `brokeEmaWithBody` — the Evidence-§3 collinearity is **resolved** there. On every plan-less submission (all TradingView/MarkitTick traffic today, and CPJ submissions without a stop or target) the risk axis reads the declared floor and varies only through `brokeEmaWithBody`: **residual** until a plan carrier exists on that route (§9 determination D-5). The R:R is verified-plausible but submitter-chosen; a stop-placement validity rule would be a new threshold (§8) — a modelling filing.

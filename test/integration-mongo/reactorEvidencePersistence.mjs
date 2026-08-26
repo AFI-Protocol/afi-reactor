@@ -156,9 +156,10 @@ async function main() {
     extracted: {
       symbolRaw: "BTCUSDT",
       side: "long",
-      entry: 42500,
-      stopLoss: 41800,
-      takeProfits: [{ price: 43500 }],
+      // DEM-PRODUCER-PLAN: the plan must verify against the demo window (BTC ≈ 49k–51k).
+      entry: 50000,
+      stopLoss: 49300,
+      takeProfits: [{ price: 51000 }],
       timeframeHint: "4h",
       venueHint: "blofin",
       marketTypeHint: "perp",

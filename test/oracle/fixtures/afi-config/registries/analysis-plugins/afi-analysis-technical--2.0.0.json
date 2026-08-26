@@ -2,20 +2,25 @@
   "schema": "afi.analysis-plugin.v1",
   "pluginId": "afi-analysis-technical",
   "pluginVersion": "2.0.0",
-  "implementationVersion": "2.0.0",
+  "implementationVersion": "2.1.0",
   "category": "technical",
-  "description": "Official technical lane plugin manifest (vendor-neutral, provider-instance-backed): the node reads its explicit providerInstanceRef, and the runtime provider layer resolves the instance and invokes the trusted registered technical adapter, which computes indicator features (EMA/RSI/ATR-style) over the market candles for the validated signal. The node contains no vendor logic; deterministic given the selected instance's inputs.",
+  "description": "Official technical lane plugin manifest (vendor-neutral, provider-instance-backed): the node reads its explicit providerInstanceRef, and the runtime provider layer resolves the instance and invokes the trusted registered technical adapter, which computes indicator features (EMA/RSI/ATR-style) over the market candles for the validated signal. The node contains no vendor logic; deterministic given the selected instance's inputs. DEM-PRODUCER-PLAN producer contract: when the canonical signal carries an afi.trade-plan.v1 plan, the lane verifies every submitted level against the fetched candle window (all levels within one observed-range width of the window; stop and targets on opposite sides of entry) and emits technical.plan; an unverifiable plan REFUSES the determination (D-DEM-5(6)). Declared absences (D-DEM-5(4)(b)): technical.plan is absent when the signal carries no plan; technical.plan.rrToFirstTarget is absent when the plan carries no stop or no target.",
   "inputSchemaRef": "afi.usignal.v1.1",
   "outputSchemaRef": "afi.enrichment.technical.v1",
   "deterministic": true,
-  "capabilities": ["provider:instance-backed"],
+  "capabilities": [
+    "provider:instance-backed"
+  ],
   "defaultTimeoutMs": 10000,
   "defaultRetryPolicy": {
     "maxRetries": 1,
     "retryDelayMs": 500,
     "backoff": "fixed"
   },
-  "permittedFailurePolicies": ["abort", "degrade"],
+  "permittedFailurePolicies": [
+    "abort",
+    "degrade"
+  ],
   "paramsSchema": {
     "type": "object",
     "additionalProperties": false,
