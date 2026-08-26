@@ -74,13 +74,13 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "5cb9b7a4652f3cfaa31d8a069c14c3282bbdf9354443badb033b05b01fd01e22"
+        "value": "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.enrichment-bundle",
-        "value": "0f706295d4b2180475d044b2931bf6fd51c89789a59da082619adfb1380ff4a2"
+        "value": "1f9c4d6d6487f75c109c60431a90c832f8f16d1872072f4a8a8d0dc158b97d19"
       },
       "executionSummaryHash": {
         "algorithm": "sha256",
@@ -100,7 +100,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "36f911f4fd37eb0d161ab4df7a9650fd1c477bf6dbd71de4a82e0f73c71c4c93"
+        "value": "5eef1faf93d0a1fd5f616fd19a98a10da514afa73141aaddd77e308290a72471"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -182,7 +182,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "b55250716818e6f3faaaf74ccf4e0569f17268469606969afdcd0b1267eb505e"
+          "value": "ccded69c3b51ad4c8746369efb28e0aa9c5d8ea6bad4524e30a48de0d88eaa00"
         },
         "provider": {
           "deterministic": false,
@@ -390,7 +390,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.lane-output",
-          "value": "435bb57dc7dc5f3ada1691e1e4a4f7fb2b35ea6c16e9bc9435bca67cb905c552"
+          "value": "b48fbd359172adfde85b572c31cfbcef4ee647463046ca6a5201434a1a7c17b1"
         },
         "credential": {
           "mode": "keyless"
@@ -428,7 +428,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-result",
-          "value": "1323407907c4a9eefc8eaa4650b386e49a8f582c21299017d17d43d09ea9d403"
+          "value": "6c274ea4f97c60082510afb84de3244427a647914159c6b21199fa884f071e09"
         },
         "resultSchema": "afi.enrichment.technical.v1",
         "schema": "afi.provider-invocation-proof.v1",
@@ -439,14 +439,14 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "33a4e9286ed946bc360d2efb59dbd40e3a26a548f5a111e279f3a13eec4f179c"
+      "value": "d860612ce70427ca842ef55c836a1b712641efe684270dd785efa918c3e45744"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "ca32f15d3377c4c685da0f7727521366bf6bd07188386a92347a06220f78b430"
+      "value": "95ae5c24b528c6e80e9116f8362ebc6b8179c6968080ab3382127cba1783f83a"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
@@ -518,9 +518,12 @@
           "atr14": 31.2485468200695,
           "atrPercentile": 70.7,
           "atrRegime": "normal",
+          "brokeEmaWithBody": false,
           "ema20": 2998.1511085761304,
           "ema50": 2999.0429709032783,
           "emaDistancePct": -0.6511453704633388,
+          "haFlatBack": "bearish",
+          "haFlatBackConfirmed": false,
           "isInValueSweetSpot": true,
           "plan": {
             "barCount": 100,
@@ -578,9 +581,12 @@
             "atr14": 31.2485468200695,
             "atrPercentile": 70.7,
             "atrRegime": "normal",
+            "brokeEmaWithBody": false,
             "ema20": 2998.1511085761304,
             "ema50": 2999.0429709032783,
             "emaDistancePct": -0.6511453704633388,
+            "haFlatBack": "bearish",
+            "haFlatBackConfirmed": false,
             "isInValueSweetSpot": true,
             "plan": {
               "barCount": 100,

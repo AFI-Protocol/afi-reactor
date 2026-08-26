@@ -221,7 +221,7 @@ describe("D-CFG-4(4): the scorer node refuses without a resolved config", () => 
       symbol: "BTCUSDT",
       market: "crypto",
       timeframe: "4h",
-      technical: { emaDistancePct: 1.5, isInValueSweetSpot: true, brokeEmaWithBody: false },
+      technical: { emaDistancePct: 1.5, isInValueSweetSpot: true, brokeEmaWithBody: false, haFlatBack: "none", haFlatBackConfirmed: false },
       pattern: { patternName: "bull flag", patternConfidence: 80 },
       sentiment: { score: 0.4, tags: [] },
     };

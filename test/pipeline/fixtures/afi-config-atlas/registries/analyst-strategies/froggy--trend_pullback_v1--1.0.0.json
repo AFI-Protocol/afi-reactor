@@ -7,7 +7,7 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.analyst-config",
-    "value": "5cb9b7a4652f3cfaa31d8a069c14c3282bbdf9354443badb033b05b01fd01e22"
+    "value": "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99"
   },
   "configRef": "afi-config/registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.config.json",
   "providerBindingPolicy": {

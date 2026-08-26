@@ -1,0 +1,123 @@
+{
+  "schema": "afi.enrichment-mapping.v1",
+  "mappingId": "froggy-trend-pullback",
+  "version": "1.2.0",
+  "description": "DEM-PRODUCER-CANDLE: the 1.1.0 bindings plus brokeEmaWithBody and haFlatBackConfirmed bound to the technical lane's COMPUTED candle-structure facts (the latest bar's body closed on the counter-trend side of EMA20; the Heikin-Ashi flat-back agreeing with the lane's trend law) — required binds: a window below the 50-bar kernel floor emits no technical payload and the determination refuses (D-DEM-5(2)). The D5-GOV stub and the haFlatBackConfirmed literal are retired.",
+  "namespaceDefaults": [
+    "technical",
+    "pattern"
+  ],
+  "bindings": {
+    "distanceFromDailyEmaPct": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "emaDistancePct"
+      },
+      "type": "number",
+      "optionality": {
+        "ground": "grandfather",
+        "default": 0
+      }
+    },
+    "pulledBackIntoSweetSpot": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "isInValueSweetSpot"
+      },
+      "type": "boolean",
+      "optionality": {
+        "ground": "grandfather",
+        "default": false
+      }
+    },
+    "triggerPatternQuality": {
+      "operator": "band",
+      "source": {
+        "lane": "pattern",
+        "path": "patternConfidence"
+      },
+      "rows": [
+        {
+          "when": {
+            "gte": 75
+          },
+          "value": 3
+        },
+        {
+          "when": {
+            "gte": 65
+          },
+          "value": 2
+        },
+        {
+          "when": {
+            "gt": 0
+          },
+          "value": 1
+        }
+      ],
+      "otherwise": 0,
+      "absent": 0
+    },
+    "atrRegime": {
+      "operator": "recode",
+      "source": {
+        "lane": "technical",
+        "path": "atrRegime"
+      },
+      "table": {
+        "low": "low",
+        "high": "high",
+        "extreme": "extreme"
+      },
+      "fallback": "normal",
+      "absent": "normal"
+    },
+    "rrMultiplePlanned": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "plan.rrToFirstTarget",
+        "producedBy": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      },
+      "type": "number",
+      "optionality": {
+        "ground": "producer-declared",
+        "default": 1,
+        "producerRef": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      }
+    },
+    "brokeEmaWithBody": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "brokeEmaWithBody",
+        "producedBy": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      },
+      "type": "boolean"
+    },
+    "haFlatBackConfirmed": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "haFlatBackConfirmed",
+        "producedBy": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      },
+      "type": "boolean"
+    }
+  }
+}

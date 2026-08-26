@@ -62,13 +62,13 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "5cb9b7a4652f3cfaa31d8a069c14c3282bbdf9354443badb033b05b01fd01e22"
+        "value": "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.enrichment-bundle",
-        "value": "52c47876bab954d516c3d4fd9532004e511ca4bfd82a2d7807bd69cfcef24617"
+        "value": "9a29ed2dfac80ba25308e967a24158500cd56206b9931e0ac9cd107776f14396"
       },
       "executionSummaryHash": {
         "algorithm": "sha256",
@@ -88,7 +88,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "36f911f4fd37eb0d161ab4df7a9650fd1c477bf6dbd71de4a82e0f73c71c4c93"
+        "value": "5eef1faf93d0a1fd5f616fd19a98a10da514afa73141aaddd77e308290a72471"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -170,7 +170,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "bbba64122687fc9c49ef9ddf4fcf1cba8f0ea0f7d63cb22137997e9cdcd17f56"
+          "value": "b0d82fde7aa84689f5c74f8ef92fd9d2b5cf2d0eac44da403a3ded1cae347849"
         },
         "provider": {
           "deterministic": false,
@@ -378,7 +378,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.lane-output",
-          "value": "99a6c9153825e84772bb2bbf9655bfab62ffd4e9c516a7621f5afbaa9b5b98b1"
+          "value": "c7499752e7ce6e3ad09fc0a1761ae78a23d9d5c54d4983dd75c2eead2bb59beb"
         },
         "credential": {
           "mode": "keyless"
@@ -416,7 +416,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-result",
-          "value": "857b658b6a177c5ac27be25613460defdacb7c9a2dc01e2da2e1e82016a6a16f"
+          "value": "f26e948ac64636fed339e652edd25897ebd0cae1caefab3eb9ebe9bbfb54001e"
         },
         "resultSchema": "afi.enrichment.technical.v1",
         "schema": "afi.provider-invocation-proof.v1",
@@ -427,14 +427,14 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "4515e1afc437909c07930adbb85c25cb4cf2de16054025e5c2b6cb15400dab3c"
+      "value": "2d5c6a0197d657609d38cd88868f908b41733bb42612bfc0deecfaa2a3398679"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "1d1619ea81e682bcdecf5c492c2ba1bc296feafd6af8fec279738d50860b678b"
+      "value": "831353ad7671ad27c3484740f83671c19a57bdd6eb09223df08fcd2801d904d0"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
@@ -497,9 +497,12 @@
         "atr14": 570.2640858689773,
         "atrPercentile": 70.7,
         "atrRegime": "normal",
+        "brokeEmaWithBody": false,
         "ema20": 49996.24399889079,
         "ema50": 50023.438454448326,
         "emaDistancePct": 0.12667804556691256,
+        "haFlatBack": "none",
+        "haFlatBackConfirmed": false,
         "isInValueSweetSpot": true,
         "rsi14": 50.587295212999244,
         "trendBias": "range",
@@ -548,9 +551,12 @@
           "atr14": 570.2640858689773,
           "atrPercentile": 70.7,
           "atrRegime": "normal",
+          "brokeEmaWithBody": false,
           "ema20": 49996.24399889079,
           "ema50": 50023.438454448326,
           "emaDistancePct": 0.12667804556691256,
+          "haFlatBack": "none",
+          "haFlatBackConfirmed": false,
           "isInValueSweetSpot": true,
           "rsi14": 50.587295212999244,
           "trendBias": "range",

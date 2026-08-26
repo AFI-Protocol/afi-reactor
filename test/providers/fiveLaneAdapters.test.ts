@@ -831,20 +831,29 @@ describe("FLPR-GOV — laneView projections + inertness", () => {
     }
   });
 
-  it("viewTechnical pins brokeEmaWithBody to the declared unimplemented stub, preserves scorer-visible renames, and projects unread context", () => {
-    const { BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB } = require("afi-core/analysts/froggy.enrichment_adapter.js") as {
-      BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB: false;
-    };
-    expect(BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB).toBe(false);
-    const view = viewTechnical({ emaDistancePct: 1.2, isInValueSweetSpot: true, rsi14: 55, ema20: 100, ema50: 98, volumeRatio: 1.1, atr14: 42.5, trendBias: "bullish" } as never)!;
+  it("viewTechnical projects the lane's COMPUTED candle-structure facts (the D5-GOV stub is retired), preserves scorer-visible renames, and projects unread context", () => {
+    // DEM-PRODUCER-CANDLE: no literal survives on this path — the projection
+    // carries whatever the technical kernel computed, verbatim.
+    expect(() => require("afi-core/analysts/froggy.enrichment_adapter.js").BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB).not.toThrow();
+    expect(
+      (require("afi-core/analysts/froggy.enrichment_adapter.js") as Record<string, unknown>)
+        .BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB
+    ).toBeUndefined();
+    const view = viewTechnical({ emaDistancePct: 1.2, isInValueSweetSpot: true, rsi14: 55, ema20: 100, ema50: 98, volumeRatio: 1.1, atr14: 42.5, trendBias: "bullish", brokeEmaWithBody: true, haFlatBack: "bullish", haFlatBackConfirmed: true } as never)!;
     expect(view).toEqual({
       emaDistancePct: 1.2,
       isInValueSweetSpot: true,
-      brokeEmaWithBody: BROKE_EMA_WITH_BODY_UNIMPLEMENTED_STUB,
+      brokeEmaWithBody: true,
+      haFlatBack: "bullish",
+      haFlatBackConfirmed: true,
       indicators: { rsi: 55, ema_20: 100, ema_50: 98, volume_ratio: 1.1 },
       atr14: 42.5,
       trendBias: "bullish",
     });
+    // The other branch of the computed fact projects just as verbatim.
+    const flat = viewTechnical({ emaDistancePct: 1.2, isInValueSweetSpot: true, rsi14: 55, ema20: 100, ema50: 98, trendBias: "range", brokeEmaWithBody: false, haFlatBack: "none", haFlatBackConfirmed: false } as never)!;
+    expect(flat.brokeEmaWithBody).toBe(false);
+    expect(flat.haFlatBackConfirmed).toBe(false);
   });
 
   it("viewPattern carries the two scorer-visible candlestick fields plus the unread context fields when present; absent block → undefined", () => {
@@ -1010,7 +1019,10 @@ describe("FLPR-GOV — five-lane graph execution", () => {
     expect(seenView).toBeDefined();
     expect(seenView!.enrichmentMeta?.categories).toEqual(["technical", "pattern", "sentiment", "news", "aiMl"]);
     expect(seenView!.aiMl).toEqual({ convictionScore: 0.85, direction: "long", regime: "bull" });
-    expect(seenView!.technical?.brokeEmaWithBody).toBe(false);
+    // DEM-PRODUCER-CANDLE: a COMPUTED fact now (the deterministic demo window
+    // is range-biased, so the crossing branch decides it) — never a stub.
+    expect(typeof seenView!.technical?.brokeEmaWithBody).toBe("boolean");
+    expect(typeof seenView!.technical?.haFlatBackConfirmed).toBe("boolean");
     const lenses = (seenView as unknown as { lenses: { type: string }[] }).lenses.map((l) => l.type);
     expect(lenses).toEqual(["technical", "pattern", "sentiment", "news", "aiMl"]);
   });

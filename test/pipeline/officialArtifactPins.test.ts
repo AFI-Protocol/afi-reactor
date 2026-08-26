@@ -31,8 +31,8 @@ import { FIXTURE_CONFIG_ROOT } from "./support/testHarness.js";
 
 const PINS = {
   manifestHash: "df3372dadaca1595d0e6d2f6bad9464ccc9abb7106e9f5b7111df148a145bc4f",
-  analystConfigHash: "5cb9b7a4652f3cfaa31d8a069c14c3282bbdf9354443badb033b05b01fd01e22",
-  pluginSetHash: "36f911f4fd37eb0d161ab4df7a9650fd1c477bf6dbd71de4a82e0f73c71c4c93",
+  analystConfigHash: "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99",
+  pluginSetHash: "5eef1faf93d0a1fd5f616fd19a98a10da514afa73141aaddd77e308290a72471",
 };
 
 function readJson(path: string): unknown {
