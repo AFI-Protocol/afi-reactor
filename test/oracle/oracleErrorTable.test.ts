@@ -170,6 +170,35 @@ describe("oracle error table — request validation (400/401/422)", () => {
     expect(res.body.error).toBe("symbol_normalization_failed");
     expect(res.body.symbolRaw).toBe("??!!");
   });
+
+  // DEM-PRODUCER-PLAN (DEM-GOV D-DEM-5(6)): the submitted plan is carried
+  // (afi.trade-plan.v1) or refused — never dropped — and verified against the
+  // fetched candles by the technical lane or refused. Both refusals are
+  // honest 422s with NO persisted record.
+  it("cpj trade plan not conforming to afi.trade-plan.v1 (stop without an entry) → 422 trade_plan_invalid", async () => {
+    const payload = loadFixture("cpj/cpj-blofin-perp-long.json");
+    delete payload.extracted.entry;
+    const res = await request(app).post(CPJ).send(payload);
+    expect(res.status).toBe(422);
+    expect(res.body.error).toBe("trade_plan_invalid");
+    expect(res.body.persisted).toBe(false);
+  });
+
+  it("cpj trade plan unverifiable against the fetched candles (off-market levels) → 422 trade_plan_unverifiable, no record", async () => {
+    const store = new OracleEvidenceStore();
+    setEvidenceStore(store);
+    const payload = loadFixture("cpj/cpj-blofin-perp-long.json");
+    // Thousands of dollars outside the demo window's observed band.
+    payload.extracted.entry = 42500;
+    payload.extracted.stopLoss = 41800;
+    payload.extracted.takeProfits = [{ price: 43500 }];
+    const res = await request(app).post(CPJ).send(payload);
+    expect(res.status).toBe(422);
+    expect(res.body.error).toBe("trade_plan_unverifiable");
+    expect(res.body.persisted).toBe(false);
+    expect(res.body.reason).toMatch(/entry 42500 lies outside/);
+    expect(store.submissions).toHaveLength(0);
+  });
 });
 
 describe("oracle error table — strategy resolution rejections (403; W3 spec section 4)", () => {

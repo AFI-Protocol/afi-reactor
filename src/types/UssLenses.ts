@@ -9,6 +9,7 @@
  *
  * @module UssLenses
  */
+import type { TechnicalPlanFacts } from "./TradePlan.js";
 
 /**
  * Base lens interface.
@@ -60,6 +61,13 @@ export interface TechnicalLensV1 extends UssLens {
      * every atrRegime classification auditable against these bytes.
      */
     atrPercentile?: number;
+    /**
+     * DEM-PRODUCER-PLAN: the lane's VERIFIED trade-plan facts (the submitted
+     * afi.trade-plan.v1 levels checked against this window, D-DEM-5(6)).
+     * Absent when the signal carried no plan; an unverifiable plan refuses
+     * the determination instead of producing this block.
+     */
+    plan?: TechnicalPlanFacts;
   };
 }
 

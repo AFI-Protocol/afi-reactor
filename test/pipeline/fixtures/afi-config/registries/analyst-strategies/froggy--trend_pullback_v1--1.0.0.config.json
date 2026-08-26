@@ -22,12 +22,21 @@
   },
   "mappingRef": {
     "mappingId": "froggy-trend-pullback",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "decayConfig": {
     "ratio": {
       "barsPerHalfLife": 12,
       "unknownTimeframeMinutes": 5
     }
+  },
+  "metadata": {
+    "note": "Non-authoritative, hash-excluded lineage of this configuration version (D-CFG-5(4): the version identity IS analystConfigHash; a superseded version survives on every record sealed under it and in git history).",
+    "supersedes": [
+      {
+        "analystConfigHash": "aa8cf5cfd918ae9a80532b735db3236b708ce0cb82778d845b35220627dab479",
+        "act": "DEM-GOV DEM-BIND step (d) — mappingRef froggy-trend-pullback 1.0.0 (2026-08-23)"
+      }
+    ]
   }
 }

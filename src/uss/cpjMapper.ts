@@ -20,6 +20,9 @@ import {
   type SymbolNormalizationResult,
   SymbolNormalizationError,
 } from "./symbolNormalizer.js";
+import { validateTradePlanV1 } from "../evidence/provenance/schemaValidation.js";
+import { toCanonicalDecimalString } from "../evidence/provenance/hashProjection.js";
+import type { TradePlanV1 } from "../types/TradePlan.js";
 
 /**
  * CPJ to USS mapping result
@@ -27,13 +30,96 @@ import {
 export interface CpjMappingResult {
   success: boolean;
   uss?: UssV11Payload;
-  error?: {
-    type: "symbol_normalization_failed";
-    symbolRaw: string;
-    symbolNormalizedAttempt?: string;
-    reason: SymbolNormalizationError;
-    details?: string;
-  };
+  error?: CpjMappingError;
+}
+
+export type CpjMappingError =
+  | {
+      type: "symbol_normalization_failed";
+      symbolRaw: string;
+      symbolNormalizedAttempt?: string;
+      reason: SymbolNormalizationError;
+      details?: string;
+    }
+  | {
+      /** DEM-PRODUCER-PLAN: the submitted levels do not form a valid
+       *  afi.trade-plan.v1 — refused at ingest (422), never dropped. */
+      type: "trade_plan_invalid";
+      reason: string;
+      details?: string[];
+    };
+
+/** Thrown inside buildTradePlan; converted to the typed error union by the mapper. */
+class TradePlanInvalid extends Error {
+  readonly details?: string[];
+  constructor(reason: string, details?: string[]) {
+    super(reason);
+    this.details = details;
+  }
+}
+
+/**
+ * A CPJ number → the contract's decimal string (plain notation, no exponent).
+ * Negative, NaN, or non-finite numbers cannot be expressed by the contract's
+ * `^[0-9]+(\.[0-9]+)?$` pattern and are refused by the schema validation below.
+ */
+function toPlanDecimal(label: string, value: unknown): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new TradePlanInvalid(`${label} is not a finite number`);
+  }
+  if (value < 0) throw new TradePlanInvalid(`${label} is negative`);
+  return toCanonicalDecimalString(value);
+}
+
+/**
+ * DEM-PRODUCER-PLAN (DEM-GOV §9; determination D-4): carry the submitted trade
+ * plan through to the canonical signal as `uss.plan`, an afi.trade-plan.v1
+ * object validated against the governed contract. Returns undefined when the
+ * submission carries NO plan field at all (entry / stopLoss / takeProfits) —
+ * the technical lane then emits no plan facts (declared absence). A partial
+ * or malformed plan (stop or targets without an entry, a negative price, …)
+ * is REFUSED here: the levels are never silently dropped again.
+ */
+export function buildTradePlanFromCpj(cpj: CpjV01Payload, signalId: string): TradePlanV1 | undefined {
+  const x = cpj.extracted;
+  const hasEntry = x.entry !== undefined && x.entry !== null;
+  const hasStop = x.stopLoss !== undefined && x.stopLoss !== null;
+  const hasTargets = Array.isArray(x.takeProfits) && x.takeProfits.length > 0;
+  if (!hasEntry && !hasStop && !hasTargets) return undefined;
+  if (!hasEntry) {
+    throw new TradePlanInvalid("a stop or target was submitted without an entry (afi.trade-plan.v1 requires levels.entry)");
+  }
+
+  const entry =
+    typeof x.entry === "number"
+      ? toPlanDecimal("entry", x.entry)
+      : { min: toPlanDecimal("entry.min", (x.entry as { min: number }).min), max: toPlanDecimal("entry.max", (x.entry as { max: number }).max) };
+  const levels: TradePlanV1["levels"] = { entry };
+  if (hasStop) levels.stopLoss = toPlanDecimal("stopLoss", x.stopLoss);
+  if (hasTargets) {
+    levels.takeProfits = (x.takeProfits as Array<{ price: number; percentage?: number }>).map((tp, i) => {
+      const out: { price: string; sizePct?: string } = { price: toPlanDecimal(`takeProfits[${i}].price`, tp.price) };
+      if (tp.percentage !== undefined && tp.percentage !== null) {
+        out.sizePct = toPlanDecimal(`takeProfits[${i}].percentage`, tp.percentage);
+      }
+      return out;
+    });
+  }
+  const plan: TradePlanV1 = { schema: "afi.trade-plan.v1", signalId, levels };
+  if (x.leverageHint !== undefined && x.leverageHint !== null) plan.leverageHint = toPlanDecimal("leverageHint", x.leverageHint);
+  if (typeof x.venueHint === "string" && x.venueHint.length > 0) plan.venueHint = x.venueHint;
+  if (x.marketTypeHint === "spot" || x.marketTypeHint === "perp" || x.marketTypeHint === "futures") {
+    plan.marketTypeHint = x.marketTypeHint;
+  }
+
+  const validation = validateTradePlanV1(plan);
+  if (!validation.ok) {
+    throw new TradePlanInvalid(
+      "submitted levels do not conform to afi.trade-plan.v1",
+      validation.errors.map((e) => `${e.field || "/"} ${e.message}`)
+    );
+  }
+  return plan;
 }
 
 /**
@@ -305,6 +391,21 @@ export function mapCpjToUssV11(
   // Map CPJ providerType to USS-compatible providerType
   const ussProviderType = mapProviderType(cpj.provenance.providerType);
 
+  // DEM-PRODUCER-PLAN: the submitted trade plan survives the mapping as
+  // uss.plan (afi.trade-plan.v1) or is refused — never dropped.
+  let plan: TradePlanV1 | undefined;
+  try {
+    plan = buildTradePlanFromCpj(cpj, signalId);
+  } catch (error) {
+    if (error instanceof TradePlanInvalid) {
+      return {
+        success: false,
+        error: { type: "trade_plan_invalid", reason: error.message, details: error.details },
+      };
+    }
+    throw error;
+  }
+
   // Construct canonical USS v1.1
   const uss: UssV11Payload = {
     schema: "afi.usignal.v1.1",
@@ -333,6 +434,10 @@ export function mapCpjToUssV11(
       strategy: resolvedStrategy.strategyId,
       direction,
     },
+    // DEM-PRODUCER-PLAN: root-level governed block (USS v1.1's root is open;
+    // `facts` stays closed and untouched). Present only when a plan was
+    // submitted. Enters inputHash as decimal strings (afi.hash.v1).
+    ...(plan !== undefined ? { plan } : {}),
   };
 
   return { success: true, uss };

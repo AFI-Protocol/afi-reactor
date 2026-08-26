@@ -1,0 +1,99 @@
+{
+  "schema": "afi.enrichment-mapping.v1",
+  "mappingId": "froggy-trend-pullback",
+  "version": "1.1.0",
+  "description": "DEM-PRODUCER-PLAN: the 1.0.0 bindings plus rrMultiplePlanned bound to technical.plan.rrToFirstTarget, the technical lane's VERIFIED trade-plan fact (the submitted afi.trade-plan.v1 levels checked against the fetched candles, D-DEM-5(6)). Optional under D-DEM-5(4)(b): the producer emits no R:R for a submission carrying no complete plan; the declared default is the rubric floor (1), hash-committed when fired (DEM-GOV §9 D-5).",
+  "namespaceDefaults": [
+    "technical",
+    "pattern"
+  ],
+  "bindings": {
+    "distanceFromDailyEmaPct": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "emaDistancePct"
+      },
+      "type": "number",
+      "optionality": {
+        "ground": "grandfather",
+        "default": 0
+      }
+    },
+    "pulledBackIntoSweetSpot": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "isInValueSweetSpot"
+      },
+      "type": "boolean",
+      "optionality": {
+        "ground": "grandfather",
+        "default": false
+      }
+    },
+    "triggerPatternQuality": {
+      "operator": "band",
+      "source": {
+        "lane": "pattern",
+        "path": "patternConfidence"
+      },
+      "rows": [
+        {
+          "when": {
+            "gte": 75
+          },
+          "value": 3
+        },
+        {
+          "when": {
+            "gte": 65
+          },
+          "value": 2
+        },
+        {
+          "when": {
+            "gt": 0
+          },
+          "value": 1
+        }
+      ],
+      "otherwise": 0,
+      "absent": 0
+    },
+    "atrRegime": {
+      "operator": "recode",
+      "source": {
+        "lane": "technical",
+        "path": "atrRegime"
+      },
+      "table": {
+        "low": "low",
+        "high": "high",
+        "extreme": "extreme"
+      },
+      "fallback": "normal",
+      "absent": "normal"
+    },
+    "rrMultiplePlanned": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "plan.rrToFirstTarget",
+        "producedBy": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      },
+      "type": "number",
+      "optionality": {
+        "ground": "producer-declared",
+        "default": 1,
+        "producerRef": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      }
+    }
+  }
+}

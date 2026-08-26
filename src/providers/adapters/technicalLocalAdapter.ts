@@ -18,6 +18,8 @@ import type { computeTechnicalEnrichment } from "../../enrichment/technicalIndic
 import type { AfiCandle } from "../../types/AfiCandle.js";
 import { NodeConfigurationError } from "../../pipeline/nodeSdk.js";
 import type { CategoryResult, ProviderAdapter, ProviderAdapterContext } from "../types.js";
+import { TradePlanVerificationError, verifyTradePlan } from "../../enrichment/tradePlanVerification.js";
+import type { TradePlanV1 } from "../../types/TradePlan.js";
 
 export interface TechnicalLocalAdapterDeps {
   resolvePriceSource: typeof getDefaultPriceSource;
@@ -79,6 +81,21 @@ export function createTechnicalLocalAdapter(deps?: TechnicalLocalAdapterDeps): P
       const rawCandles = await feed.getOHLCV({ symbol, timeframe, limit });
       const candles = toAfiCandles(rawCandles);
       const technical = d.computeTechnical(candles);
+
+      // DEM-PRODUCER-PLAN (D-DEM-5(6)): a submitted trade plan is verified
+      // against THIS fetched window by THIS producer before any of its
+      // levels becomes a fact; an unverifiable plan refuses the determination
+      // (no retry, no score, no record). Reads only uss.plan and the candles —
+      // never facts.direction (DIR-GOV D-DIR-3) and never analyst config.
+      const plan = (ctx.signal as { plan?: unknown }).plan;
+      if (plan !== undefined && plan !== null) {
+        if (!technical) {
+          throw new TradePlanVerificationError(
+            `no computable indicator window (${candles.length} candles fetched, kernel floor not met)`
+          );
+        }
+        technical.plan = verifyTradePlan(plan as TradePlanV1, candles);
+      }
 
       ctx.logger.info("technical enrichment computed (provider adapter)", {
         priceSource,

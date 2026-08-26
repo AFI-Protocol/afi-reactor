@@ -72,7 +72,8 @@ async function main() {
       extracted: {
         symbolRaw: "BTCUSDT",
         side: "long",
-        entry: 42500,
+        // DEM-PRODUCER-PLAN: a plan must verify against the demo window (BTC ≈ 49k–51k).
+        entry: 50000,
         timeframeHint: "4h",
         venueHint: "blofin",
         marketTypeHint: "perp",

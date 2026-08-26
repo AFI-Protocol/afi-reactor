@@ -32,6 +32,7 @@ dotenv.config();
 
 import express, { Request, Response } from "express";
 import { validateUsignalV11 } from "./uss/ussValidator.js";
+import { TradePlanVerificationError } from "./enrichment/tradePlanVerification.js";
 import {
   mapTradingViewToUssV11,
   type TradingViewAlertPayload,
@@ -109,6 +110,26 @@ function respondWithFailure(res: Response, err: unknown, context: string): Respo
       error: `evidence_persistence_${err.category}`,
       message: err.message,
       signalId: err.signalId,
+      persisted: false,
+    });
+  }
+  // DEM-PRODUCER-PLAN (D-DEM-5(6)): a submitted plan the technical lane could
+  // not verify against its fetched candles is an honest 422 — no score, no
+  // record. The executor wraps the fatal node error (NodeExecutionError) with
+  // the original as `cause`; unwrap one level.
+  const cause = (err as { cause?: unknown } | null)?.cause;
+  const unverifiable =
+    err instanceof TradePlanVerificationError
+      ? err
+      : cause instanceof TradePlanVerificationError
+        ? cause
+        : undefined;
+  if (unverifiable) {
+    console.warn(`⚠️ ${context}: trade plan refused`, { reason: unverifiable.reason });
+    return res.status(422).json({
+      error: unverifiable.code,
+      message: unverifiable.message,
+      reason: unverifiable.reason,
       persisted: false,
     });
   }
@@ -662,16 +683,28 @@ app.post("/api/ingest/cpj", async (req: Request, res: Response) => {
     // ✅ STEP 2: Map CPJ → USS v1.1 with strict symbol validation
     const mappingResult = mapCpjToUssV11(rawPayload, resolution.triple);
 
-    // Check for symbol normalization failures
+    // Typed mapping refusals: symbol normalization, or (DEM-PRODUCER-PLAN) a
+    // submitted trade plan that does not conform to afi.trade-plan.v1.
     if (!mappingResult.success) {
-      console.error(`❌ Symbol normalization failed:`, mappingResult.error);
+      const mappingError = mappingResult.error!;
+      if (mappingError.type === "trade_plan_invalid") {
+        console.warn(`⚠️ Trade plan refused at ingest:`, mappingError);
+        return res.status(422).json({
+          error: "trade_plan_invalid",
+          message: "Submitted trade levels do not form a valid afi.trade-plan.v1",
+          reason: mappingError.reason,
+          details: mappingError.details,
+          persisted: false,
+        });
+      }
+      console.error(`❌ Symbol normalization failed:`, mappingError);
       return res.status(422).json({
         error: "symbol_normalization_failed",
         message: "Could not normalize symbol to canonical BASE/QUOTE format",
-        symbolRaw: mappingResult.error!.symbolRaw,
-        symbolNormalizedAttempt: mappingResult.error!.symbolNormalizedAttempt,
-        reason: mappingResult.error!.reason,
-        details: mappingResult.error!.details,
+        symbolRaw: mappingError.symbolRaw,
+        symbolNormalizedAttempt: mappingError.symbolNormalizedAttempt,
+        reason: mappingError.reason,
+        details: mappingError.details,
       });
     }
 

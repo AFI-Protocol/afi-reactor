@@ -39,23 +39,25 @@ import {
   type ResolvedMappingCarrier,
 } from "../../src/pipeline/nodeSdk.js";
 import type { FroggyEnrichedView } from "../../node_modules/afi-core/analysts/froggy.enrichment_adapter.js";
-// DEM-BIND (e2) seam-test rework (ruling R1): the adapter's expressible half
-// survives as the TEST-SIDE byte-equivalence oracle — the export the FLPR
-// guards and the golden harness already sanction. The live path composes
-// fragment+residual only; equivalence is proven against the adapter export
-// imported directly here, never via a removed legacy branch.
-import { buildFroggyTrendPullbackInputFromEnriched } from "../../node_modules/afi-core/analysts/froggy.enrichment_adapter.js";
-import { scoreFroggyTrendPullback } from "../../node_modules/afi-core/analysts/froggy.trend_pullback_v1.js";
+// DEM-PRODUCER-PLAN: the retired adapter no longer yields a full scorer
+// input (its rrMultiplePlanned synthesis is deleted), so the seam is proven
+// against the COMPOSITION REFERENCE — the production assembly (registered
+// mapping fragment + residual → composer → rubric) run out-of-band — with the
+// mapping resolved by the fixture registration's mappingRef, exactly as boot
+// resolves it (never the afi-config example).
+import { compositionReference, froggyMappingCarrier } from "../pipeline/support/froggyMapping.js";
 
 const REPO_ROOT = process.cwd();
 const FIXTURE_CONFIG_ROOT = path.resolve(REPO_ROOT, "test/pipeline/fixtures/afi-config");
 const CONFIG_REL = "registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.config.json";
 const REGISTRATION_REL = "registries/analyst-strategies/froggy--trend_pullback_v1--1.0.0.json";
-const CANONICAL_MAPPING = path.resolve(
-  REPO_ROOT,
-  "node_modules/afi-config/examples/enrichment-mapping/v1/enrichment-mapping.example.json"
-);
 const FROGGY_KEY = "froggy/trend_pullback_v1@1.0.0";
+// The registered 1.0.0 mapping, from the fixture registry (byte-identical to
+// the afi-config canonical example; DEM-PRODUCER-PLAN registered 1.1.0 beside it).
+const REGISTERED_MAPPING_100 = path.resolve(
+  FIXTURE_CONFIG_ROOT,
+  "registries/enrichment-mappings/froggy-trend-pullback--1.0.0.json"
+);
 
 /** The production plugin registry over an empty provider runtime (binding only). */
 function testBuiltinRegistry() {
@@ -102,7 +104,7 @@ function removeMappingRef(root: string): void {
 function registerFroggyMapping(root: string, mutateDoc?: (doc: any) => void): void {
   const dir = join(root, "registries/enrichment-mappings");
   mkdirSync(dir, { recursive: true });
-  const doc = JSON.parse(readFileSync(CANONICAL_MAPPING, "utf-8"));
+  const doc = JSON.parse(readFileSync(REGISTERED_MAPPING_100, "utf-8"));
   mutateDoc?.(doc);
   writeFileSync(join(dir, "froggy-trend-pullback--1.0.0.json"), JSON.stringify(doc, null, 2));
 }
@@ -140,7 +142,9 @@ describe("D-DEM-2(6): fail-closed mapping resolution at boot", () => {
   it("mappingRef with NO registered document refuses boot — never a silent skip", () => {
     bootRefusal(
       scratchRoot((r) => {
-        rmSync(join(r, "registries/enrichment-mappings/froggy-trend-pullback--1.0.0.json"));
+        // Version-agnostic: remove the whole registry family, whatever version
+        // the fixture config names (DEM-PRODUCER-PLAN registered 1.1.0).
+        rmSync(join(r, "registries/enrichment-mappings"), { recursive: true, force: true });
       }),
       /does not resolve.*fail-closed, D-DEM-2\(6\)/
     );
@@ -221,15 +225,11 @@ describe("the ctx.mapping carrier is bounded: the scorer node is its sole reader
 });
 
 describe("the seam: fragment+residual equals the legacy path; fired defaults are recorded", () => {
-  const skipIfNoMapping = existsSync(CANONICAL_MAPPING) ? describe : describe.skip;
+  const skipIfNoMapping = existsSync(REGISTERED_MAPPING_100) ? describe : describe.skip;
 
   skipIfNoMapping("with the canonical froggy mapping", () => {
     function carrier(): ResolvedMappingCarrier {
-      return {
-        mappingId: "froggy-trend-pullback",
-        version: "1.0.0",
-        doc: JSON.parse(readFileSync(CANONICAL_MAPPING, "utf-8")),
-      };
+      return froggyMappingCarrier(FIXTURE_CONFIG_ROOT);
     }
 
     function ctx(withMapping: boolean): NodeRunContext {
@@ -271,21 +271,38 @@ describe("the seam: fragment+residual equals the legacy path; fired defaults are
       return clone;
     }
 
-    /** The adapter export, applied as the sanctioned test-side oracle (R1). */
-    function adapterOracleAnalysis(enriched: FroggyEnrichedView) {
+    /** The production assembly, run out-of-band (the composition reference). */
+    function referenceAnalysis(enriched: FroggyEnrichedView) {
       const uwr = getUwrRuntimeConfigForProfile("uwr-weighted-lifts-v0.1");
-      return scoreFroggyTrendPullback(
-        buildFroggyTrendPullbackInputFromEnriched(enriched),
-        uwr.config,
-        enriched
-      );
+      return compositionReference(enriched, uwr.config, carrier()).analysis;
     }
 
-    it("mapping path output is byte-identical to the adapter oracle (no fired defaults)", async () => {
-      const withMapping = await scorerFroggyTrendPullbackNode.run(view(), ctx(true));
+    /** A view carrying the technical lane's verified plan facts (DEM-PRODUCER-PLAN). */
+    function viewWithPlan(): FroggyEnrichedView {
+      const v = view();
+      return {
+        ...v,
+        technical: {
+          ...v.technical,
+          plan: { entryPrice: 100, stopPrice: 98, firstTargetPrice: 104, rrToFirstTarget: 2, targetCount: 1 },
+        },
+      };
+    }
+
+    it("mapping path output equals the composition reference (no fired defaults when the plan fact is present)", async () => {
+      const withMapping = await scorerFroggyTrendPullbackNode.run(viewWithPlan(), ctx(true));
       const a = withMapping.output as { analysis: unknown };
-      expect(normalized(a.analysis)).toEqual(normalized(adapterOracleAnalysis(view())));
+      expect(normalized(a.analysis)).toEqual(normalized(referenceAnalysis(viewWithPlan())));
       expect(withMapping.degradations).toEqual([]);
+    });
+
+    it("a plan-less view fires ONLY the rrMultiplePlanned floor default — recorded, never silent (D-DEM-5(3); §9 determination D-5)", async () => {
+      const result = await scorerFroggyTrendPullbackNode.run(view(), ctx(true));
+      expect(result.degradations).toEqual([{ class: "declared-default-fired", detail: "rrMultiplePlanned" }]);
+      const a = result.output as { analysis: { analystScore: { uwrAxes: { risk: number } } } };
+      // The rubric floor (rr 1 → 0.2) — a hash-committed, recorded degradation.
+      expect(a.analysis.analystScore.uwrAxes.risk).toBe(0.2);
+      expect(normalized(a.analysis)).toEqual(normalized(referenceAnalysis(view())));
     });
 
     it("a fired grandfathered default is a RECORDED degradation (D-DEM-5(3)), never silent", async () => {
@@ -301,19 +318,22 @@ describe("the seam: fragment+residual equals the legacy path; fired defaults are
         "declared-default-fired",
         "declared-default-fired",
         "declared-default-fired",
+        "declared-default-fired",
       ]);
       const targets = (result.degradations ?? []).map((d) => d.detail).sort();
       expect(targets).toEqual([
         "atrRegime",
         "distanceFromDailyEmaPct",
         "pulledBackIntoSweetSpot",
+        "rrMultiplePlanned",
         "triggerPatternQuality",
       ]);
-      // The adapter oracle scores the same INPUT VALUES (the grandfather
-      // exists so DEM-BIND reproduces today's scored values exactly,
-      // D-DEM-5(4)).
+      // The composition reference scores the same INPUT VALUES (the
+      // grandfather exists so DEM-BIND reproduces today's scored values
+      // exactly, D-DEM-5(4); the plan floor is the PLAN slot's declared
+      // default).
       const a = result.output as { analysis: unknown };
-      expect(normalized(a.analysis)).toEqual(normalized(adapterOracleAnalysis(bare)));
+      expect(normalized(a.analysis)).toEqual(normalized(referenceAnalysis(bare)));
     });
 
     it("an absent resolved mapping yields NO determination (D-DEM-2(6), D-DEM-5(7))", async () => {
