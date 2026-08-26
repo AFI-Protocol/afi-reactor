@@ -1,0 +1,159 @@
+{
+  "schema": "afi.enrichment-mapping.v1",
+  "mappingId": "froggy-trend-pullback",
+  "version": "1.3.0",
+  "description": "DEM-PRODUCER-HTF: the 1.2.0 bindings plus weeklyBias and dailyBias recoded from the technical lane's higher-timeframe trend facts (technical.htf.weekly.trendBias / technical.htf.daily.trendBias), computed by the same EMA law over separately fetched windows whose timeframes are a registered composition value. The vocabulary translation lives here, not in the producer (D-DEM-3). A window below the kernel floor is a declared producer absence and fires the recode's absent member.",
+  "namespaceDefaults": [
+    "technical",
+    "pattern"
+  ],
+  "bindings": {
+    "distanceFromDailyEmaPct": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "emaDistancePct"
+      },
+      "type": "number",
+      "optionality": {
+        "ground": "grandfather",
+        "default": 0
+      }
+    },
+    "pulledBackIntoSweetSpot": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "isInValueSweetSpot"
+      },
+      "type": "boolean",
+      "optionality": {
+        "ground": "grandfather",
+        "default": false
+      }
+    },
+    "triggerPatternQuality": {
+      "operator": "band",
+      "source": {
+        "lane": "pattern",
+        "path": "patternConfidence"
+      },
+      "rows": [
+        {
+          "when": {
+            "gte": 75
+          },
+          "value": 3
+        },
+        {
+          "when": {
+            "gte": 65
+          },
+          "value": 2
+        },
+        {
+          "when": {
+            "gt": 0
+          },
+          "value": 1
+        }
+      ],
+      "otherwise": 0,
+      "absent": 0
+    },
+    "atrRegime": {
+      "operator": "recode",
+      "source": {
+        "lane": "technical",
+        "path": "atrRegime"
+      },
+      "table": {
+        "low": "low",
+        "high": "high",
+        "extreme": "extreme"
+      },
+      "fallback": "normal",
+      "absent": "normal"
+    },
+    "rrMultiplePlanned": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "plan.rrToFirstTarget",
+        "producedBy": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      },
+      "type": "number",
+      "optionality": {
+        "ground": "producer-declared",
+        "default": 1,
+        "producerRef": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      }
+    },
+    "brokeEmaWithBody": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "brokeEmaWithBody",
+        "producedBy": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      },
+      "type": "boolean"
+    },
+    "haFlatBackConfirmed": {
+      "operator": "bind",
+      "source": {
+        "lane": "technical",
+        "path": "haFlatBackConfirmed",
+        "producedBy": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      },
+      "type": "boolean"
+    },
+    "weeklyBias": {
+      "operator": "recode",
+      "source": {
+        "lane": "technical",
+        "path": "htf.weekly.trendBias",
+        "producedBy": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      },
+      "table": {
+        "bullish": "long",
+        "bearish": "short",
+        "range": "neutral"
+      },
+      "fallback": "neutral",
+      "absent": "neutral"
+    },
+    "dailyBias": {
+      "operator": "recode",
+      "source": {
+        "lane": "technical",
+        "path": "htf.daily.trendBias",
+        "producedBy": {
+          "pluginId": "afi-analysis-technical",
+          "pluginVersion": "2.0.0"
+        }
+      },
+      "table": {
+        "bullish": "long",
+        "bearish": "short",
+        "range": "neutral"
+      },
+      "fallback": "neutral",
+      "absent": "neutral"
+    }
+  }
+}

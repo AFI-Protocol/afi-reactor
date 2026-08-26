@@ -633,3 +633,47 @@ On the SOL 15m seed the latest demo bar's body crosses EMA20 in a `range` regime
 ## D-DEM-5(5) residual after this slot
 
 The structure axis is no longer capped at `0.40`, but its two live terms are the sweet-spot credit and the EMA-break term; the **HTF-alignment `+0.4` term and the HA `+0.2` term remain unreachable** — the first because `weeklyBias`/`dailyBias` are still the literal `"neutral"` (that is `DEM-PRODUCER-HTF`), the second because a `range` regime cannot confirm a flat-back and the demo corpus is entirely `range`. Recorded, not hidden.
+
+---
+
+# DEM-PRODUCER-HTF reconciliation — real higher-timeframe bias; the structure axis passes its former 0.40 cap (DEM-GOV §9, owner-authorized 2026-08-25)
+
+**Authority.** DEM-GOV §9 `DEM-PRODUCER-HTF` — the mission DIR-GOV D-DIR-3's scope-guard reserved — with §9 determinations D-1 (the HTF composition value and the additive `paramsSchema.htf` within plugin identity) and D-2 (adapter identity held). D-DEM-7(2) authorizes the movement in class; this section is the D-DEM-7(3) itemization. Baseline for every row is the **`DEM-PRODUCER-CANDLE` state**.
+
+**What changed on the path.** The technical adapter reads the **registered composition value** (`nodeOverrides.technical.config.htf` = `{1d, 1w, 100}`, boot-validated against the plugin's closed `paramsSchema`) and fetches the signal window plus both higher-timeframe windows **concurrently** (`Promise.all` — this lane is the pipeline's entry node). Each HTF window is run through the SAME EMA20/EMA50 trend law and emitted as `technical.htf.{daily,weekly}` = `{timeframe, trendBias, ema20, ema50, barCount}`; a window below the 50-candle kernel floor emits **no sub-block** (declared producer absence). `viewTechnical` projects the block; mapping **1.3.0** recodes `weeklyBias`/`dailyBias` from the lane's trend vocabulary into the rubric's bias vocabulary (`bullish→long`, `bearish→short`, `range→neutral`; `absent→neutral`, a recorded default). afi-core deletes the two `"neutral" as const` literals and the residual shrinks to **`liquiditySwept` alone** — the D-DEM-4(2) inventory is empty. The rubric's `"unknown"`-direction branch semantics are resolved in-slot (see below). `implementationVersion`: technical `2.2.0 → 2.3.0`, merge `1.3.0 → 1.4.0`, scorer `1.5.0 → 1.6.0`; `pluginSetHash` `5eef1faf… → 59ff5437…`; `analystConfigHash` `300783e4… → 71de40d2…`.
+
+**Test-only fixture change.** `test/support/deterministicPriceFeedAdapter.ts` gains a deterministic per-symbol drift applied **only to timeframes ≥ 1d** (BTC up on both; ETH up daily / down weekly; everything else flat). Timeframes below 1d are byte-untouched, so every golden's own-timeframe series, indicators and pattern facts are unchanged — verified by the differ (no `lenses/0/payload/ema20` movement).
+
+## Per-golden scored-value movement — **the structure axis passes its former 0.40 cap**
+
+| golden | `weeklyBias` | `dailyBias` | `uwrAxes.structure` | `uwrScore` = `conviction` | `analystScore.direction` |
+|---|---|---|---|---|---|
+| `cpj-blofin-perp-long.{builtin,registry}` (BTC) | neutral → **long** | neutral → **long** | 0.4 → **0.8** | 0.49167 → 0.59167 | neutral → **long** |
+| `tv-long.{builtin,registry}` (BTC) | neutral → **long** | neutral → **long** | 0.4 → **0.8** | 0.41667 → 0.51667 | neutral → **long** |
+| `cpj-coinbase-spot-sell.{builtin,registry}` (ETH) | neutral → **short** | neutral → **long** | 0.4 (unmoved) | unmoved | neutral → **unknown** |
+| `tv-short.{builtin,registry}` (ETH) | neutral → **short** | neutral → **long** | 0.4 (unmoved) | unmoved | neutral → **unknown** |
+| `cpj-blofin-perp-neutral.{builtin,registry}` (SOL) | neutral → neutral | neutral → neutral | 0.4 (unmoved) | unmoved | neutral (unmoved) |
+| `tv-neutral.{builtin,registry}` (SOL) | neutral → neutral | neutral → neutral | 0.15 (unmoved) | unmoved | neutral (unmoved) |
+
+**The gate is met.** The aligned-HTF `+0.4` structure term fires for the first time in the system's history: structure reaches **0.8** on the four BTC goldens — **beyond its former `0.40` cap** — and now spans `{0.15, 0.4, 0.8}` over the corpus. The ETH pair exercises a genuine higher-timeframe **conflict** (weekly bearish, daily bullish): the aligned term does not fire, and the analyst's verdict is `"unknown"` — the branch DIR-GOV's scope-guard reserved, now reachable, resolved, and pinned by a golden. `riskBucket` unmoved (it reads `atrRegime`). `rationale`/`axisNotes` move only where the structure note crosses its threshold.
+
+## Per-golden identity / payload movement
+
+| JSON path class | goldens | why |
+|---|---|---|
+| `…/lenses/0/payload/htf`, `…/_priceFeedMetadata/technicalIndicators/htf` (absent → object) | all 12 | the lane's HTF facts join the technical payload |
+| `/scorerInput/{weeklyBias,dailyBias}` | 8 (BTC ×4, ETH ×4) | the recoded facts differ from the retired literal |
+| scored-value class (`uwrAxes.structure`, `uwrScore`, `conviction`, `analystScore.direction`, `rationale`, both `outputHash` copies) | 8 | the axes/verdict moved on those seeds |
+| `/evidenceRecord/composition/enrichmentHash/value` | all 12 | the technical lens payload gained `htf` |
+| `/evidenceRecord/providerInvocations/4/{providerResultHash,categoryResultHash}/value` | all 12 | the validated technical CategoryResult gained `htf` |
+| `/evidenceRecord/providerInvocations/4/invocationInputHash/value` | all 12 | the technical node's merged params gained the registered `htf` value |
+| `/evidenceRecord/composition/{analystConfigHash,pluginSetHash}/value` | all 12 | mappingRef 1.3.0 + `nodeOverrides`; three implementationVersion moves |
+| `/evidenceRecord/{recordHash,replayHash}/value` | all 12 | consequences |
+
+## Explicitly byte-EQUAL
+
+`manifestHash` (the pipeline manifest is untouched — the composition value rides `nodeOverrides`, §8 honored); `inputHash`/`ingestHash`/`canonicalUss` on all 12 (no ingest surface is touched); `executionSummaryHash` **except** where an HTF recode legitimately fires its `absent` member; the own-timeframe technical indicators (`ema20`, `ema50`, `rsi14`, `atr14`, `emaDistancePct`, `isInValueSweetSpot`, `atrRegime`, `brokeEmaWithBody`, `haFlatBack*`) on all 12 — the drift is confined to ≥ 1d timeframes; the pattern/sentiment/news/aiMl lens payloads and proofs; `execution`, `insight` and `risk` axes; `riskBucket`; `scoredSignal.direction`/`meta.direction` (the SUBMITTED side — unchanged and unread by the producer, DIR-GOV D-DIR-3); the `312da118…126e06` provenance golden; `ATLAS_MANIFEST_HASH`. **No scoring-law value moved.**
+
+## D-DEM-5(5) residual after the four slots
+
+Every scorer input is now a computed fact of a registered producer (D-DEM-5(1)); the residual is `liquiditySwept` alone, whose disposition D-DEM-3(5) expressly reserves. What remains, recorded honestly: (1) **risk on plan-less submissions** — the TradingView/MarkitTick routes carry no trade plan, so risk there is the declared floor moved only by `brokeEmaWithBody`; closing it needs a plan carrier on those routes (a separate authorization). (2) **The HA flat-back term** (+0.2) is unreachable in a `range` regime by construction of the rubric — a formula question for a modelling filing, not a placeholder. (3) **R:R is verified-plausible but submitter-chosen**: a stop-placement validity rule would be a new threshold (§8), so it belongs to a modelling filing. (4) **Symbols with fewer than 50 weekly bars** on the registered feed (listings under ~1 year) score `weeklyBias = neutral` permanently — a declared absence, not a defect, but it caps their structure at 0.6.

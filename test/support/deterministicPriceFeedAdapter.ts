@@ -91,9 +91,17 @@ class DemoPriceFeedAdapter implements PriceFeedAdapter {
     const candles: OHLCVCandle[] = [];
     const timeframeMs = this.parseTimeframeToMs(timeframe);
 
+    // DEM-PRODUCER-HTF: higher-timeframe windows (>= 1d) carry a deterministic
+    // per-symbol DRIFT so the EMA trend law resolves to a real direction on
+    // them — the signal-timeframe windows (< 1d) keep their exact
+    // pre-existing i.i.d. shape, so every committed golden's own-timeframe
+    // bytes are untouched by this change.
+    const driftPerBar = this.driftForSymbol(symbol, timeframeMs);
+
     for (let i = limit - 1; i >= 0; i--) {
       const timestamp = DEMO_TIME_ANCHOR_MS - i * timeframeMs;
-      const open = basePrice + (rand() - 0.5) * basePrice * 0.02;
+      const trend = basePrice * driftPerBar * (limit - 1 - i);
+      const open = basePrice + trend + (rand() - 0.5) * basePrice * 0.02;
       const close = open + (rand() - 0.5) * open * 0.01;
       const high = Math.max(open, close) + rand() * open * 0.005;
       const low = Math.min(open, close) - rand() * open * 0.005;
@@ -144,6 +152,21 @@ class DemoPriceFeedAdapter implements PriceFeedAdapter {
     if (symbolUpper.includes("AVAX")) return 30;
     
     return 100; // Default
+  }
+
+  /**
+   * Deterministic per-bar drift, applied ONLY to timeframes of one day or
+   * more (DEM-PRODUCER-HTF): BTC trends up, ETH trends down, everything else
+   * stays flat, so the fixture corpus exercises aligned, conflicting and
+   * neutral higher-timeframe bias without any wall-clock or randomness.
+   */
+  private driftForSymbol(symbol: string, timeframeMs: number): number {
+    if (timeframeMs < 24 * 60 * 60 * 1000) return 0;
+    const s = symbol.toUpperCase();
+    const weekly = timeframeMs >= 7 * 24 * 60 * 60 * 1000;
+    if (s.includes("BTC")) return 0.0015;
+    if (s.includes("ETH")) return weekly ? -0.0015 : 0.0015; // weekly down, daily up: a CONFLICT
+    return 0;
   }
 
   /**

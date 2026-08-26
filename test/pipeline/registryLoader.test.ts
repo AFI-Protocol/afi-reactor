@@ -90,10 +90,10 @@ describe("validateRuntimeConfig — positive resolution over the fixture registr
       "df3372dadaca1595d0e6d2f6bad9464ccc9abb7106e9f5b7111df148a145bc4f"
     );
     expect(froggy.analystConfigHash.value).toBe(
-      "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99"
+      "71de40d255a22e50d9b353f05722f560fc03911c8bd2daffb974f068060aa4b1"
     );
     expect(froggy.pluginSetHash.value).toBe(
-      "5eef1faf93d0a1fd5f616fd19a98a10da514afa73141aaddd77e308290a72471"
+      "59ff54379d44ec250d924a5000f3f85a2e041fb1b12bc5c424d877fb2e2aa419"
     );
     expect(froggy.decay).toEqual({
       kind: "ratio",

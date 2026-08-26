@@ -11,6 +11,15 @@
  */
 import type { TechnicalPlanFacts } from "./TradePlan.js";
 
+/** One higher-timeframe window's trend fact (DEM-PRODUCER-HTF). */
+export interface HtfBiasFact {
+  timeframe: string;
+  trendBias: "bullish" | "bearish" | "range";
+  ema20: number;
+  ema50: number;
+  barCount: number;
+}
+
 /**
  * Base lens interface.
  * All lenses must have a type and version for forward compatibility.
@@ -78,6 +87,16 @@ export interface TechnicalLensV1 extends UssLens {
     haFlatBack?: "bullish" | "bearish" | "none";
     /** The flat-back agrees with the lane's trend law; range → false. */
     haFlatBackConfirmed?: boolean;
+    /**
+     * DEM-PRODUCER-HTF: higher-timeframe bias facts, computed by the same EMA
+     * law over the separately fetched windows the registered composition
+     * value selects. A sub-block is absent when its window is below the
+     * kernel floor (declared producer absence).
+     */
+    htf?: {
+      daily?: HtfBiasFact;
+      weekly?: HtfBiasFact;
+    };
   };
 }
 

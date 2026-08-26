@@ -3,8 +3,8 @@
     "analystId": "froggy",
     "assetClass": "crypto",
     "baseAsset": "BTC",
-    "conviction": 0.4916666666666667,
-    "direction": "neutral",
+    "conviction": 0.5916666666666667,
+    "direction": "long",
     "holdingHorizon": "swing",
     "instrumentType": "linear-perp",
     "marketType": "perp",
@@ -23,9 +23,9 @@
       "execution": 0.6666666666666666,
       "insight": 0.4,
       "risk": 0.5,
-      "structure": 0.4
+      "structure": 0.8
     },
-    "uwrScore": 0.4916666666666667
+    "uwrScore": 0.5916666666666667
   },
   "canonicalUss": {
     "facts": {
@@ -80,13 +80,13 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.analyst-config",
-        "value": "300783e4f93ae07b2d758a3780b03cfbf6e4742bb4e0e5c9e06fb54c1df1ff99"
+        "value": "71de40d255a22e50d9b353f05722f560fc03911c8bd2daffb974f068060aa4b1"
       },
       "enrichmentHash": {
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.enrichment-bundle",
-        "value": "82ba2acc2241f75e1df20c9dc8b3561de335278f2f360ec4e934c80fe01a42c6"
+        "value": "f9a0044599f0a5768a0930b548e5161b5092a7ee140ea71edc593e17daeb84d2"
       },
       "executionSummaryHash": {
         "algorithm": "sha256",
@@ -106,7 +106,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.plugin-set",
-        "value": "5eef1faf93d0a1fd5f616fd19a98a10da514afa73141aaddd77e308290a72471"
+        "value": "59ff54379d44ec250d924a5000f3f85a2e041fb1b12bc5c424d877fb2e2aa419"
       },
       "schema": "afi.composition-ref.v1",
       "scorerPluginId": "afi-scorer-froggy-trend-pullback",
@@ -130,7 +130,7 @@
         "algorithm": "sha256",
         "canonicalizationVersion": "afi.hash.v1",
         "domainTag": "afi.d2.scored-output",
-        "value": "7d962cc8629632253a8e3f8f236ea1983a5c87d37cf10d26bcd12717ddd627da"
+        "value": "8d327b6e500ae48e37335a1e5aa5a6a33fe5f27be167d0db34b1988f2b4b3824"
       },
       "schema": "afi.provenance-record.v1",
       "schemaVersions": {
@@ -188,7 +188,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "e4786a2a9dd4d3e1901b7722f89e3736bfbb2cb26478ef494f9e4a84327757ef"
+          "value": "f3be7acb06a7ba5138e7d2d891a08b0570a7878464b24f5d6ce7165d3c2fc108"
         },
         "provider": {
           "deterministic": false,
@@ -396,7 +396,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.lane-output",
-          "value": "f46d7dcba4876cc7014641feede2ba53b4b3670a4c9b51d4ea39def36ccf9d15"
+          "value": "bd530b51080fbf7faf8e09279385745863218e15db713bab7b4b96562a796675"
         },
         "credential": {
           "mode": "keyless"
@@ -405,7 +405,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-invocation-input",
-          "value": "d26929d750140bfee0eca63136a490c4c3be3a93fcbb7bec8d1182be0b0eed7c"
+          "value": "469985ca9c5226ff4feee1e7771d8dc91d7b4dbb2d56c78845fb093426d70574"
         },
         "priceSource": "demo",
         "provider": {
@@ -434,7 +434,7 @@
           "algorithm": "sha256",
           "canonicalizationVersion": "afi.hash.v1",
           "domainTag": "afi.d2.provider-result",
-          "value": "bcc698ee584268726060d93e5cb162a6348c115a2454a2aaf9a005b6f81e8bc9"
+          "value": "3bcf578b51ce891302fe3a0b20e072e0a23bf60b84b1c874a86192f252176081"
         },
         "resultSchema": "afi.enrichment.technical.v1",
         "schema": "afi.provider-invocation-proof.v1",
@@ -445,19 +445,19 @@
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-record",
-      "value": "7a1bfbd7c17688eb19ffda93734b6538b8e156502a006e0a56a3ecc2ad6db123"
+      "value": "0f3fb284c0f27476dbc7afbe4de8436e722b20a0c703094d002cd9b39e255267"
     },
     "recordVersion": 1,
     "replayHash": {
       "algorithm": "sha256",
       "canonicalizationVersion": "afi.hash.v1",
       "domainTag": "afi.d2.evidence-replay",
-      "value": "fdd98d2074a66bb52e880d82d3040c0678593639d36d60bc957215e3048259b0"
+      "value": "18ff0cc78e62c133d25c5c582fa9a4349a2286b50df1bb922b9b8ff45bff3f6b"
     },
     "schema": "afi.scored-signal-evidence.v3",
     "scoredSignal": {
       "analystId": "froggy",
-      "conviction": 0.4916666666666667,
+      "conviction": 0.5916666666666667,
       "direction": "long",
       "provenanceRecordRef": "provenance-record:cpj-telegram-oracle-telegram-channel-1-oracle-cpj-msg-0001",
       "providerId": "oracle-telegram-channel-1",
@@ -470,9 +470,9 @@
         "execution": 0.6666666666666666,
         "insight": 0.4,
         "risk": 0.5,
-        "structure": 0.4
+        "structure": 0.8
       },
-      "uwrScore": 0.4916666666666667
+      "uwrScore": 0.5916666666666667
     },
     "signalId": "cpj-telegram-oracle-telegram-channel-1-oracle-cpj-msg-0001",
     "strategyId": "trend_pullback_v1",
@@ -530,6 +530,22 @@
           "emaDistancePct": 0.6212694575958345,
           "haFlatBack": "bullish",
           "haFlatBackConfirmed": false,
+          "htf": {
+            "daily": {
+              "barCount": 100,
+              "ema20": 56706.08647879475,
+              "ema50": 55588.2774381915,
+              "timeframe": "1d",
+              "trendBias": "bullish"
+            },
+            "weekly": {
+              "barCount": 100,
+              "ema20": 56556.523500773656,
+              "ema50": 55499.21282763963,
+              "timeframe": "1w",
+              "trendBias": "bullish"
+            }
+          },
           "isInValueSweetSpot": true,
           "plan": {
             "barCount": 100,
@@ -553,8 +569,8 @@
         "analystId": "froggy",
         "assetClass": "crypto",
         "baseAsset": "BTC",
-        "conviction": 0.4916666666666667,
-        "direction": "neutral",
+        "conviction": 0.5916666666666667,
+        "direction": "long",
         "holdingHorizon": "swing",
         "instrumentType": "linear-perp",
         "marketType": "perp",
@@ -573,9 +589,9 @@
           "execution": 0.6666666666666666,
           "insight": 0.4,
           "risk": 0.5,
-          "structure": 0.4
+          "structure": 0.8
         },
-        "uwrScore": 0.4916666666666667
+        "uwrScore": 0.5916666666666667
       },
       "decayParams": {
         "barsPerHalfLife": 12,
@@ -596,6 +612,22 @@
             "emaDistancePct": 0.6212694575958345,
             "haFlatBack": "bullish",
             "haFlatBackConfirmed": false,
+            "htf": {
+              "daily": {
+                "barCount": 100,
+                "ema20": 56706.08647879475,
+                "ema50": 55588.2774381915,
+                "timeframe": "1d",
+                "trendBias": "bullish"
+              },
+              "weekly": {
+                "barCount": 100,
+                "ema20": 56556.523500773656,
+                "ema50": 55499.21282763963,
+                "timeframe": "1w",
+                "trendBias": "bullish"
+              }
+            },
             "isInValueSweetSpot": true,
             "plan": {
               "barCount": 100,
@@ -795,19 +827,19 @@
     "algorithm": "sha256",
     "canonicalizationVersion": "afi.hash.v1",
     "domainTag": "afi.d2.scored-output",
-    "value": "7d962cc8629632253a8e3f8f236ea1983a5c87d37cf10d26bcd12717ddd627da"
+    "value": "8d327b6e500ae48e37335a1e5aa5a6a33fe5f27be167d0db34b1988f2b4b3824"
   },
   "scorerInput": {
     "atrRegime": "normal",
     "brokeEmaWithBody": false,
-    "dailyBias": "neutral",
+    "dailyBias": "long",
     "distanceFromDailyEmaPct": 0.6212694575958345,
     "haFlatBackConfirmed": false,
     "liquiditySwept": false,
     "pulledBackIntoSweetSpot": true,
     "rrMultiplePlanned": 1.4286,
     "triggerPatternQuality": 2,
-    "weeklyBias": "neutral"
+    "weeklyBias": "long"
   },
   "uwrMode": "registry",
   "uwrResolvedSource": "registry"

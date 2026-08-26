@@ -265,6 +265,12 @@ describe("the seam: fragment+residual equals the legacy path; fired defaults are
           brokeEmaWithBody: false,
           haFlatBack: "none",
           haFlatBackConfirmed: false,
+          // DEM-PRODUCER-HTF: the lane's higher-timeframe trend facts, which
+          // the registered mapping recodes into the rubric's bias vocabulary.
+          htf: {
+            daily: { timeframe: "1d", trendBias: "bullish", ema20: 101, ema50: 100, barCount: 100 },
+            weekly: { timeframe: "1w", trendBias: "bullish", ema20: 102, ema50: 100, barCount: 100 },
+          },
         },
         pattern: { patternName: "bull flag", patternConfidence: 80 },
         sentiment: { score: 0.4, tags: ["liquidity sweep"] },
@@ -307,6 +313,7 @@ describe("the seam: fragment+residual equals the legacy path; fired defaults are
     it("a plan-less view fires ONLY the rrMultiplePlanned floor default — recorded, never silent (D-DEM-5(3); §9 determination D-5)", async () => {
       const result = await scorerFroggyTrendPullbackNode.run(view(), ctx(true));
       expect(result.degradations).toEqual([{ class: "declared-default-fired", detail: "rrMultiplePlanned" }]);
+      // The HTF recodes did NOT fire: this view carries the lane's bias facts.
       const a = result.output as { analysis: { analystScore: { uwrAxes: { risk: number } } } };
       // The rubric floor (rr 1 → 0.2) — a hash-committed, recorded degradation.
       expect(a.analysis.analystScore.uwrAxes.risk).toBe(0.2);
@@ -324,20 +331,19 @@ describe("the seam: fragment+residual equals the legacy path; fired defaults are
       };
       const result = await scorerFroggyTrendPullbackNode.run(bare, ctx(true));
       const classes = (result.degradations ?? []).map((d) => d.class);
-      expect(classes).toEqual([
-        "declared-default-fired",
-        "declared-default-fired",
-        "declared-default-fired",
-        "declared-default-fired",
-        "declared-default-fired",
-      ]);
+      expect(classes).toEqual(Array(7).fill("declared-default-fired"));
       const targets = (result.degradations ?? []).map((d) => d.detail).sort();
       expect(targets).toEqual([
         "atrRegime",
+        // DEM-PRODUCER-HTF: no htf block on this bare view, so both recodes
+        // fire their declared `absent` member — a RECORDED absence, exactly
+        // like every other declared default.
+        "dailyBias",
         "distanceFromDailyEmaPct",
         "pulledBackIntoSweetSpot",
         "rrMultiplePlanned",
         "triggerPatternQuality",
+        "weeklyBias",
       ]);
       // The composition reference scores the same INPUT VALUES (the
       // grandfather exists so DEM-BIND reproduces today's scored values
