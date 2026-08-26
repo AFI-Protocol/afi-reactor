@@ -139,16 +139,37 @@ export function createTechnicalLocalAdapter(deps?: TechnicalLocalAdapterDeps): P
       // The signal window and both higher-timeframe windows are fetched
       // CONCURRENTLY: this lane is the pipeline's entry node, so serial
       // round-trips here delay every downstream wave (platform-floor rule).
+      // A timeframe the SELECTED VENUE does not offer is a capability fact
+      // known before any request: the producer legitimately cannot emit that
+      // bias (a declared absence under D-DEM-5(4)(b)), so the window is not
+      // requested at all. A fetch that FAILS for a timeframe the venue does
+      // offer is a real failure and still aborts the determination — fail
+      // closed, never fall back. `supportedTimeframes` absent = unknown, so
+      // every timeframe is attempted and nothing is silently skipped.
+      const offers = (tf: string): boolean =>
+        feed.supportedTimeframes === undefined || feed.supportedTimeframes.includes(tf);
+      const fetchHtf = (tf: string): Promise<OHLCVCandle[] | undefined> =>
+        htfConfig && offers(tf)
+          ? feed.getOHLCV({ symbol, timeframe: tf, limit: htfConfig.htfCandleLimit })
+          : Promise.resolve(undefined);
       const [rawCandles, rawDaily, rawWeekly] = await Promise.all([
         feed.getOHLCV({ symbol, timeframe, limit }),
-        htfConfig ? feed.getOHLCV({ symbol, timeframe: htfConfig.dailyTimeframe, limit: htfConfig.htfCandleLimit }) : Promise.resolve(undefined),
-        htfConfig ? feed.getOHLCV({ symbol, timeframe: htfConfig.weeklyTimeframe, limit: htfConfig.htfCandleLimit }) : Promise.resolve(undefined),
+        htfConfig ? fetchHtf(htfConfig.dailyTimeframe) : Promise.resolve(undefined),
+        htfConfig ? fetchHtf(htfConfig.weeklyTimeframe) : Promise.resolve(undefined),
       ]);
       const candles = toAfiCandles(rawCandles);
       const technical = d.computeTechnical(candles);
 
       if (htfConfig && technical) {
         const htf: NonNullable<TechnicalLensV1["payload"]["htf"]> = {};
+        if (!offers(htfConfig.dailyTimeframe) || !offers(htfConfig.weeklyTimeframe)) {
+          ctx.logger.info("higher-timeframe window not offered by the selected venue (declared absence)", {
+            priceSource,
+            daily: htfConfig.dailyTimeframe,
+            weekly: htfConfig.weeklyTimeframe,
+            offered: feed.supportedTimeframes?.join(",") ?? "unknown",
+          });
+        }
         const daily = htfBias(d.computeTechnical, rawDaily, htfConfig.dailyTimeframe);
         const weekly = htfBias(d.computeTechnical, rawWeekly, htfConfig.weeklyTimeframe);
         // A window below the kernel floor emits NO sub-block — a declared

@@ -182,3 +182,69 @@ describe("DIR-GOV D-DIR-3 — no submitted or declared direction reaches any bia
     expect(READS_SUBMITTED_DIRECTION.test(stripComments(stamp))).toBe(true);
   });
 });
+
+describe("DEM-PRODUCER-HTF — a venue that does not offer the window (the capability case)", () => {
+  /** A feed that advertises no weekly bar — exactly ccxt's coinbase table. */
+  function noWeeklyFeed(seen: string[]): PriceFeedAdapter {
+    return {
+      ...(demoPriceFeedAdapter as unknown as PriceFeedAdapter),
+      supportedTimeframes: ["1m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "1d"],
+      async getOHLCV(params: { symbol: string; timeframe: string; limit?: number }): Promise<OHLCVCandle[]> {
+        seen.push(params.timeframe);
+        return demoPriceFeedAdapter.getOHLCV(params);
+      },
+    };
+  }
+
+  it("does not REQUEST a window the venue does not offer, and emits that sub-block as a DECLARED ABSENCE", async () => {
+    const seen: string[] = [];
+    const out = (await adapter(noWeeklyFeed(seen)).run(
+      ctx(signal("BTC/USDT", "long"), { candleLimit: 100, htf: HTF })
+    )) as unknown as { technical: { htf?: Htf } };
+    // The weekly window is never requested — a capability fact, known up front.
+    expect(seen.sort()).toEqual(["1d", "4h"]);
+    // The daily bias is still produced; the weekly one is absent, and the
+    // registered mapping's `absent` member recodes it to neutral (recorded).
+    expect(out.technical.htf!.daily).toMatchObject({ timeframe: "1d" });
+    expect(out.technical.htf!.weekly).toBeUndefined();
+  });
+
+  it("a FETCH FAILURE on a timeframe the venue DOES offer still refuses (fail closed, never fall back)", async () => {
+    const failing: PriceFeedAdapter = {
+      ...(demoPriceFeedAdapter as unknown as PriceFeedAdapter),
+      supportedTimeframes: ["4h", "1d", "1w"],
+      async getOHLCV(params: { symbol: string; timeframe: string; limit?: number }): Promise<OHLCVCandle[]> {
+        if (params.timeframe === "1w") throw new Error("upstream 500 from the venue");
+        return demoPriceFeedAdapter.getOHLCV(params);
+      },
+    };
+    await expect(
+      adapter(failing).run(ctx(signal("BTC/USDT", "long"), { candleLimit: 100, htf: HTF }))
+    ).rejects.toThrow(/upstream 500/);
+  });
+
+  it("a feed that advertises NO capability table is treated as offering everything (nothing silently skipped)", async () => {
+    const seen: string[] = [];
+    const unknown: PriceFeedAdapter = {
+      ...(demoPriceFeedAdapter as unknown as PriceFeedAdapter),
+      supportedTimeframes: undefined,
+      async getOHLCV(params: { symbol: string; timeframe: string; limit?: number }): Promise<OHLCVCandle[]> {
+        seen.push(params.timeframe);
+        return demoPriceFeedAdapter.getOHLCV(params);
+      },
+    };
+    const out = (await adapter(unknown).run(
+      ctx(signal("BTC/USDT", "long"), { candleLimit: 100, htf: HTF })
+    )) as unknown as { technical: { htf?: Htf } };
+    expect(seen.sort()).toEqual(["1d", "1w", "4h"]);
+    expect(out.technical.htf!.weekly).toBeDefined();
+  });
+
+  // NOTE: the real venues' capability tables are ccxt's own
+  // (`exchange.timeframes`), surfaced by each adapter's `supportedTimeframes`
+  // getter. They are not asserted here because importing the ccxt-backed
+  // adapters pulls ESM jest cannot parse (the repo idiom is to mock ccxt).
+  // Verified directly against ccxt at 2026-08-25: blofin offers 1d AND 1w;
+  // coinbase offers 1d and has NO weekly bar — which is exactly why this
+  // capability branch exists.
+});

@@ -28,6 +28,11 @@ class BloFinPriceFeedAdapter implements PriceFeedAdapter {
   public readonly supportsPerps = true;
   public readonly supportsSpot = true;
 
+  /** ccxt's own timeframe table for this venue (a capability fact). */
+  public get supportedTimeframes(): readonly string[] {
+    return Object.keys(this.exchange.timeframes ?? {});
+  }
+
   // D8-R2: this `any` is why the OHLCV mapping below type-checks at all.
   // Typing it `ccxt.Exchange` surfaces that ccxt declares every OHLCV
   // element as `Num` (number | undefined) and `ticker.symbol` as `Str`,

@@ -66,6 +66,8 @@ class DemoPriceFeedAdapter implements PriceFeedAdapter {
   public readonly name = "Deterministic Synthetic (non-production)";
   public readonly supportsPerps = true;
   public readonly supportsSpot = true;
+  /** The synthetic feed offers every timeframe the fixtures use (capability fact). */
+  public supportedTimeframes: readonly string[] = ["5m", "15m", "1h", "4h", "1d", "1w"];
 
   /**
    * Generate deterministic synthetic OHLCV candles.
